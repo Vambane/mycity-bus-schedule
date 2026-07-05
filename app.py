@@ -10,9 +10,12 @@ Requires the ETL to have been run first:
     python3 run_etl.py
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+log = logging.getLogger(__name__)
 
 import altair as alt
 import streamlit as st
@@ -230,8 +233,8 @@ def get_scrape_info() -> str:
                 f"Last updated: **{str(row[0])[:16]}** UTC  |  "
                 f"{row[1]} routes · {row[2]} stops · {row[3]} departures"
             )
-    except Exception:
-        pass
+    except Exception as exc:  # scrape_log is informational; log but don't crash the UI
+        log.warning("Could not read scrape_log: %s", exc)
     return ""
 
 
