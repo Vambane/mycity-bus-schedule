@@ -63,7 +63,8 @@ def main() -> None:
             "Scrape returned no data.\n"
             "  • Check your internet connection.\n"
             "  • Make sure myciti.org.za is accessible from your machine.\n"
-            "  • The website structure may have changed — update selectors in etl/scrape_myciti.py."
+            "  • The website structure may have changed — update selectors in "
+            "etl/scrape_myciti.py."
         )
         sys.exit(1)
 
