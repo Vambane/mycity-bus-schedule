@@ -73,11 +73,9 @@ window.addEventListener("message", (ev) => {
   if (!ev.data || ev.data.type !== "streamlit:render") return;
   if (initialized) return;               // graph is static per session
   initialized = true;
-  window.__graph = ev.data.args.graph;   // debug handle
   try {
     initMap(ev.data.args.graph);
   } catch (e) {
-    window.__initError = String(e && e.stack || e);
     console.error("initMap failed:", e);
   }
 });
@@ -108,7 +106,6 @@ function initMap(graph) {
   // setView immediately: layers added to a view-less map (possible while
   // the tab is hidden) never attach their SVG renderer.
   const map = L.map("map", { zoomSnap: 0.25 }).setView([-33.92, 18.55], 10);
-  window.__map = map;   // debug handle
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
                + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'

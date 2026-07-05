@@ -48,6 +48,66 @@ Streamlit app (app.py) ── Leaflet custom component (map_component/)
 - `map_component/index.html` is a bidirectional Streamlit custom component —
   clicking a stop on the map sends its name back to Python.
 
+## Database schema
+
+```mermaid
+erDiagram
+    routes ||--o{ stops : "route_id"
+    routes ||--o{ departures : "route_id"
+    routes ||--o{ timetables : "route_id"
+    stops }o..o{ departures : "joined by stop_name"
+
+    routes {
+        varchar route_id PK "e.g. T01, D04, 101"
+        varchar route_name
+        varchar route_description
+        varchar detail_url "timetable PDF"
+        timestamp scraped_at
+    }
+    stops {
+        varchar stop_id PK "route_id + ordinal"
+        varchar stop_name
+        varchar route_id FK
+        int stop_sequence "order along route"
+        varchar direction "e.g. 'To 101 Vredehoek'"
+        double stop_lat "unused; coords live in cct_stops.geojson"
+        double stop_lon
+        timestamp scraped_at
+    }
+    departures {
+        int id PK
+        varchar route_id
+        varchar stop_name
+        varchar direction
+        varchar day_type "weekday | saturday | sunday"
+        varchar departure_time "HH:MM:SS"
+        timestamp scraped_at
+    }
+    timetables {
+        int id PK
+        varchar route_id
+        varchar route_name
+        varchar day_type
+        varchar timetable_url
+        timestamp scraped_at
+    }
+    scrape_log {
+        int run_id PK "auto via sequence"
+        timestamp started_at
+        timestamp finished_at
+        int routes_loaded
+        int stops_loaded
+        int departures_loaded
+        varchar status "success | error"
+        varchar notes
+    }
+```
+
+`departures` is the core fact table (~170k rows) the app queries; `stops` ↔
+`departures` join on `stop_name` rather than a foreign key because the PDFs
+identify stops only by name. `scrape_log` is a standalone audit table, one
+row per ETL run.
+
 ## Getting started
 
 Requires Python 3.10+.
@@ -103,3 +163,7 @@ official sources before travelling.
 - A few of the newest routes/stops are missing from the city's open-data
   layers: 4 routes fall back to straight dashed lines in street mode, and
   ~23 stops are not shown on the map (they still appear in search)
+
+## License
+
+[MIT](LICENSE)
