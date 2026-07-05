@@ -1,0 +1,20 @@
+[MAIN]
+# The app targets Python 3.10+ (see README)
+py-version = 3.10
+
+[FORMAT]
+max-line-length = 100
+
+[DESIGN]
+# build_network() assembles the whole map graph in one readable pass
+max-locals = 25
+
+[MESSAGES CONTROL]
+# Project style decisions, not defects:
+#   logging-fstring-interpolation — f-strings in log calls are fine at this scale
+#   broad-exception-caught        — deliberate resilience in the scraper/loader
+#   duplicate-code                — small repeated logging boilerplate in CLIs
+disable =
+    logging-fstring-interpolation,
+    broad-exception-caught,
+    duplicate-code

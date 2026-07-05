@@ -360,7 +360,7 @@ def parse_pdf_timetable(
 
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-            for page_num, page in enumerate(pdf.pages, start=1):
+            for page in pdf.pages:
 
                 # 1. Scan the page header for day-type and direction lines.
                 #    Each MyCiTi page states both above its table, e.g.
@@ -498,10 +498,8 @@ def scrape_all() -> dict[str, list[dict]]:
 # CLI entry point
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    import json
-
-    # Quick test: scrape only the first 2 routes to keep runtime short
+def _demo() -> None:
+    """Quick standalone test: scrape the route list and parse two PDFs."""
     session = requests.Session()
     session.headers.update(HEADERS)
 
@@ -520,3 +518,7 @@ if __name__ == "__main__":
             print(f"  {route['route_id']} departures (first 5):")
             for d in deps[:5]:
                 print(f"    {d['day_type']:<10} {d['stop_name']:<30} {d['departure_time']}")
+
+
+if __name__ == "__main__":
+    _demo()
