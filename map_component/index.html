@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<!--
+  Interactive MyCiTi system map — Streamlit custom component frontend.
+
+  Leaflet map over Cape Town (CARTO light tiles). Stops sit at their true
+  coordinates (City of Cape Town open data); route lines can be toggled
+  between square-ish schematic (45°/90° elbows, official-map style) and
+  the exact street-following geometries.
+
+  Speaks the raw Streamlit component protocol over postMessage:
+    receives the network graph via the "streamlit:render" event args,
+    reports clicked stop names back with "streamlit:setComponentValue".
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  body     { margin:0; padding:0; background:transparent;
+             font-family:"Source Sans Pro",-apple-system,sans-serif; }
+  #wrap    { position:relative; width:100%; height:700px; }
+  #map     { width:100%; height:100%; border-radius:10px; }
+  #legend  { position:absolute; top:10px; right:10px; width:215px; max-height:80%;
+             overflow-y:auto; background:rgba(255,255,255,.95); color:#222;
+             border-radius:10px; padding:10px 12px; font-size:12px; z-index:1000;
+             box-shadow:0 1px 6px rgba(0,0,0,.25); }
+  #legend h4 { margin:6px 0 3px; font-size:11px; text-transform:uppercase;
+               letter-spacing:.06em; color:#777; }
+  .lrow    { display:flex; align-items:center; gap:6px; padding:2px 4px;
+             border-radius:5px; cursor:pointer; line-height:1.25; }
+  .lrow:hover { background:rgba(0,0,0,.06); }
+  .lrow.active { background:rgba(0,0,0,.12); }
+  .swatch  { flex:0 0 22px; height:5px; border-radius:2px; }
+  .rid     { flex:0 0 34px; font-weight:700; }
+  #style-toggle { position:absolute; top:10px; left:54px; z-index:1000;
+                  background:#fff; border-radius:8px; overflow:hidden;
+                  box-shadow:0 1px 6px rgba(0,0,0,.25); display:flex; }
+  #style-toggle button { border:none; padding:7px 12px; font-size:12px;
+                         cursor:pointer; background:#fff; color:#333; }
+  #style-toggle button.on { background:#0072BC; color:#fff; font-weight:700; }
+  #hint    { position:absolute; left:10px; bottom:10px; color:#555;
+             font-size:11px; background:rgba(255,255,255,.85);
+             padding:4px 8px; border-radius:6px; z-index:1000; }
+  #reset   { margin-top:8px; width:100%; padding:4px; border:none; border-radius:6px;
+             background:#eee; color:#333; cursor:pointer; font-size:12px; }
+  #reset:hover { background:#ddd; }
+  .hub-label { background:transparent; border:none; box-shadow:none;
+               font-weight:700; font-size:10px; color:#222;
+               text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="map"></div>
+  <div id="style-toggle">
+    <button id="btn-schematic" class="on">Schematic</button>
+    <button id="btn-street">Street</button>
+  </div>
+  <div id="legend"></div>
+  <div id="hint">Click a stop to load its timetable · click a route to highlight</div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ---- Streamlit component protocol (raw postMessage, no lib needed) ----
+function toStreamlit(type, data) {
+  window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, data), "*");
+}
+
+const HEIGHT = 700;
+let initialized = false;
+
+window.addEventListener("message", (ev) => {
+  if (!ev.data || ev.data.type !== "streamlit:render") return;
+  if (initialized) return;               // graph is static per session
+  initialized = true;
+  window.__graph = ev.data.args.graph;   // debug handle
+  try {
+    initMap(ev.data.args.graph);
+  } catch (e) {
+    window.__initError = String(e && e.stack || e);
+    console.error("initMap failed:", e);
+  }
+});
+
+toStreamlit("streamlit:componentReady", { apiVersion: 1 });
+toStreamlit("streamlit:setFrameHeight", { height: HEIGHT });
+
+// ---- octilinear "square-ish" elbow between two stops ----------------------
+// Move at 45° from A until aligned with B, then straight along the axis —
+// the classic transit-diagram connector. Computed in a locally scaled
+// lon/lat space so the 45° is visually true at Cape Town's latitude.
+function elbow(a, b) {
+  const k  = Math.cos(a[0] * Math.PI / 180);
+  const ax = a[1] * k, ay = a[0], bx = b[1] * k, by = b[0];
+  const dx = bx - ax, dy = by - ay;
+  const t  = Math.min(Math.abs(dx), Math.abs(dy));
+  if (t < 1e-9) return [a, b];                       // already axis-aligned
+  const mx = ax + Math.sign(dx) * t;
+  const my = ay + Math.sign(dy) * t;
+  return [a, [my, mx / k], b];
+}
+
+// ---- the map itself --------------------------------------------------------
+function initMap(graph) {
+  const color = Object.fromEntries(graph.routes.map(r => [r.id, r.color]));
+  const nodeById = Object.fromEntries(graph.nodes.map(n => [n.id, n]));
+
+  // setView immediately: layers added to a view-less map (possible while
+  // the tab is hidden) never attach their SVG renderer.
+  const map = L.map("map", { zoomSnap: 0.25 }).setView([-33.92, 18.55], 10);
+  window.__map = map;   // debug handle
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+               + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
+               + ' · stops &copy; City of Cape Town',
+    maxZoom: 18,
+  }).addTo(map);
+
+  // The component can initialize while its tab is hidden (container width
+  // 0), which breaks fitBounds. Re-fit once the container gains real size,
+  // then leave the user's zoom alone.
+  const bounds = L.latLngBounds(graph.nodes.map(n => [n.lat, n.lon])).pad(0.05);
+  let fitted = false;
+  function tryFit() {
+    if (document.getElementById("map").clientWidth > 50) {
+      map.invalidateSize();
+      if (!fitted) { fitted = true; map.fitBounds(bounds); }
+    }
+  }
+  tryFit();
+  new ResizeObserver(tryFit).observe(document.getElementById("map"));
+
+  // --- schematic layer: octilinear elbows between consecutive stops ---
+  const schematicLines = [];
+  const schematicLayer = L.layerGroup();
+  for (const l of graph.links) {
+    const a = nodeById[l.source], b = nodeById[l.target];
+    if (!a || !b) continue;
+    const line = L.polyline(elbow([a.lat, a.lon], [b.lat, b.lon]), {
+      color: color[l.route], weight: 3, opacity: 0.9, interactive: false,
+    });
+    line._route = l.route;
+    schematicLines.push(line);
+    schematicLayer.addLayer(line);
+  }
+
+  // --- street layer: the city's real route geometries ---
+  const streetLines = [];
+  const streetLayer = L.layerGroup();
+  for (const [rid, paths] of Object.entries(graph.paths)) {
+    for (const path of paths) {
+      const line = L.polyline(path, {
+        color: color[rid], weight: 3, opacity: 0.9, interactive: false,
+      });
+      line._route = rid;
+      streetLines.push(line);
+      streetLayer.addLayer(line);
+    }
+  }
+  // Routes missing from the city layer still need street-mode lines:
+  // fall back to straight stop-to-stop segments for those.
+  const withPaths = new Set(Object.keys(graph.paths));
+  for (const l of graph.links) {
+    if (withPaths.has(l.route)) continue;
+    const a = nodeById[l.source], b = nodeById[l.target];
+    if (!a || !b) continue;
+    const line = L.polyline([[a.lat, a.lon], [b.lat, b.lon]], {
+      color: color[l.route], weight: 3, opacity: 0.9,
+      dashArray: "6 4", interactive: false,
+    });
+    line._route = l.route;
+    streetLines.push(line);
+    streetLayer.addLayer(line);
+  }
+
+  schematicLayer.addTo(map);              // default: square-ish, per request
+
+  // --- stop markers, sized by how many routes serve them ---
+  const markers = [];
+  for (const n of graph.nodes) {
+    const m = L.circleMarker([n.lat, n.lon], {
+      radius: 2.5 + 1.2 * Math.sqrt(n.n),
+      // white = interchange (3+ routes); otherwise the serving route's color
+      fillColor: n.n >= 3 ? "#ffffff" : color[n.routes[0]],
+      fillOpacity: 1, color: "#333", weight: 1,
+    }).addTo(map);
+    m._node = n;
+    m.bindTooltip(
+      `<b>${n.id}</b><br><span style="color:#0072BC">${n.routes.join(" · ")}</span>` +
+      `<br><span style="color:#888">click to load timetable</span>`,
+      { direction: "top", offset: [0, -6] });
+    // Permanent labels for the big interchanges only
+    if (n.n >= 6) {
+      m.bindTooltip(n.id, { permanent: true, direction: "top",
+                            offset: [0, -8], className: "hub-label" });
+    }
+    m.on("click", () =>
+      toStreamlit("streamlit:setComponentValue", { value: n.id, dataType: "json" }));
+    markers.push(m);
+  }
+
+  // --- schematic / street toggle ---
+  const btnS = document.getElementById("btn-schematic");
+  const btnT = document.getElementById("btn-street");
+  function setStyle(mode) {
+    btnS.classList.toggle("on", mode === "schematic");
+    btnT.classList.toggle("on", mode === "street");
+    if (mode === "schematic") { map.removeLayer(streetLayer); schematicLayer.addTo(map); }
+    else                      { map.removeLayer(schematicLayer); streetLayer.addTo(map); }
+  }
+  btnS.onclick = () => setStyle("schematic");
+  btnT.onclick = () => setStyle("street");
+
+  // --- legend with click-to-highlight ---
+  let active = null;
+  function applyHighlight() {
+    for (const line of [...schematicLines, ...streetLines]) {
+      line.setStyle({ opacity: !active || line._route === active ? 0.9 : 0.06 });
+    }
+    for (const m of markers) {
+      const on = !active || m._node.routes.includes(active);
+      m.setStyle({ fillOpacity: on ? 1 : 0.08, opacity: on ? 1 : 0.08 });
+    }
+    document.querySelectorAll(".lrow").forEach(el =>
+      el.classList.toggle("active", el.dataset.route === active));
+  }
+
+  const legend = document.getElementById("legend");
+  for (const cat of ["Trunk", "Direct", "Area"]) {
+    const routes = graph.routes.filter(r => r.category === cat);
+    if (!routes.length) continue;
+    const h = document.createElement("h4");
+    h.textContent = cat + " routes";
+    legend.appendChild(h);
+    for (const r of routes) {
+      const row = document.createElement("div");
+      row.className = "lrow";
+      row.dataset.route = r.id;
+      row.innerHTML = `<div class="swatch" style="background:${r.color}"></div>
+                       <div class="rid" style="color:${r.color}">${r.id}</div>
+                       <div>${r.name.replace(/^[^–]+– /, "")}</div>`;
+      row.onclick = () => { active = active === r.id ? null : r.id; applyHighlight(); };
+      legend.appendChild(row);
+    }
+  }
+  const reset = document.createElement("button");
+  reset.id = "reset";
+  reset.textContent = "Show all routes";
+  reset.onclick = () => { active = null; applyHighlight(); };
+  legend.appendChild(reset);
+}
+</script>
+</body>
+</html>

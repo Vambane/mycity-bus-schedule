@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Regenerable database — rebuild with: python3 run_etl.py
+data/myciti.duckdb
+
+# Legacy GTFS mock files from an earlier prototype (unused by the app)
+data/calendar.txt
+data/routes.txt
+data/stop_times.txt
+data/stops.txt
+data/trips.txt
+
+# Reference documents
+*.pdf
+
+# Local tool state
+.claude/settings.local.json
+.DS_Store
