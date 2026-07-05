@@ -11,9 +11,13 @@ clickable geographic system map.
 
 ## Features
 
-- **Stop search** — type a partial name, pick a stop, see every route serving it
-- **Upcoming departures** — next 10 buses per route and direction, filtered to
-  the current time in Cape Town (weekday / Saturday / Sunday–public holiday
+- **Journey search** — pick a From and To stop (flight-search style, with a
+  ⇄ swap button) and get every direct service between them as result cards:
+  departure time, arrival time, duration, with Best / Fastest / All-day tabs
+  and per-route filters in the sidebar
+- **Departure board** — leave "Going to" empty to see every route serving a
+  stop and its next 10 departures per route and direction, filtered to the
+  current time in Cape Town (weekday / Saturday / Sunday–public holiday
   timetables, defaulting to today's)
 - **Departure map** — a timeline chart of every departure of the day per
   route/direction, with a marker at the current time, so frequency, peak

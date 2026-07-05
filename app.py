@@ -19,6 +19,7 @@ import streamlit as st
 import duckdb
 import pandas as pd
 
+from journey import find_connections
 from system_map import build_network, render_system_map
 
 # ---------------------------------------------------------------------------
@@ -92,24 +93,20 @@ def load_routes() -> pd.DataFrame:
     return con.execute("SELECT route_id, route_name FROM routes ORDER BY route_id").df()
 
 
-@st.cache_data(ttl=300)
-def search_stops(query: str) -> pd.DataFrame:
-    """
-    Return stops whose name contains the query (case-insensitive).
-
-    Queries the stops table, de-duplicated on stop_name since the same
-    physical stop can appear under multiple routes.
-    """
+@st.cache_data(ttl=3600)
+def get_stop_names() -> list[str]:
+    """All stop names with departures, sorted — the From/To selector options."""
     con = get_connection()
-    return con.execute(
-        """
-        SELECT DISTINCT stop_name
-        FROM   stops
-        WHERE  stop_name ILIKE ?
-        ORDER  BY stop_name
-        """,
-        [f"%{query.strip()}%"],
-    ).df()
+    return [
+        row[0] for row in
+        con.execute("SELECT DISTINCT stop_name FROM departures ORDER BY 1").fetchall()
+    ]
+
+
+@st.cache_data(ttl=300)
+def get_connections(from_stop: str, to_stop: str, day_type: str) -> pd.DataFrame:
+    """Cached direct-connection lookup between two stops (see journey.py)."""
+    return find_connections(get_connection(), from_stop, to_stop, day_type)
 
 
 @st.cache_data(ttl=300)
@@ -376,12 +373,12 @@ def main() -> None:
 
     # --- Handle a system-map stop click BEFORE any widget renders ---
     # The map component stores its last clicked stop in session state under
-    # its key; the search box (key="stop_query") can only be pre-filled
+    # its key; the origin selector (key="from_stop") can only be pre-filled
     # before it is instantiated, so this must run ahead of the tabs.
     clicked = st.session_state.get("system_map")
     if clicked and clicked != st.session_state.get("_last_map_click"):
         st.session_state["_last_map_click"] = clicked
-        st.session_state["stop_query"] = clicked
+        st.session_state["from_stop"] = clicked
 
     # --- Tabs: stop search / interactive system map ---
     tab_search, tab_map = st.tabs(["🔍 Find a Stop", "🗺️ System Map"])
@@ -413,48 +410,179 @@ def render_map_tab() -> None:
         st.info(f"Showing **{clicked}** in the *Find a Stop* tab.")
 
 
+def _swap_stops() -> None:
+    """Swap the From/To selections (the ⇄ button's on_click callback)."""
+    st.session_state["from_stop"], st.session_state["to_stop"] = (
+        st.session_state.get("to_stop"),
+        st.session_state.get("from_stop"),
+    )
+
+
 def render_search_tab() -> None:
-    """Find-a-Stop tab: search → select → day filter → map + departures."""
+    """
+    Find-a-Stop tab, laid out like a flight search: a From → To search bar
+    with a day selector on top, journey result cards below. Leaving "Going
+    to" empty shows the classic single-stop departure board instead.
+    """
+    stops = get_stop_names()
 
-    # key="stop_query" lets a system-map click inject a stop name here
-    query = st.text_input(
-        "Type a stop name",
-        key="stop_query",
-        placeholder="e.g. Civic Centre, Blouberg, Table View …",
-    )
+    # --- search bar ---
+    with st.container(border=True):
+        c_from, c_swap, c_to, c_day = st.columns([5, 1, 5, 4])
+        from_stop = c_from.selectbox(
+            "🚏 Leaving from",
+            options=stops,
+            index=None,
+            placeholder="Choose a stop …",
+            key="from_stop",
+        )
+        c_swap.markdown("<div style='height:1.9rem'></div>", unsafe_allow_html=True)
+        c_swap.button("⇄", on_click=_swap_stops, help="Swap From and To",
+                      use_container_width=True)
+        to_stop = c_to.selectbox(
+            "🎯 Going to",
+            options=stops,
+            index=None,
+            placeholder="Any — show all departures",
+            key="to_stop",
+        )
+        # Default the day to today's actual day type in Cape Town
+        weekday_idx = datetime.now(LOCAL_TZ).weekday()  # 0=Mon … 6=Sun
+        default_day = 0 if weekday_idx < 5 else (1 if weekday_idx == 5 else 2)
+        day_type = c_day.selectbox(
+            "📅 Day",
+            options=list(DAY_LABEL_TO_DB),
+            index=default_day,
+            key="day_type",
+        )
+        st.caption("Public holidays follow the Sunday timetable · "
+                   "all MyCiTi connections shown are direct services")
 
-    if not query.strip():
-        st.info("Start typing a stop name above to begin.")
+    if not from_stop:
+        st.info("Choose a departure stop to begin — or click one on the System Map.")
         return
 
-    matching = search_stops(query)
+    if to_stop and to_stop != from_stop:
+        _render_journey_results(from_stop, to_stop, day_type)
+    else:
+        _render_single_stop(from_stop, day_type)
 
-    if matching.empty:
-        st.warning("No stops found. Try a different search term.")
+
+def _chips(labels: list[tuple[str, str, str]]) -> str:
+    """Render badge chips like 'Best'/'Fastest' as inline HTML spans."""
+    return "".join(
+        f'<span style="background:{bg};color:{fg};padding:2px 10px;'
+        f'border-radius:12px;font-size:0.78rem;font-weight:600;'
+        f'margin-right:6px">{label}</span>'
+        for label, bg, fg in labels
+    )
+
+
+def _render_connection_card(
+    row: pd.Series,
+    color: str,
+    badges: list[tuple[str, str, str]],
+    from_stop: str,
+    to_stop: str,
+) -> None:
+    """One journey result card: route · departure → duration → arrival."""
+    with st.container(border=True):
+        if badges:
+            st.markdown(_chips(badges), unsafe_allow_html=True)
+        c_route, c_dep, c_mid, c_arr = st.columns([4, 2, 3, 2])
+
+        short_name = row["route_name"].split("– ", 1)[-1]
+        c_route.markdown(
+            f'<span style="color:{color};font-weight:800;font-size:1.2rem">'
+            f'{row["route_id"]}</span><br>'
+            f'<span style="color:#888;font-size:0.85rem">{short_name}</span>',
+            unsafe_allow_html=True,
+        )
+        c_dep.markdown(f"### {row['dep'][:5]}")
+        c_dep.caption(from_stop)
+        c_mid.markdown(
+            '<div style="text-align:center;margin-top:10px">'
+            '<span style="color:#bbb">○──</span>'
+            '<span style="background:#188038;color:#fff;padding:2px 12px;'
+            'border-radius:10px;font-size:0.8rem;font-weight:700">Direct</span>'
+            '<span style="color:#bbb">──○</span>'
+            f'<div style="color:#888;font-size:0.85rem;margin-top:2px">'
+            f'{row["duration"]}</div></div>',
+            unsafe_allow_html=True,
+        )
+        c_arr.markdown(f"### {row['arr'][:5]}")
+        c_arr.caption(to_stop)
+
+
+def _render_journey_results(from_stop: str, to_stop: str, day_type: str) -> None:
+    """Journey view: sidebar filters + Best / Fastest / All-day result tabs."""
+    colors = {r["id"]: r["color"] for r in load_network()["routes"]}
+    conns = get_connections(from_stop, to_stop, DAY_LABEL_TO_DB[day_type])
+
+    if conns.empty:
+        st.warning(
+            f"No direct services from **{from_stop}** to **{to_stop}** on a "
+            f"{day_type.lower()}. Try swapping the direction (⇄) — or the trip "
+            "may need a transfer, which isn't supported yet."
+        )
         return
 
-    # --- Stop selector ---
-    selected_stop = st.selectbox(
-        "Select stop",
-        options=matching["stop_name"].tolist(),
-    )
+    # --- sidebar filters (like the airline checkboxes) ---
+    st.sidebar.header("Filters")
+    route_counts = conns["route_id"].value_counts()
+    st.sidebar.subheader("Routes")
+    active = [
+        rid for rid, count in route_counts.items()
+        if st.sidebar.checkbox(f"{rid} · {count} trips", value=True, key=f"flt_{rid}")
+    ]
+    conns = conns[conns["route_id"].isin(active)]
 
-    # --- Day type ---
-    # Default the radio to today's actual day type in Cape Town.
-    # (Public holidays follow the Sunday timetable but are not auto-detected.)
-    weekday_idx = datetime.now(LOCAL_TZ).weekday()  # 0=Mon … 6=Sun
-    default_day = 0 if weekday_idx < 5 else (1 if weekday_idx == 5 else 2)
-    day_type = st.radio(
-        "Day",
-        options=["Weekday (Mon–Fri)", "Saturday", "Sunday / Public holiday"],
-        index=default_day,
-        horizontal=True,
-    )
-    st.caption("Public holidays follow the Sunday timetable.")
+    now_str = datetime.now(LOCAL_TZ).strftime("%H:%M:%S")
+    upcoming = conns[conns["dep"] > now_str]
+    st.sidebar.caption(f"Showing {len(upcoming)} of {len(conns)} departures")
 
-    st.markdown("---")
+    st.subheader(f"📍 {from_stop} → {to_stop} · {day_type}")
+    st.caption(f"Current time in Cape Town: {now_str[:5]}")
 
-    # --- Routes at this stop ---
+    if upcoming.empty:
+        st.info("No more departures today — the All day tab shows the full timetable.")
+    fastest_min = int(conns["duration_min"].min()) if not conns.empty else 0
+
+    tab_best, tab_fast, tab_all = st.tabs(["⭐ Best", "⚡ Fastest", "🗓️ All day"])
+
+    with tab_best:
+        fastest_badged = False
+        for i, (_, row) in enumerate(upcoming.head(8).iterrows()):
+            badges = [("Best", "#e7f0fe", "#1a73e8")] if i == 0 else []
+            # Badge "Fastest" only on the first card achieving the best time
+            if row["duration_min"] == fastest_min and not fastest_badged:
+                fastest_badged = True
+                badges.append(("Fastest", "#e6f4ea", "#137333"))
+            _render_connection_card(
+                row, colors.get(row["route_id"], "#666"), badges, from_stop, to_stop)
+
+    with tab_fast:
+        by_speed = upcoming.sort_values(["duration_min", "dep"]).head(8)
+        for i, (_, row) in enumerate(by_speed.iterrows()):
+            badges = [("Fastest", "#e6f4ea", "#137333")] if i == 0 else []
+            _render_connection_card(
+                row, colors.get(row["route_id"], "#666"), badges, from_stop, to_stop)
+
+    with tab_all:
+        display = conns.rename(columns={
+            "dep": "Departs", "arr": "Arrives",
+            "duration": "Duration", "route_id": "Route", "direction": "Direction",
+        }).copy()
+        display["Departs"] = display["Departs"].str[:5]
+        display["Arrives"] = display["Arrives"].str[:5]
+        st.dataframe(
+            display[["Departs", "Arrives", "Duration", "Route", "Direction"]],
+            use_container_width=True, hide_index=True,
+        )
+
+
+def _render_single_stop(selected_stop: str, day_type: str) -> None:
+    """Classic single-stop departure board (no destination selected)."""
     st.subheader(f"📍 {selected_stop}")
     routes_here = get_routes_for_stop(selected_stop)
 
@@ -466,7 +594,6 @@ def render_search_tab() -> None:
 
     st.markdown("---")
 
-    # --- Departure map: the whole day at a glance ---
     # Cape Town wall-clock time, independent of the server's timezone
     now = datetime.now(LOCAL_TZ)
     now_str = now.strftime("%H:%M:%S")
@@ -476,8 +603,7 @@ def render_search_tab() -> None:
     )
     if not day_departures.empty:
         st.subheader(f"🗺️ Departure Map · {day_type}")
-        now_hours = now.hour + now.minute / 60
-        render_departure_map(day_departures, now_hours)
+        render_departure_map(day_departures, now.hour + now.minute / 60)
         st.markdown("---")
     st.subheader(f"🕐 Upcoming Departures · {day_type}")
     st.caption(f"Current time: {now_str[:5]}")
