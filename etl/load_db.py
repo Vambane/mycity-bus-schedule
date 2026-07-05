@@ -194,13 +194,15 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
 
         # --- audit log ---
         finished_at = datetime.utcnow()
-        # run_id is omitted — populated by seq_scrape_log_run_id sequence default
+        # run_id is computed explicitly (not via the sequence default): a DB
+        # rebuilt from the Parquet snapshot has the table without the default.
         con.execute(
             """
             INSERT INTO scrape_log
-              (started_at, finished_at, routes_loaded, stops_loaded,
+              (run_id, started_at, finished_at, routes_loaded, stops_loaded,
                departures_loaded, status, notes)
-            VALUES (?, ?, ?, ?, ?, 'success', ?)
+            VALUES ((SELECT COALESCE(MAX(run_id), 0) + 1 FROM scrape_log),
+                    ?, ?, ?, ?, ?, 'success', ?)
             """,
             [
                 started_at.isoformat(),
@@ -219,13 +221,25 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
             f"{departures_loaded} departures."
         )
 
+        # Export a Parquet snapshot alongside the DB. The .duckdb file is
+        # gitignored; committing the snapshot lets a fresh deployment
+        # (e.g. Streamlit Cloud) rebuild the database without scraping.
+        snapshot_dir = db_path.parent / "snapshot"
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        for table in ["routes", "stops", "timetables", "departures", "scrape_log"]:
+            con.execute(
+                f"COPY {table} TO '{snapshot_dir / table}.parquet' "
+                "(FORMAT PARQUET, COMPRESSION ZSTD)"
+            )
+        log.info(f"Snapshot exported to {snapshot_dir}/")
+
     except Exception as exc:
         log.error(f"Load failed: {exc}")
-        # run_id omitted — sequence handles it
         con.execute(
             """
-            INSERT INTO scrape_log (started_at, finished_at, status, notes)
-            VALUES (?, ?, 'error', ?)
+            INSERT INTO scrape_log (run_id, started_at, finished_at, status, notes)
+            VALUES ((SELECT COALESCE(MAX(run_id), 0) + 1 FROM scrape_log),
+                    ?, ?, 'error', ?)
             """,
             [started_at.isoformat(), datetime.utcnow().isoformat(), str(exc)],
         )

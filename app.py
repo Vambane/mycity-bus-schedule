@@ -26,6 +26,7 @@ from system_map import build_network, render_system_map
 # ---------------------------------------------------------------------------
 
 DB_PATH = Path(__file__).parent / "data" / "myciti.duckdb"
+SNAPSHOT_DIR = Path(__file__).parent / "data" / "snapshot"
 MAX_DEPARTURES = 10
 
 # MyCiTi operates in Cape Town — pin the timezone so "upcoming departures"
@@ -44,14 +45,43 @@ DAY_LABEL_TO_DB = {
 # Database helpers
 # ---------------------------------------------------------------------------
 
+def _build_db_from_snapshot() -> None:
+    """
+    Create the DuckDB file from the Parquet snapshot committed to the repo.
+
+    The .duckdb file itself is gitignored, so on a fresh deployment (e.g.
+    Streamlit Community Cloud) it doesn't exist. The ETL exports every table
+    to data/snapshot/*.parquet, and this rebuilds the database from them in
+    well under a second — no scraping needed at boot.
+    """
+    con = duckdb.connect(str(DB_PATH))
+    try:
+        for pq in sorted(SNAPSHOT_DIR.glob("*.parquet")):
+            con.execute(
+                f"CREATE TABLE IF NOT EXISTS {pq.stem} AS "
+                "SELECT * FROM read_parquet(?)",
+                [str(pq)],
+            )
+    finally:
+        con.close()
+
+
 @st.cache_resource
 def get_connection() -> duckdb.DuckDBPyConnection:
-    """Open a read-only DuckDB connection (cached for the Streamlit session)."""
+    """
+    Open a read-only DuckDB connection (cached for the Streamlit session).
+
+    If the database file is missing, it is first rebuilt from the committed
+    Parquet snapshot; the ETL is only required when no snapshot exists.
+    """
     if not DB_PATH.exists():
-        raise FileNotFoundError(
-            f"Database not found at {DB_PATH}.\n"
-            "Please run the ETL first:\n\n    python3 run_etl.py"
-        )
+        if any(SNAPSHOT_DIR.glob("*.parquet")):
+            _build_db_from_snapshot()
+        else:
+            raise FileNotFoundError(
+                f"Database not found at {DB_PATH} and no snapshot in "
+                f"{SNAPSHOT_DIR}.\nPlease run the ETL first:\n\n    python3 run_etl.py"
+            )
     return duckdb.connect(str(DB_PATH), read_only=True)
 
 

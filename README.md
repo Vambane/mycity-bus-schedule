@@ -116,15 +116,25 @@ Requires Python 3.10+.
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Build the database (scrapes myciti.org.za — takes a few minutes)
-python3 run_etl.py
-
-# 3. Run the app
+# 2. Run the app
 streamlit run app.py
 ```
 
-`run_etl.py --inspect` prints what's in the database without re-scraping.
-Re-run the ETL whenever MyCiTi updates their timetables.
+That's it — the repo ships with a Parquet snapshot of the timetable data
+(`data/snapshot/`), and the app builds its DuckDB database from it
+automatically on first start. This is also what makes one-click deploys
+(e.g. Streamlit Community Cloud) work.
+
+To refresh the data from myciti.org.za (takes a few minutes):
+
+```bash
+python3 run_etl.py
+```
+
+The ETL rebuilds the database **and** re-exports the snapshot — commit the
+updated `data/snapshot/*.parquet` files so deployments pick up the new
+timetables. `run_etl.py --inspect` prints what's in the database without
+re-scraping.
 
 ## Project structure
 
@@ -140,7 +150,8 @@ Re-run the ETL whenever MyCiTi updates their timetables.
 ├── data/
 │   ├── cct_stops.geojson     # Stop coordinates (City of Cape Town open data)
 │   ├── cct_routes.geojson    # Street route geometries (City of Cape Town)
-│   └── myciti.duckdb         # Built by run_etl.py (not committed)
+│   ├── snapshot/             # Parquet snapshot — app rebuilds the DB from it
+│   └── myciti.duckdb         # Built from snapshot or ETL (not committed)
 └── requirements.txt
 ```
 
