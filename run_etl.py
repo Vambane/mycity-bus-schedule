@@ -15,9 +15,10 @@ import logging
 import sys
 from pathlib import Path
 
-# Make the project root importable
+# Make the project root importable before the etl imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+# pylint: disable=wrong-import-position
 from etl.scrape_myciti import scrape_all
 from etl.load_db import load, inspect, DB_PATH
 

@@ -20,7 +20,6 @@ Usage
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import duckdb
 
@@ -292,6 +291,6 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from etl.scrape_myciti import scrape_all
 
-    data = scrape_all()
-    load(data)
+    scraped = scrape_all()
+    load(scraped)
     inspect()
