@@ -18,7 +18,7 @@ Usage
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import duckdb
@@ -151,7 +151,7 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
     log.info(f"Opening DuckDB at {db_path}")
 
     con = duckdb.connect(str(db_path))
-    started_at = datetime.utcnow()
+    started_at = datetime.now(timezone.utc)
 
     try:
         # Ensure schema exists
@@ -193,7 +193,7 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
         )
 
         # --- audit log ---
-        finished_at = datetime.utcnow()
+        finished_at = datetime.now(timezone.utc)
         # run_id is computed explicitly (not via the sequence default): a DB
         # rebuilt from the Parquet snapshot has the table without the default.
         con.execute(
@@ -235,14 +235,19 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
 
     except Exception as exc:
         log.error(f"Load failed: {exc}")
-        con.execute(
-            """
-            INSERT INTO scrape_log (run_id, started_at, finished_at, status, notes)
-            VALUES ((SELECT COALESCE(MAX(run_id), 0) + 1 FROM scrape_log),
-                    ?, ?, 'error', ?)
-            """,
-            [started_at.isoformat(), datetime.utcnow().isoformat(), str(exc)],
-        )
+        # The scrape_log insert can itself fail (e.g. schema not yet created)
+        # which would replace the original exception and obscure the root cause.
+        try:
+            con.execute(
+                """
+                INSERT INTO scrape_log (run_id, started_at, finished_at, status, notes)
+                VALUES ((SELECT COALESCE(MAX(run_id), 0) + 1 FROM scrape_log),
+                        ?, ?, 'error', ?)
+                """,
+                [started_at.isoformat(), datetime.now(timezone.utc).isoformat(), str(exc)],
+            )
+        except Exception as log_exc:
+            log.warning(f"  Additionally, scrape_log error insert failed: {log_exc}")
         raise
 
     finally:

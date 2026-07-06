@@ -95,7 +95,7 @@ def _load_stop_coords() -> dict[str, tuple[float, float]]:
     Load the city stops layer and return {normalised name: (lat, lon)}.
 
     Multiple platforms share a name ("La Paloma 1/2") — their coordinates
-    are averaged, but only within 500 m of the first point, so two distinct
+    are averaged, but only within 500 m of the median point, so two distinct
     far-apart stops that happen to share a name don't get merged into a
     midpoint in the sea.
     """
@@ -110,10 +110,14 @@ def _load_stop_coords() -> dict[str, tuple[float, float]]:
 
     coords: dict[str, tuple[float, float]] = {}
     for key, pts in grouped.items():
-        # ~0.005° ≈ 500 m: keep only platforms clustered near the first
-        ref = pts[0]
+        # Use the coordinate-wise median as the cluster reference so a single
+        # outlier platform doesn't skew which points pass the 500 m filter.
+        mid = len(pts) // 2
+        ref_lat = sorted(p[0] for p in pts)[mid]
+        ref_lon = sorted(p[1] for p in pts)[mid]
+        # ~0.005° ≈ 500 m at Cape Town's latitude
         cluster = [p for p in pts
-                   if abs(p[0] - ref[0]) < 0.005 and abs(p[1] - ref[1]) < 0.005]
+                   if abs(p[0] - ref_lat) < 0.005 and abs(p[1] - ref_lon) < 0.005]
         coords[key] = (
             sum(p[0] for p in cluster) / len(cluster),
             sum(p[1] for p in cluster) / len(cluster),

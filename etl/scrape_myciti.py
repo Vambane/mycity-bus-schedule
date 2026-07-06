@@ -361,66 +361,72 @@ def parse_pdf_timetable(
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
             for page in pdf.pages:
+                try:
+                    # 1. Scan the page header for day-type and direction lines.
+                    #    Each MyCiTi page states both above its table, e.g.
+                    #    "SATURDAYS …" / "Direction: To 101 Vredehoek".
+                    page_text = page.extract_text() or ""
+                    for line in page_text.splitlines()[:6]:
+                        dt = _classify_day_type(line)
+                        if dt:
+                            current_day_type = dt
+                        direction = _extract_direction(line)
+                        if direction:
+                            current_direction = direction
 
-                # 1. Scan the page header for day-type and direction lines.
-                #    Each MyCiTi page states both above its table, e.g.
-                #    "SATURDAYS …" / "Direction: To 101 Vredehoek".
-                page_text = page.extract_text() or ""
-                for line in page_text.splitlines()[:6]:
-                    dt = _classify_day_type(line)
-                    if dt:
-                        current_day_type = dt
-                    direction = _extract_direction(line)
-                    if direction:
-                        current_direction = direction
-
-                # 2. Extract tables from this page
-                tables = page.extract_tables(
-                    table_settings={
-                        "vertical_strategy": "lines",
-                        "horizontal_strategy": "lines",
-                        "snap_tolerance": 5,
-                    }
-                )
-
-                # Fallback: try text-based strategy if no tables found
-                if not tables:
+                    # 2. Extract tables from this page
                     tables = page.extract_tables(
                         table_settings={
-                            "vertical_strategy": "text",
-                            "horizontal_strategy": "text",
+                            "vertical_strategy": "lines",
+                            "horizontal_strategy": "lines",
+                            "snap_tolerance": 5,
                         }
                     )
 
-                for table in (tables or []):
-                    page_stops, page_deps = _parse_timetable_table(
-                        table, route_id, current_day_type, current_direction, now
-                    )
-
-                    # De-duplicate stops (same stop repeats across day-type
-                    # pages and across both directions). stop_id is assigned
-                    # here from the order of first appearance — table-local
-                    # sequences restart per direction and would collide.
-                    for s in page_stops:
-                        key = f"{s['route_id']}_{s['stop_name']}"
-                        if key not in seen_stops:
-                            seen_stops.add(key)
-                            s["stop_id"] = f"{route_id}_{len(seen_stops):03d}"
-                            all_stops.append(s)
-
-                    # De-duplicate departures: continuation tables on the
-                    # next page can repeat the boundary trip column
-                    for d in page_deps:
-                        key = (
-                            d["route_id"], d["stop_name"], d["direction"],
-                            d["day_type"], d["departure_time"],
+                    # Fallback: try text-based strategy if no tables found
+                    if not tables:
+                        tables = page.extract_tables(
+                            table_settings={
+                                "vertical_strategy": "text",
+                                "horizontal_strategy": "text",
+                            }
                         )
-                        if key not in seen_departures:
-                            seen_departures.add(key)
-                            all_departures.append(d)
+
+                    for table in (tables or []):
+                        page_stops, page_deps = _parse_timetable_table(
+                            table, route_id, current_day_type, current_direction, now
+                        )
+
+                        # De-duplicate stops (same stop repeats across day-type
+                        # pages and across both directions). stop_id is assigned
+                        # here from the order of first appearance — table-local
+                        # sequences restart per direction and would collide.
+                        for s in page_stops:
+                            key = f"{s['route_id']}_{s['stop_name']}"
+                            if key not in seen_stops:
+                                seen_stops.add(key)
+                                s["stop_id"] = f"{route_id}_{len(seen_stops):03d}"
+                                all_stops.append(s)
+
+                        # De-duplicate departures: continuation tables on the
+                        # next page can repeat the boundary trip column
+                        for d in page_deps:
+                            key = (
+                                d["route_id"], d["stop_name"], d["direction"],
+                                d["day_type"], d["departure_time"],
+                            )
+                            if key not in seen_departures:
+                                seen_departures.add(key)
+                                all_departures.append(d)
+
+                except Exception as exc:
+                    log.warning(
+                        f"  PDF page {page.page_number} parse error for {route_id}: {exc}"
+                    )
+                    # Continue to the next page — one bad page must not drop the rest.
 
     except Exception as exc:
-        log.warning(f"  PDF parse error for {route_id}: {exc}")
+        log.warning(f"  Failed to open PDF for {route_id}: {exc}")
 
     log.info(
         f"  {route_id}: {len(all_stops)} stops, "

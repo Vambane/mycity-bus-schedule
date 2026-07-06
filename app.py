@@ -10,6 +10,7 @@ Requires the ETL to have been run first:
     python3 run_etl.py
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -21,6 +22,8 @@ import pandas as pd
 
 from journey import find_connections
 from system_map import build_network, render_system_map
+
+log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Config
@@ -140,7 +143,7 @@ def get_upcoming_departures(
 
     Args:
         stop_name:    Exact stop name.
-        day_type:     Streamlit radio label string.
+        day_type:     DB day_type value ('weekday' | 'saturday' | 'sunday').
         current_time: HH:MM:SS string for the current wall-clock time.
 
     Returns:
@@ -148,9 +151,6 @@ def get_upcoming_departures(
         sorted by route then departure_time ascending.
     """
     con = get_connection()
-
-    # Map Streamlit radio label → DB day_type value
-    db_day = DAY_LABEL_TO_DB.get(day_type, "weekday")
 
     # DISTINCT guards against duplicate rows from overlapping PDF tables;
     # string comparison on zero-padded HH:MM:SS is chronologically correct
@@ -169,7 +169,7 @@ def get_upcoming_departures(
           AND   d.departure_time > ?
         ORDER   BY d.route_id, d.direction, d.departure_time
         """,
-        [stop_name, db_day, current_time],
+        [stop_name, day_type, current_time],
     ).df()
 
 
@@ -233,8 +233,8 @@ def get_scrape_info() -> str:
                 f"Last updated: **{str(row[0])[:16]}** UTC  |  "
                 f"{row[1]} routes · {row[2]} stops · {row[3]} departures"
             )
-    except Exception:
-        pass
+    except Exception as exc:  # scrape_log is informational; log but don't crash the UI
+        log.warning("Could not read scrape_log: %s", exc)
     return ""
 
 
@@ -583,6 +583,9 @@ def _render_journey_results(from_stop: str, to_stop: str, day_type: str) -> None
 
 def _render_single_stop(selected_stop: str, day_type: str) -> None:
     """Classic single-stop departure board (no destination selected)."""
+    # Map the UI label once; pass the DB value to all query helpers.
+    db_day = DAY_LABEL_TO_DB.get(day_type, "weekday")
+
     st.subheader(f"📍 {selected_stop}")
     routes_here = get_routes_for_stop(selected_stop)
 
@@ -598,9 +601,7 @@ def _render_single_stop(selected_stop: str, day_type: str) -> None:
     now = datetime.now(LOCAL_TZ)
     now_str = now.strftime("%H:%M:%S")
 
-    day_departures = get_day_departures(
-        selected_stop, DAY_LABEL_TO_DB.get(day_type, "weekday")
-    )
+    day_departures = get_day_departures(selected_stop, db_day)
     if not day_departures.empty:
         st.subheader(f"🗺️ Departure Map · {day_type}")
         render_departure_map(day_departures, now.hour + now.minute / 60)
@@ -608,7 +609,7 @@ def _render_single_stop(selected_stop: str, day_type: str) -> None:
     st.subheader(f"🕐 Upcoming Departures · {day_type}")
     st.caption(f"Current time: {now_str[:5]}")
 
-    upcoming = get_upcoming_departures(selected_stop, day_type, now_str)
+    upcoming = get_upcoming_departures(selected_stop, db_day, now_str)
 
     if upcoming.empty:
         st.info(
