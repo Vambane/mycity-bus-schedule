@@ -235,14 +235,19 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
 
     except Exception as exc:
         log.error(f"Load failed: {exc}")
-        con.execute(
-            """
-            INSERT INTO scrape_log (run_id, started_at, finished_at, status, notes)
-            VALUES ((SELECT COALESCE(MAX(run_id), 0) + 1 FROM scrape_log),
-                    ?, ?, 'error', ?)
-            """,
-            [started_at.isoformat(), datetime.now(timezone.utc).isoformat(), str(exc)],
-        )
+        # The scrape_log insert can itself fail (e.g. schema not yet created)
+        # which would replace the original exception and obscure the root cause.
+        try:
+            con.execute(
+                """
+                INSERT INTO scrape_log (run_id, started_at, finished_at, status, notes)
+                VALUES ((SELECT COALESCE(MAX(run_id), 0) + 1 FROM scrape_log),
+                        ?, ?, 'error', ?)
+                """,
+                [started_at.isoformat(), datetime.now(timezone.utc).isoformat(), str(exc)],
+            )
+        except Exception as log_exc:
+            log.warning(f"  Additionally, scrape_log error insert failed: {log_exc}")
         raise
 
     finally:
