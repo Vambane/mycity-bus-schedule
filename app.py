@@ -15,8 +15,6 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-log = logging.getLogger(__name__)
-
 import altair as alt
 import streamlit as st
 import duckdb
@@ -24,6 +22,8 @@ import pandas as pd
 
 from journey import find_connections
 from system_map import build_network, render_system_map
+
+log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Config
