@@ -73,6 +73,33 @@ def _stops_layer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return path
 
 
+def _write_routes(path: Path, rid: str, line: list[list[float]]) -> None:
+    """Synthetic city routes layer: one LineString ([lon, lat] order)."""
+    features = [{
+        "type": "Feature",
+        "properties": {"RT_NMBR": rid},
+        "geometry": {"type": "LineString", "coordinates": line},
+    }]
+    path.write_text(json.dumps({"type": "FeatureCollection", "features": features}))
+
+
+@pytest.fixture(name="routes_path", autouse=True)
+def _routes_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Empty routes layer by default; street tests overwrite the file."""
+    path = tmp_path / "routes.geojson"
+    path.write_text(json.dumps({"type": "FeatureCollection", "features": []}))
+    monkeypatch.setattr(system_map, "CCT_ROUTES_GEOJSON", path)
+    return path
+
+
+# R1's street geometry: passes through A, M and X with detour vertices,
+# then continues beyond X (the slice must stop at the alighting stop).
+R1_STREET = [
+    [18.400, -33.900], [18.405, -33.895], [18.410, -33.900],
+    [18.415, -33.895], [18.420, -33.900], [18.425, -33.900],
+]
+
+
 # ---------------------------------------------------------------------------
 # Leg sequencing
 # ---------------------------------------------------------------------------
@@ -146,6 +173,49 @@ def test_build_data_none_when_nothing_locates(
 
 
 # ---------------------------------------------------------------------------
+# Street mode
+# ---------------------------------------------------------------------------
+
+@pytest.mark.usefixtures("stops_layer")
+def test_street_mode_slices_route_geometry(
+    db: duckdb.DuckDBPyConnection, routes_path: Path,
+) -> None:
+    """A leg's street line follows the city geometry between its stops."""
+    _write_routes(routes_path, "R1", R1_STREET)
+    data = build_journey_map_data(db, LEGS, "weekday", COLORS)
+    leg1 = data["legs"][0]
+    # Sliced between the vertices nearest A and X: 5 of the 6 vertices,
+    # including the detours, excluding the tail beyond X.
+    assert len(leg1["street"]) == 5
+    assert leg1["street"][0] == [-33.9, 18.4]
+    assert leg1["street"][-1] == [-33.9, 18.42]
+    assert leg1["street"] != leg1["points"]
+
+
+@pytest.mark.usefixtures("stops_layer")
+def test_street_mode_orients_board_to_alight(
+    db: duckdb.DuckDBPyConnection, routes_path: Path,
+) -> None:
+    """Geometry drawn in the opposite direction is reversed for the leg."""
+    _write_routes(routes_path, "R1", list(reversed(R1_STREET)))
+    data = build_journey_map_data(db, LEGS, "weekday", COLORS)
+    leg1 = data["legs"][0]
+    assert leg1["street"][0] == [-33.9, 18.4]     # board end first
+    assert leg1["street"][-1] == [-33.9, 18.42]   # alight end last
+
+
+@pytest.mark.usefixtures("stops_layer")
+def test_street_mode_falls_back_without_geometry(
+    db: duckdb.DuckDBPyConnection, routes_path: Path,
+) -> None:
+    """Routes missing from the city layer reuse the stop-sequence line."""
+    _write_routes(routes_path, "R1", R1_STREET)  # nothing for R2
+    data = build_journey_map_data(db, LEGS, "weekday", COLORS)
+    leg2 = data["legs"][1]
+    assert leg2["street"] == leg2["points"]
+
+
+# ---------------------------------------------------------------------------
 # HTML rendering
 # ---------------------------------------------------------------------------
 
@@ -158,3 +228,6 @@ def test_html_embeds_data_and_leaflet(db: duckdb.DuckDBPyConnection) -> None:
     assert "basemaps.cartocdn.com" in html
     assert json.dumps(data) in html
     assert "__DATA__" not in html and "__KIND_COLORS__" not in html
+    # Schematic / Street toggle, with schematic elbows built client-side
+    assert 'id="btn-schematic"' in html and 'id="btn-street"' in html
+    assert "function elbow" in html

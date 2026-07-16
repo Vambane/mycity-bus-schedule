@@ -20,7 +20,8 @@ clickable geographic system map.
     each leg, the changeover stop, and the wait time
   - A small map above the transfer results draws the next connection's
     legs in route colors with markers for the origin, each changeover
-    stop, and the destination
+    stop, and the destination, with the same *Schematic* / *Street*
+    toggle as the system map
 - **Departure board** — leave "Going to" empty to see every route serving a
   stop and its next 10 departures per route and direction, filtered to the
   current time in Cape Town (weekday / Saturday / Sunday–public holiday
