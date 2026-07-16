@@ -72,6 +72,17 @@ def main() -> None:
     # Step 2: Load into DuckDB
     load(data, db_path)
 
+    # Step 2b (optional): map stops to load shedding blocks — needs the CCT
+    # polygon layer, which is downloaded separately; skip cleanly otherwise.
+    from etl.build_stop_blocks import build, AREAS_PATH  # pylint: disable=import-outside-toplevel
+    if AREAS_PATH.exists():
+        build(db_path)
+    else:
+        log.info(
+            "Step 2b skipped: %s not found; see etl/build_stop_blocks.py "
+            "for download instructions.", AREAS_PATH.name,
+        )
+
     # Step 3: Print summary
     inspect(db_path)
 
