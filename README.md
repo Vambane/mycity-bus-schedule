@@ -29,6 +29,8 @@ clickable geographic system map.
 
   Click a route in the legend to highlight it; click any stop to open its
   timetable. Stops sit at their true coordinates (~96% geolocated).
+- **Load shedding awareness**: a sidebar panel shows the current Eskom
+  stage (live via EskomSePush, manually overridable, defaulting to stage 0)
 
 ## How it works
 
@@ -158,6 +160,31 @@ re-scraping.
 │   └── myciti.duckdb         # Built from snapshot or ETL (not committed)
 └── requirements.txt
 ```
+
+## Load shedding awareness
+
+The sidebar shows the load shedding stage the app is working with. The
+effective stage is resolved in this order:
+
+1. **Manual override**: pick a stage (0 to 8) in the sidebar selectbox.
+   Useful for "what if" checks and for when the API is unavailable.
+2. **Live stage**: with the selectbox on Auto and an API key configured,
+   the app reads the national Eskom stage from the
+   [EskomSePush API](https://eskomsepush.gumroad.com/l/api) every 30
+   minutes (48 calls/day, inside the free tier's 50/day allowance).
+3. **Default**: without an override or API key, the app assumes stage 0.
+
+The badge under the selectbox names the source in use: `manual override`,
+`live · EskomSePush`, or `assumed · no API key`.
+
+To enable the live source, create `.streamlit/secrets.toml`:
+
+```toml
+ESP_API_KEY = "your-eskomsepush-key"
+```
+
+or set the `ESP_API_KEY` environment variable. API failures never break
+the app: the stage silently falls back to the next source in the list.
 
 ## Data sources & credits
 
