@@ -107,6 +107,10 @@ erDiagram
         varchar status "success | error"
         varchar notes
     }
+    stop_blocks {
+        varchar stop_name PK
+        int block "CCT load shedding block 1..16, NULL if unmapped"
+    }
 ```
 
 `departures` is the core fact table (~170k rows) the app queries; `stops` ↔
@@ -151,7 +155,8 @@ re-scraping.
 │   └── index.html            # Leaflet map frontend (custom component)
 ├── etl/
 │   ├── scrape_myciti.py      # PDF scraper/parser
-│   └── load_db.py            # DuckDB loader
+│   ├── load_db.py            # DuckDB loader
+│   └── build_stop_blocks.py  # Optional stop-to-loadshedding-block mapping
 ├── run_etl.py                # One-command ETL pipeline
 ├── data/
 │   ├── cct_stops.geojson     # Stop coordinates (City of Cape Town open data)
@@ -185,6 +190,27 @@ ESP_API_KEY = "your-eskomsepush-key"
 
 or set the `ESP_API_KEY` environment variable. API failures never break
 the app: the stage silently falls back to the next source in the list.
+
+### Mapping stops to load shedding blocks
+
+Load shedding in Cape Town rotates through 16 city-defined area blocks.
+To know which block each bus stop sits in, the ETL can join stop
+coordinates against the city's block polygons:
+
+1. Download the **Load shedding areas** dataset as GeoJSON from the
+   [City of Cape Town Open Data Portal](https://odp-cctegis.opendata.arcgis.com/).
+2. Save it as `data/cct_loadshedding_areas.geojson`.
+3. Rerun the mapping step:
+
+   ```bash
+   python3 etl/build_stop_blocks.py   # or the full pipeline: python3 run_etl.py
+   ```
+
+This produces a `stop_blocks` table (and
+`data/snapshot/stop_blocks.parquet`). Stops that fall outside every
+polygon keep a NULL block. The step is optional: without the polygon
+file, `run_etl.py` skips it and the app simply carries no block data.
+No block assignments are ever guessed.
 
 ## Data sources & credits
 
