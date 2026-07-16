@@ -21,6 +21,7 @@ import duckdb
 import pandas as pd
 
 from journey import find_connections
+from loadshedding import render_stage_sidebar
 from system_map import build_network, render_system_map
 
 log = logging.getLogger(__name__)
@@ -379,6 +380,9 @@ def main() -> None:
     if clicked and clicked != st.session_state.get("_last_map_click"):
         st.session_state["_last_map_click"] = clicked
         st.session_state["from_stop"] = clicked
+
+    # --- Load shedding stage panel (sidebar, above any journey filters) ---
+    st.session_state["ls_effective_stage"] = render_stage_sidebar()
 
     # --- Tabs: stop search / interactive system map ---
     tab_search, tab_map = st.tabs(["🔍 Find a Stop", "🗺️ System Map"])
