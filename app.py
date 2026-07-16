@@ -20,6 +20,13 @@ import streamlit as st
 import duckdb
 import pandas as pd
 
+import ls_ui
+from disruption import (
+    DisruptionAssessment,
+    assess_connection,
+    get_window_strings,
+    get_windows_hours,
+)
 from journey import find_connections
 from loadshedding import render_stage_sidebar
 from system_map import build_network, render_system_map
@@ -239,6 +246,25 @@ def get_scrape_info() -> str:
     return ""
 
 
+@st.cache_data(ttl=3600)
+def get_stop_blocks() -> dict[str, int]:
+    """Return {stop_name: load shedding block} from the stop_blocks table.
+
+    The table is optional (built only when the CCT polygon layer has been
+    downloaded, see etl/build_stop_blocks.py). When it is missing the
+    load shedding UI quietly turns off; the warning logs once per TTL.
+    """
+    con = get_connection()
+    try:
+        rows = con.execute(
+            "SELECT stop_name, block FROM stop_blocks WHERE block IS NOT NULL"
+        ).fetchall()
+    except Exception as exc:  # missing optional table — degrade to stage-0 UI
+        log.warning("stop_blocks unavailable, load shedding UI disabled: %s", exc)
+        return {}
+    return dict(rows)
+
+
 # ---------------------------------------------------------------------------
 # UI helpers
 # ---------------------------------------------------------------------------
@@ -249,13 +275,18 @@ def _time_to_hours(time_str: pd.Series) -> pd.Series:
     return parts[0] + parts[1] / 60
 
 
-def render_departure_map(day_departures: pd.DataFrame, now_hours: float) -> None:
+def render_departure_map(
+    day_departures: pd.DataFrame,
+    now_hours: float,
+    shed_windows_hours: list[tuple[float, float]] | None = None,
+) -> None:
     """
     Render a timeline "map" of every departure of the day for the stop.
 
     One row per route + direction; each tick is one departure. A dashed
     rule marks the current time, so peak frequency, service gaps and the
-    first/last bus are all visible at a glance.
+    first/last bus are all visible at a glance. When shedding windows are
+    given, they are shaded as translucent amber bands behind the ticks.
     """
     df = day_departures.copy()
     df["hour"] = _time_to_hours(df["departure_time"])
@@ -300,8 +331,22 @@ def render_departure_map(day_departures: pd.DataFrame, now_hours: float) -> None
         .encode(x="hour:Q")
     )
 
-    st.altair_chart(ticks + now_rule, use_container_width=True)
-    st.caption("Each tick is one scheduled departure · red line = current time")
+    chart = ticks + now_rule
+    caption = "Each tick is one scheduled departure · red line = current time"
+
+    # Shade load shedding windows behind the ticks (first layer = bottom)
+    bands_df = ls_ui.map_band_frame(shed_windows_hours, lo, hi)
+    if not bands_df.empty:
+        bands = (
+            alt.Chart(bands_df)
+            .mark_rect(color=ls_ui.MAP_BAND_COLOR, opacity=ls_ui.MAP_BAND_OPACITY)
+            .encode(x=alt.X("start:Q", title=None), x2="end:Q")
+        )
+        chart = bands + ticks + now_rule
+        caption += " · amber bands = scheduled load shedding"
+
+    st.altair_chart(chart, use_container_width=True)
+    st.caption(caption)
 
 
 def render_route_block(route_name: str, departures: pd.DataFrame) -> None:
@@ -482,14 +527,38 @@ def _chips(labels: list[tuple[str, str, str]]) -> str:
     )
 
 
-def _render_connection_card(
+def _render_connection_card(  # pylint: disable=too-many-arguments
     row: pd.Series,
     color: str,
     badges: list[tuple[str, str, str]],
     from_stop: str,
     to_stop: str,
+    *,
+    assessment: DisruptionAssessment | None = None,
+    blocks: tuple[int | None, int | None] = (None, None),
 ) -> None:
-    """One journey result card: route · departure → duration → arrival."""
+    """One journey result card: route · departure → duration → arrival.
+
+    When a disruption assessment flags the connection, the card gains an
+    amber Stage-affected chip, a buffered duration next to the scheduled
+    one, and a caption naming the affected end, block and window.
+    """
+    chip = ls_ui.connection_chip(assessment)
+    if chip is not None:
+        badges = badges + [chip]
+
+    # Buffered duration shown under the scheduled one, never replacing it
+    adjusted_html = ""
+    if assessment is not None and assessment.affected:
+        adjusted = ls_ui.adjusted_duration_text(
+            int(row["duration_min"]), assessment.delay_buffer_min
+        )
+        if adjusted:
+            adjusted_html = (
+                f'<div style="color:#b45309;font-size:0.8rem;margin-top:2px">'
+                f"{adjusted}</div>"
+            )
+
     with st.container(border=True):
         if badges:
             st.markdown(_chips(badges), unsafe_allow_html=True)
@@ -511,11 +580,15 @@ def _render_connection_card(
             'border-radius:10px;font-size:0.8rem;font-weight:700">Direct</span>'
             '<span style="color:#bbb">──○</span>'
             f'<div style="color:#888;font-size:0.85rem;margin-top:2px">'
-            f'{row["duration"]}</div></div>',
+            f'{row["duration"]}</div>{adjusted_html}</div>',
             unsafe_allow_html=True,
         )
         c_arr.markdown(f"### {row['arr'][:5]}")
         c_arr.caption(to_stop)
+
+        caption = ls_ui.connection_caption(assessment, *blocks)
+        if caption is not None:
+            st.caption(caption)
 
 
 def _render_journey_results(from_stop: str, to_stop: str, day_type: str) -> None:
@@ -545,6 +618,20 @@ def _render_journey_results(from_stop: str, to_stop: str, day_type: str) -> None
     upcoming = conns[conns["dep"] > now_str]
     st.sidebar.caption(f"Showing {len(upcoming)} of {len(conns)} departures")
 
+    # --- load shedding context (stage 0 or no block data: all inert) ---
+    stage = st.session_state.get("ls_effective_stage", 0)
+    blocks = get_stop_blocks() if stage > 0 else {}
+    from_block, to_block = blocks.get(from_stop), blocks.get(to_stop)
+    today = datetime.now(LOCAL_TZ).date()
+
+    def _assess(row: pd.Series) -> DisruptionAssessment | None:
+        """Assess one connection, or None when the feature is inert."""
+        if stage <= 0 or (from_block is None and to_block is None):
+            return None
+        return assess_connection(
+            row["dep"], row["arr"], from_block, to_block, stage, today
+        )
+
     st.subheader(f"📍 {from_stop} → {to_stop} · {day_type}")
     st.caption(f"Current time in Cape Town: {now_str[:5]}")
 
@@ -563,14 +650,16 @@ def _render_journey_results(from_stop: str, to_stop: str, day_type: str) -> None
                 fastest_badged = True
                 badges.append(("Fastest", "#e6f4ea", "#137333"))
             _render_connection_card(
-                row, colors.get(row["route_id"], "#666"), badges, from_stop, to_stop)
+                row, colors.get(row["route_id"], "#666"), badges, from_stop, to_stop,
+                assessment=_assess(row), blocks=(from_block, to_block))
 
     with tab_fast:
         by_speed = upcoming.sort_values(["duration_min", "dep"]).head(8)
         for i, (_, row) in enumerate(by_speed.iterrows()):
             badges = [("Fastest", "#e6f4ea", "#137333")] if i == 0 else []
             _render_connection_card(
-                row, colors.get(row["route_id"], "#666"), badges, from_stop, to_stop)
+                row, colors.get(row["route_id"], "#666"), badges, from_stop, to_stop,
+                assessment=_assess(row), blocks=(from_block, to_block))
 
     with tab_all:
         display = conns.rename(columns={
@@ -591,6 +680,22 @@ def _render_single_stop(selected_stop: str, day_type: str) -> None:
     db_day = DAY_LABEL_TO_DB.get(day_type, "weekday")
 
     st.subheader(f"📍 {selected_stop}")
+
+    # --- load shedding banner + map bands (inert at stage 0 / no data) ---
+    # The block schedule depends on the day of month, which the day-type
+    # selector does not carry, so windows are always for today's date.
+    stage = st.session_state.get("ls_effective_stage", 0)
+    block = get_stop_blocks().get(selected_stop) if stage > 0 else None
+    today = datetime.now(LOCAL_TZ).date()
+    windows_hours = None
+    if block is not None:
+        windows_hours = get_windows_hours(block, stage, today) or None
+        banner = ls_ui.stop_banner_text(
+            selected_stop, block, get_window_strings(block, stage, today)
+        )
+        if banner is not None:
+            st.warning(banner)
+
     routes_here = get_routes_for_stop(selected_stop)
 
     if routes_here.empty:
@@ -608,7 +713,10 @@ def _render_single_stop(selected_stop: str, day_type: str) -> None:
     day_departures = get_day_departures(selected_stop, db_day)
     if not day_departures.empty:
         st.subheader(f"🗺️ Departure Map · {day_type}")
-        render_departure_map(day_departures, now.hour + now.minute / 60)
+        render_departure_map(
+            day_departures, now.hour + now.minute / 60,
+            shed_windows_hours=windows_hours,
+        )
         st.markdown("---")
     st.subheader(f"🕐 Upcoming Departures · {day_type}")
     st.caption(f"Current time: {now_str[:5]}")

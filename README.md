@@ -30,7 +30,9 @@ clickable geographic system map.
   Click a route in the legend to highlight it; click any stop to open its
   timetable. Stops sit at their true coordinates (~96% geolocated).
 - **Load shedding awareness**: a sidebar panel shows the current Eskom
-  stage (live via EskomSePush, manually overridable, defaulting to stage 0)
+  stage (live via EskomSePush, manually overridable, defaulting to
+  stage 0), and journey results, departure boards and the departure map
+  flag connections and time windows hit by scheduled shedding
 
 ## How it works
 
@@ -235,6 +237,25 @@ that stop's block is shed. The model's assumptions:
 - Stops with an unknown block are never flagged, and stage 0 disables
   the whole model.
 
+### What the flags mean in the app
+
+When the effective stage is above 0 and block data is available:
+
+- An amber **⚡ Stage-affected** chip on a journey card means the bus is
+  scheduled to be at the origin or destination stop while that stop's
+  block is shed. The caption under the card names the end, its block,
+  and the shedding window; the amber duration next to the scheduled one
+  (for example `~24 min (+20 buffer)`) adds the delay buffer.
+- A warning banner on a stop's departure board lists today's shedding
+  windows for that stop's block.
+- Amber bands on the departure map shade those windows on the time
+  axis, so you can see which departures fall inside them.
+
+At stage 0 none of this appears, and the app looks exactly as it does
+without the feature. The same applies when the block mapping has not
+been built (see the ETL section above): the flags simply stay off. The
+flags are schedule-based estimates, not live outage reports.
+
 ## Data sources & credits
 
 - Timetables: [MyCiTi](https://www.myciti.org.za) route timetable PDFs
@@ -254,6 +275,9 @@ official sources before travelling.
 - A few of the newest routes/stops are missing from the city's open-data
   layers: 4 routes fall back to straight dashed lines in street mode, and
   ~23 stops are not shown on the map (they still appear in search)
+- Load shedding flags always use today's date (the day-type selector
+  carries no day of month) and check each journey end as a point in
+  time; the delay buffer is a fixed heuristic, not a prediction
 
 ## License
 
