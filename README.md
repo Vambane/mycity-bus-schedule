@@ -18,6 +18,9 @@ clickable geographic system map.
   - When no direct route exists, the app suggests timetable-based
     connections with one transfer (or two, via a bridging line), showing
     each leg, the changeover stop, and the wait time
+  - A small map above the transfer results draws the next connection's
+    legs in route colors with markers for the origin, each changeover
+    stop, and the destination
 - **Departure board** — leave "Going to" empty to see every route serving a
   stop and its next 10 departures per route and direction, filtered to the
   current time in Cape Town (weekday / Saturday / Sunday–public holiday

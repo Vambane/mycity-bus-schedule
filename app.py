@@ -28,6 +28,7 @@ from disruption import (
     get_windows_hours,
 )
 from journey import find_connections, find_transfer_connections
+from journey_map import build_journey_map_data, render_journey_map
 from loadshedding import render_stage_sidebar
 from system_map import build_network, render_system_map
 
@@ -124,6 +125,21 @@ def get_connections(from_stop: str, to_stop: str, day_type: str) -> pd.DataFrame
 def get_transfer_connections(from_stop: str, to_stop: str, day_type: str) -> pd.DataFrame:
     """Cached transfer-journey lookup, used when no direct service exists."""
     return find_transfer_connections(get_connection(), from_stop, to_stop, day_type)
+
+
+@st.cache_data(ttl=3600)
+def get_journey_map_data(leg_keys: tuple, day_type: str) -> dict | None:
+    """Cached map geometry for one itinerary.
+
+    leg_keys is a hashable tuple of (route_id, direction, board, alight,
+    dep, arr) per leg so the itinerary can be a cache key.
+    """
+    legs = [
+        dict(zip(("route_id", "direction", "board", "alight", "dep", "arr"), key))
+        for key in leg_keys
+    ]
+    colors = {r["id"]: r["color"] for r in load_network()["routes"]}
+    return build_journey_map_data(get_connection(), legs, day_type, colors)
 
 
 @st.cache_data(ttl=300)
@@ -690,6 +706,22 @@ def _render_transfer_results(
         f"{day_type.lower()} — showing timetable-based connections with a "
         "transfer. Connections are suggestions, not guaranteed."
     )
+
+    # Map preview of the top itinerary so the routing makes sense spatially
+    preview = upcoming.iloc[0] if not upcoming.empty else transfers.iloc[0]
+    leg_keys = tuple(
+        (leg["route_id"], leg["direction"], leg["board"],
+         leg["alight"], leg["dep"], leg["arr"])
+        for leg in preview["legs"]
+    )
+    map_data = get_journey_map_data(leg_keys, DAY_LABEL_TO_DB[day_type])
+    if map_data is not None:
+        render_journey_map(map_data)
+        st.caption(
+            "Route preview of the next connection: "
+            + " → ".join(preview["route_ids"])
+            + " · change at " + ", ".join(preview["via"])
+        )
 
     # --- load shedding context, same guards as the direct view ---
     stage = st.session_state.get("ls_effective_stage", 0)
