@@ -27,7 +27,7 @@ from disruption import (
     get_window_strings,
     get_windows_hours,
 )
-from journey import find_connections
+from journey import find_connections, find_transfer_connections
 from loadshedding import render_stage_sidebar
 from system_map import build_network, render_system_map
 
@@ -118,6 +118,12 @@ def get_stop_names() -> list[str]:
 def get_connections(from_stop: str, to_stop: str, day_type: str) -> pd.DataFrame:
     """Cached direct-connection lookup between two stops (see journey.py)."""
     return find_connections(get_connection(), from_stop, to_stop, day_type)
+
+
+@st.cache_data(ttl=300)
+def get_transfer_connections(from_stop: str, to_stop: str, day_type: str) -> pd.DataFrame:
+    """Cached transfer-journey lookup, used when no direct service exists."""
+    return find_transfer_connections(get_connection(), from_stop, to_stop, day_type)
 
 
 @st.cache_data(ttl=300)
@@ -591,17 +597,168 @@ def _render_connection_card(  # pylint: disable=too-many-arguments
             st.caption(caption)
 
 
+def _render_transfer_card(  # pylint: disable=too-many-arguments
+    row: pd.Series,
+    colors: dict[str, str],
+    badges: list[tuple[str, str, str]],
+    from_stop: str,
+    to_stop: str,
+    *,
+    assessment: DisruptionAssessment | None = None,
+    blocks: tuple[int | None, int | None] = (None, None),
+) -> None:
+    """One transfer journey card: route chain · departure → via → arrival."""
+    n_transfers = int(row["transfers"])
+    badges = badges + [(
+        f"{n_transfers} transfer" + ("s" if n_transfers > 1 else ""),
+        "#f1f3f4", "#5f6368",
+    )]
+    chip = ls_ui.connection_chip(assessment)
+    if chip is not None:
+        badges = badges + [chip]
+
+    adjusted_html = ""
+    if assessment is not None and assessment.affected:
+        adjusted = ls_ui.adjusted_duration_text(
+            int(row["duration_min"]), assessment.delay_buffer_min
+        )
+        if adjusted:
+            adjusted_html = (
+                f'<div style="color:#b45309;font-size:0.8rem;margin-top:2px">'
+                f"{adjusted}</div>"
+            )
+
+    with st.container(border=True):
+        st.markdown(_chips(badges), unsafe_allow_html=True)
+        c_route, c_dep, c_mid, c_arr = st.columns([4, 2, 3, 2])
+
+        chain = ' <span style="color:#bbb">→</span> '.join(
+            f'<span style="color:{colors.get(rid, "#666")};font-weight:800;'
+            f'font-size:1.1rem">{rid}</span>'
+            for rid in row["route_ids"]
+        )
+        c_route.markdown(
+            f'{chain}<br><span style="color:#888;font-size:0.85rem">'
+            f'via {", ".join(row["via"])}</span>',
+            unsafe_allow_html=True,
+        )
+        c_dep.markdown(f"### {row['dep'][:5]}")
+        c_dep.caption(from_stop)
+        c_mid.markdown(
+            '<div style="text-align:center;margin-top:10px">'
+            '<span style="white-space:nowrap">'
+            '<span style="color:#bbb">○──</span>'
+            '<span style="background:#5f6368;color:#fff;padding:2px 12px;'
+            f'border-radius:10px;font-size:0.8rem;font-weight:700;'
+            f'white-space:nowrap">{n_transfers}×&nbsp;change</span>'
+            '<span style="color:#bbb">──○</span></span>'
+            f'<div style="color:#888;font-size:0.85rem;margin-top:2px">'
+            f'{row["duration"]}</div>{adjusted_html}</div>',
+            unsafe_allow_html=True,
+        )
+        c_arr.markdown(f"### {row['arr'][:5]}")
+        c_arr.caption(to_stop)
+
+        # Leg-by-leg breakdown so the rider knows where to change and wait
+        parts = []
+        for leg in row["legs"]:
+            seg = (f"{leg['route_id']}: {leg['board']} {leg['dep'][:5]} → "
+                   f"{leg['alight']} {leg['arr'][:5]}")
+            if leg["wait_min"]:
+                seg = f"wait {leg['wait_min']} min · " + seg
+            parts.append(seg)
+        st.caption("  ·  ".join(parts))
+
+        ls_caption = ls_ui.connection_caption(assessment, *blocks)
+        if ls_caption is not None:
+            st.caption(ls_caption)
+
+
+def _render_transfer_results(
+    transfers: pd.DataFrame, from_stop: str, to_stop: str, day_type: str,
+) -> None:
+    """Transfer journey view shown when no direct service exists."""
+    colors = {r["id"]: r["color"] for r in load_network()["routes"]}
+
+    now_str = datetime.now(LOCAL_TZ).strftime("%H:%M:%S")
+    upcoming = transfers[transfers["dep"] > now_str]
+
+    st.subheader(f"📍 {from_stop} → {to_stop} · {day_type}")
+    st.caption(f"Current time in Cape Town: {now_str[:5]}")
+    st.info(
+        f"No direct services from **{from_stop}** to **{to_stop}** on a "
+        f"{day_type.lower()} — showing timetable-based connections with a "
+        "transfer. Connections are suggestions, not guaranteed."
+    )
+
+    # --- load shedding context, same guards as the direct view ---
+    stage = st.session_state.get("ls_effective_stage", 0)
+    blocks = get_stop_blocks() if stage > 0 else {}
+    from_block, to_block = blocks.get(from_stop), blocks.get(to_stop)
+    today = datetime.now(LOCAL_TZ).date()
+
+    def _assess(row: pd.Series) -> DisruptionAssessment | None:
+        """Assess origin/destination ends, or None when the feature is inert."""
+        if stage <= 0 or (from_block is None and to_block is None):
+            return None
+        return assess_connection(
+            row["dep"], row["arr"], from_block, to_block, stage, today
+        )
+
+    if upcoming.empty:
+        st.info("No more connections today — the All day tab shows the full list.")
+
+    tab_best, tab_fast, tab_all = st.tabs(["⭐ Best", "⚡ Fastest", "🗓️ All day"])
+
+    with tab_best:
+        for i, (_, row) in enumerate(upcoming.head(8).iterrows()):
+            badges = [("Best", "#e7f0fe", "#1a73e8")] if i == 0 else []
+            _render_transfer_card(
+                row, colors, badges, from_stop, to_stop,
+                assessment=_assess(row), blocks=(from_block, to_block))
+
+    with tab_fast:
+        by_speed = upcoming.sort_values(["duration_min", "dep"]).head(8)
+        for i, (_, row) in enumerate(by_speed.iterrows()):
+            badges = [("Fastest", "#e6f4ea", "#137333")] if i == 0 else []
+            _render_transfer_card(
+                row, colors, badges, from_stop, to_stop,
+                assessment=_assess(row), blocks=(from_block, to_block))
+
+    with tab_all:
+        display = transfers.copy()
+        display["Departs"] = display["dep"].str[:5]
+        display["Arrives"] = display["arr"].str[:5]
+        display["Routes"] = display["route_ids"].apply(" → ".join)
+        display["Via"] = display["via"].apply(", ".join)
+        display = display.rename(
+            columns={"duration": "Duration", "transfers": "Transfers"})
+        st.dataframe(
+            display[["Departs", "Arrives", "Duration", "Transfers", "Routes", "Via"]],
+            use_container_width=True, hide_index=True,
+        )
+
+
+def _render_no_direct_fallback(from_stop: str, to_stop: str, day_type: str) -> None:
+    """No direct route: show transfer journeys, or a warning when none exist."""
+    transfers = get_transfer_connections(from_stop, to_stop, DAY_LABEL_TO_DB[day_type])
+    if transfers.empty:
+        st.warning(
+            f"No direct or connecting services found from **{from_stop}** "
+            f"to **{to_stop}** on a {day_type.lower()}. Try swapping the "
+            "direction (⇄) or picking nearby stops."
+        )
+        return
+    _render_transfer_results(transfers, from_stop, to_stop, day_type)
+
+
 def _render_journey_results(from_stop: str, to_stop: str, day_type: str) -> None:
     """Journey view: sidebar filters + Best / Fastest / All-day result tabs."""
     colors = {r["id"]: r["color"] for r in load_network()["routes"]}
     conns = get_connections(from_stop, to_stop, DAY_LABEL_TO_DB[day_type])
 
     if conns.empty:
-        st.warning(
-            f"No direct services from **{from_stop}** to **{to_stop}** on a "
-            f"{day_type.lower()}. Try swapping the direction (⇄) — or the trip "
-            "may need a transfer, which isn't supported yet."
-        )
+        _render_no_direct_fallback(from_stop, to_stop, day_type)
         return
 
     # --- sidebar filters (like the airline checkboxes) ---
