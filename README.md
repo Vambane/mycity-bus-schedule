@@ -212,6 +212,29 @@ polygon keep a NULL block. The step is optional: without the polygon
 file, `run_etl.py` skips it and the app simply carries no block data.
 No block assignments are ever guessed.
 
+### How disruption is assessed
+
+`disruption.py` generates the standard City of Cape Town 16-block
+rotational schedule from three data constants: 12 daily slots starting
+every 2 hours, a 2 h 30 outage per slot, and the published per-stage
+block offsets (the pattern behind the city's "all areas" schedule
+table). The base block advances by one each slot, so day 17 repeats
+day 1.
+
+A connection is flagged when the bus is scheduled to be at a stop while
+that stop's block is shed. The model's assumptions:
+
+- Each end is checked as a point in time (departure moment at the
+  origin, arrival moment at the destination), not the whole ride span.
+- An affected end adds a 10 minute delay buffer (traffic lights are
+  usually down around a shedding stop), capped at 20 minutes total.
+  This is a heuristic, not a measured delay.
+- Overnight GTFS times (a 24:15:00 departure) are checked against the
+  next day's schedule, matching the timetable convention used
+  throughout the app.
+- Stops with an unknown block are never flagged, and stage 0 disables
+  the whole model.
+
 ## Data sources & credits
 
 - Timetables: [MyCiTi](https://www.myciti.org.za) route timetable PDFs
