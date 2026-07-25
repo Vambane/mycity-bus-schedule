@@ -15,6 +15,13 @@ clickable geographic system map.
   ⇄ swap button) and get every direct service between them as result cards:
   departure time, arrival time, duration, with Best / Fastest / All-day tabs
   and per-route filters in the sidebar
+  - When no direct route exists, the app suggests timetable-based
+    connections with one transfer (or two, via a bridging line), showing
+    each leg, the changeover stop, and the wait time
+  - A small map above the transfer results draws the next connection's
+    legs in route colors with markers for the origin, each changeover
+    stop, and the destination, with the same *Schematic* / *Street*
+    toggle as the system map
 - **Departure board** — leave "Going to" empty to see every route serving a
   stop and its next 10 departures per route and direction, filtered to the
   current time in Cape Town (weekday / Saturday / Sunday–public holiday
@@ -278,6 +285,10 @@ official sources before travelling.
 - Load shedding flags always use today's date (the day-type selector
   carries no day of month) and check each journey end as a point in
   time; the delay buffer is a fixed heuristic, not a prediction
+- Transfer suggestions are timetable-based, not guaranteed connections:
+  they assume a 3 minute minimum changeover, cap waits at 45 minutes,
+  search at most two transfers, and try the nearest few changeover stops
+  per line pair rather than every possibility
 
 ## License
 
