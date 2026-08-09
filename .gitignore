@@ -18,6 +18,7 @@ data/trips.txt
 
 # Local tool state
 .claude/settings.local.json
+.claude/*
 .DS_Store
 
 # Local tool lock files
