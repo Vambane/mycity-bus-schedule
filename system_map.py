@@ -33,12 +33,6 @@ DATA_DIR = Path(__file__).parent / "data"
 CCT_STOPS_GEOJSON = DATA_DIR / "cct_stops.geojson"
 CCT_ROUTES_GEOJSON = DATA_DIR / "cct_routes.geojson"
 
-# Bidirectional custom component: renders the d3 map, returns clicked stop
-_map_component = components.declare_component(
-    "myciti_system_map",
-    path=str(Path(__file__).parent / "map_component"),
-)
-
 # ---------------------------------------------------------------------------
 # Route colors — grouped like the official map legend
 # (trunk = reds, direct = blues, area = rotating palette)
@@ -292,6 +286,12 @@ def render_system_map(graph: dict) -> Optional[str]:
 
     Returns None until the user clicks a stop; after a click, every rerun
     returns the same stop name until a different stop is clicked — callers
-    must track the last handled value to avoid re-triggering.
+    must track the last handled value to avoid re-triggering. The Streamlit
+    component is loaded lazily so the Flask website can reuse build_network
+    without initializing Streamlit.
     """
-    return _map_component(graph=graph, key="system_map", default=None)
+    map_component = components.declare_component(
+        "myciti_system_map",
+        path=str(Path(__file__).parent / "map_component"),
+    )
+    return map_component(graph=graph, key="system_map", default=None)
