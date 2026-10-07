@@ -1,8 +1,10 @@
 # 🚌 MyCiTi Bus Timetable
 
-A Streamlit app for exploring Cape Town's MyCiTi bus network: search any stop,
-see its upcoming departures, and browse an interactive map of the whole system
-overlaid on the city.
+A custom, responsive website for exploring Cape Town's MyCiTi bus network:
+plan a journey, browse upcoming departures, and explore an interactive route
+map. A small Flask API serves the website and reuses the Python timetable and
+network logic. The original Streamlit interface remains available for local
+development.
 
 The official MyCiTi site only publishes timetables as PDFs. This project
 scrapes those PDFs into a queryable database and adds the tools the site
@@ -127,22 +129,39 @@ erDiagram
 identify stops only by name. `scrape_log` is a standalone audit table, one
 row per ETL run.
 
-## Getting started
+## Run the website locally
 
 Requires Python 3.10+.
 
 ```bash
-# 1. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 2. Run the app
-streamlit run app.py
+# Start the website
+python webapp.py
 ```
 
-That's it — the repo ships with a Parquet snapshot of the timetable data
-(`data/snapshot/`), and the app builds its DuckDB database from it
-automatically on first start. This is also what makes one-click deploys
-(e.g. Streamlit Community Cloud) work.
+Open `http://localhost:5000`. The server builds its local DuckDB database from
+the committed Parquet snapshot on first start; no scraping is needed.
+
+## Free website hosting
+
+The repository includes a Render Blueprint (`render.yaml`) for deploying the
+custom website as a free web service:
+
+1. Sign in to [Render](https://render.com/) with GitHub.
+2. Create a new **Blueprint** and select this repository.
+3. Confirm the `myciti-bus-schedule` service and deploy.
+
+Render's free services can spin down when idle, so the first visit after a
+quiet period may take a little longer. The app uses the committed timetable
+snapshot and does not require a paid database or API key.
+
+To run the original Streamlit interface locally instead:
+
+```bash
+streamlit run app.py
+```
 
 To refresh the data from myciti.org.za (takes a few minutes):
 

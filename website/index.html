@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f6f7f2">
+    <meta name="description" content="Find your next MyCiTi bus. Explore Cape Town routes, stops and timetables.">
+    <title>MyCiTi — Move through Cape Town</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="MyCiTi home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span></span>
+        <span>myciti<span class="brand-period">.</span></span>
+      </a>
+      <nav class="top-nav" aria-label="Main navigation">
+        <button class="nav-link active" data-view="journey">Plan a trip</button>
+        <button class="nav-link" data-view="network">Network map</button>
+      </nav>
+      <div class="topbar-right">
+        <span class="live-dot"></span>
+        <span id="clock-label">Cape Town</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-line"></span> CAPE TOWN, CONNECTED</div>
+          <h1>The city is<br>closer than <em>you think.</em></h1>
+          <p>Find your next ride, explore every route, and make more of the city you call home.</p>
+          <div class="hero-foot">
+            <span class="sun-icon" aria-hidden="true">✳</span>
+            <span>Made for moving</span><span class="hero-foot-sep">·</span><span>Made for Cape Town</span>
+          </div>
+        </div>
+        <div class="map-shell">
+          <div class="map-topline">
+            <div><span class="map-pulse"></span><span id="map-label">MYCITI NETWORK</span></div>
+            <div class="map-actions">
+              <div id="map-style-toggle" class="map-style-toggle" aria-label="Map style">
+                <button class="map-style active" type="button" data-map-style="street">Street</button>
+                <button class="map-style" type="button" data-map-style="schematic">Lines</button>
+              </div>
+              <button id="map-expand" class="map-expand" type="button" aria-label="Explore network map">↗</button>
+            </div>
+          </div>
+          <div id="network-map" aria-label="Interactive map of MyCiTi bus routes"></div>
+          <div class="map-caption"><span class="map-caption-dot"></span> Western Cape <span class="caption-divider">/</span> <span id="coverage-label">Loading routes…</span></div>
+          <div id="route-legend" class="route-legend" aria-label="Route categories"></div>
+        </div>
+      </section>
+
+      <section id="journey-view" class="content-section">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow"><span class="eyebrow-line"></span> YOUR NEXT ADVENTURE</div>
+            <h2>Where are we going?</h2>
+          </div>
+          <div id="updated-label" class="updated-label"></div>
+        </div>
+
+        <form id="search-form" class="search-panel">
+          <label class="search-field">
+            <span class="field-icon origin-icon">●</span>
+            <span class="field-content">
+              <span class="field-label">FROM</span>
+              <input id="origin" list="stops-list" autocomplete="off" placeholder="Choose your stop" required>
+            </span>
+          </label>
+          <button id="swap-stops" class="swap-button" type="button" aria-label="Swap stops">↕</button>
+          <label class="search-field">
+            <span class="field-icon destination-icon">◎</span>
+            <span class="field-content">
+              <span class="field-label">TO <span class="optional-label">· OPTIONAL</span></span>
+              <input id="destination" list="stops-list" autocomplete="off" placeholder="Anywhere">
+            </span>
+          </label>
+          <label class="day-field">
+            <span class="field-label">TRAVEL DAY</span>
+            <select id="day-type">
+              <option value="weekday">Weekday</option>
+              <option value="saturday">Saturday</option>
+              <option value="sunday">Sunday / holiday</option>
+            </select>
+          </label>
+          <button class="search-button" type="submit"><span>Find my ride</span><span aria-hidden="true">→</span></button>
+          <datalist id="stops-list"></datalist>
+        </form>
+
+        <div id="results-area" class="results-area" aria-live="polite">
+          <div class="empty-state">
+            <div class="empty-art" aria-hidden="true"><span>↗</span><i></i><b></b></div>
+            <div><h3>A good day starts somewhere.</h3><p>Choose a stop above to see the next buses on their way.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="network-view" class="network-section hidden">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow"><span class="eyebrow-line"></span> THE BIG PICTURE</div>
+            <h2>Every route, one city.</h2>
+          </div>
+          <p class="network-hint">Tap any stop to start planning from there.</p>
+        </div>
+        <div class="network-help">Choose a stop on the map to use it as your starting point.</div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <a class="brand footer-brand" href="#"><span class="brand-mark" aria-hidden="true"><span></span><span></span></span><span>myciti<span class="brand-period">.</span></span></a>
+      <p>Unofficial community project · Always check official MyCiTi sources before travelling.</p>
+      <a href="https://www.myciti.org.za/" target="_blank" rel="noreferrer">Official MyCiTi ↗</a>
+    </footer>
+    <div id="toast" class="toast" role="status"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>
