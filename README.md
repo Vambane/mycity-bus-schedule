@@ -1,47 +1,45 @@
 # 🚌 MyCiTi Bus Timetable
 
-A custom, responsive website for exploring Cape Town's MyCiTi bus network:
-plan a journey, browse upcoming departures, and explore an interactive route
-map. A small Flask API serves the website and reuses the Python timetable and
-network logic. The original Streamlit interface remains available for local
-development.
+A custom, responsive Flask website for exploring Cape Town's MyCiTi bus
+network, alongside the original Streamlit application. The website uses the
+same Python timetable and network logic, with its own static HTML, CSS, and
+JavaScript frontend. The Streamlit app remains available for its additional
+features, including the departure timeline and load-shedding analysis.
 
 The official MyCiTi site only publishes timetables as PDFs. This project
-scrapes those PDFs into a queryable database and adds the tools the site
-doesn't have — live "next bus" lookups, a visual departure timeline, and a
-clickable geographic system map.
+scrapes those PDFs into a queryable database and adds timetable-based journey
+planning, upcoming departures, and an interactive geographic system map.
 
-## Features
+## Website features
 
-- **Journey search** — pick a From and To stop (flight-search style, with a
-  ⇄ swap button) and get every direct service between them as result cards:
-  departure time, arrival time, duration, with Best / Fastest / All-day tabs
-  and per-route filters in the sidebar
-  - When no direct route exists, the app suggests timetable-based
-    connections with one transfer (or two, via a bridging line), showing
-    each leg, the changeover stop, and the wait time
-  - A small map above the transfer results draws the next connection's
-    legs in route colors with markers for the origin, each changeover
-    stop, and the destination, with the same *Schematic* / *Street*
-    toggle as the system map
-- **Departure board** — leave "Going to" empty to see every route serving a
-  stop and its next 10 departures per route and direction, filtered to the
-  current time in Cape Town (weekday / Saturday / Sunday–public holiday
-  timetables, defaulting to today's)
-- **Departure map** — a timeline chart of every departure of the day per
-  route/direction, with a marker at the current time, so frequency, peak
-  bunching and the last bus are visible at a glance
-- **Interactive system map** — the full network on real Cape Town geography
-  (Leaflet + CARTO tiles), with a toggle between:
-  - *Schematic*: square-ish 45°/90° lines in the style of the official route map
-  - *Street*: the exact road-following route geometries from city open data
+- **Journey planner** — choose origin and destination stops, a travel day
+  (weekday, Saturday, or Sunday/public holiday), and browse upcoming or
+  fastest journeys, or all scheduled journeys for the day. Direct journeys
+  show departure, arrival, duration, and route. When there is no direct
+  service, timetable-based transfer suggestions show the legs and changeover
+  stops; they are suggestions, not guaranteed connections.
+- **Stop departures** — choose a stop without a destination to see upcoming
+  departures grouped by route and direction, using Cape Town local time.
+- **Interactive route map** — explore routes and stops on Leaflet with CARTO
+  basemap tiles. Switch between street geometries from City of Cape Town open
+  data and a schematic line view, filter the map by route category, and select
+  a stop to use it as the journey origin.
+- **Static frontend assets** — the Flask app serves `website/index.html`,
+  `website/styles.css`, and `website/app.js` at the site root and under
+  `/assets/`.
 
-  Click a route in the legend to highlight it; click any stop to open its
-  timetable. Stops sit at their true coordinates (~96% geolocated).
-- **Load shedding awareness**: a sidebar panel shows the current Eskom
-  stage (live via EskomSePush, manually overridable, defaulting to
-  stage 0), and journey results, departure boards and the departure map
-  flag connections and time windows hit by scheduled shedding
+## Streamlit features not in the custom website
+
+The original Streamlit interface (`app.py`) remains available locally and
+includes features not implemented in the custom website:
+
+- **Departure timeline** — visualize the day's departures for a stop by
+  route and direction, with the current time marked on the chart.
+- **Load-shedding awareness** — view the Eskom stage and show schedule-based
+  impacts on journey results, stop departure boards, and the departure
+  timeline when stop-block data is available.
+- **Streamlit map components** — the Streamlit journey view includes a map
+  for transfer itineraries, in addition to its system map.
 
 ## How it works
 
@@ -51,8 +49,8 @@ myciti.org.za route-timetable PDFs
         ▼
 data/myciti.duckdb  ◄── City of Cape Town open data (stop coordinates,
         │               street route geometries: data/cct_*.geojson)
-        ▼
-Streamlit app (app.py) ── Leaflet custom component (map_component/)
+        ├── Flask API (webapp.py) ── website/ (static Leaflet frontend)
+        └── Streamlit app (app.py) ── map_component/
 ```
 
 - `etl/scrape_myciti.py` downloads every route's timetable PDF and parses the
@@ -64,6 +62,13 @@ Streamlit app (app.py) ── Leaflet custom component (map_component/)
   stops layer for coordinates.
 - `map_component/index.html` is a bidirectional Streamlit custom component —
   clicking a stop on the map sends its name back to Python.
+- `webapp.py` serves the custom website and JSON API. `/api/bootstrap` provides
+  stop options, route geometry, and snapshot metadata; `/api/journey` returns
+  direct journeys or transfer suggestions; `/api/stop` returns upcoming
+  departures; `/api/health` is a health check.
+- If `data/myciti.duckdb` does not exist, the Flask app creates it from the
+  committed Parquet files in `data/snapshot/`. The website uses this timetable
+  snapshot; it does not scrape PDFs or provide real-time vehicle tracking.
 
 ## Database schema
 
@@ -129,39 +134,49 @@ erDiagram
 identify stops only by name. `scrape_log` is a standalone audit table, one
 row per ETL run.
 
-## Run the website locally
+## Run locally
 
-Requires Python 3.10+.
+Requires Python 3.10+. Install the shared dependencies once:
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
+```
 
-# Start the website
+Start the custom Flask website:
+
+```bash
 python webapp.py
 ```
 
-Open `http://localhost:5000`. The server builds its local DuckDB database from
-the committed Parquet snapshot on first start; no scraping is needed.
+Open `http://localhost:5000`. The Flask server builds its local DuckDB
+database from the committed Parquet snapshot if needed; no scraping is needed.
 
-## Free website hosting
-
-The repository includes a Render Blueprint (`render.yaml`) for deploying the
-custom website as a free web service:
-
-1. Sign in to [Render](https://render.com/) with GitHub.
-2. Create a new **Blueprint** and select this repository.
-3. Confirm the `myciti-bus-schedule` service and deploy.
-
-Render's free services can spin down when idle, so the first visit after a
-quiet period may take a little longer. The app uses the committed timetable
-snapshot and does not require a paid database or API key.
-
-To run the original Streamlit interface locally instead:
+Start the original Streamlit app instead:
 
 ```bash
 streamlit run app.py
 ```
+
+## Free website hosting
+
+The repository includes a Render Blueprint (`render.yaml`) that provisions a
+free Python web service:
+
+1. Sign in to [Render](https://render.com/) with GitHub.
+2. Create a new **Blueprint** and select this repository.
+3. Review the service settings from `render.yaml` and deploy.
+
+**Deployment note:** the current Blueprint starts `fastapi_app.main:app` with
+Uvicorn; it does not launch the custom Flask website. To deploy the Flask
+website with a Blueprint, update `render.yaml`'s `startCommand` to
+`gunicorn webapp:app` before connecting the Blueprint (the Flask app reads
+Render's `PORT` environment variable). The website uses the committed
+timetable snapshot and needs no paid database or API key. Render's free
+services can spin down when idle, so the first request after a quiet period
+may take longer.
+
+The Blueprint also defines `ESP_API_KEY` for the FastAPI/Streamlit
+load-shedding feature; it is not required by the custom Flask website.
 
 To refresh the data from myciti.org.za (takes a few minutes):
 
@@ -177,10 +192,20 @@ re-scraping.
 ## Project structure
 
 ```
-├── app.py                    # Streamlit app (search, timetables, map tabs)
-├── system_map.py             # System-map graph builder + component wrapper
+├── app.py                    # Original Streamlit app
+├── webapp.py                 # Flask website server and JSON API
+├── website/
+│   ├── index.html            # Website shell
+│   ├── app.js                # Journey, departures, and Leaflet map UI
+│   └── styles.css            # Website styles
+├── render.yaml               # Free Render Blueprint (currently FastAPI)
+├── fastapi_app/              # FastAPI service configured by the Blueprint
+├── system_map.py             # Shared network builder + Streamlit map wrapper
+├── journey.py                # Shared journey and transfer search logic
+├── disruption.py             # Streamlit load-shedding assessment
+├── ls_ui.py                  # Streamlit load-shedding controls
 ├── map_component/
-│   └── index.html            # Leaflet map frontend (custom component)
+│   └── index.html            # Leaflet frontend for the Streamlit component
 ├── etl/
 │   ├── scrape_myciti.py      # PDF scraper/parser
 │   ├── load_db.py            # DuckDB loader
@@ -194,9 +219,9 @@ re-scraping.
 └── requirements.txt
 ```
 
-## Load shedding awareness
+## Streamlit load-shedding details
 
-The sidebar shows the load shedding stage the app is working with. The
+The Streamlit sidebar shows the load shedding stage in use. The
 effective stage is resolved in this order:
 
 1. **Manual override**: pick a stage (0 to 8) in the sidebar selectbox.
@@ -217,7 +242,7 @@ ESP_API_KEY = "your-eskomsepush-key"
 ```
 
 or set the `ESP_API_KEY` environment variable. API failures never break
-the app: the stage silently falls back to the next source in the list.
+the Streamlit app: the stage falls back to the next source in the list.
 
 ### Mapping stops to load shedding blocks
 
@@ -237,7 +262,7 @@ coordinates against the city's block polygons:
 This produces a `stop_blocks` table (and
 `data/snapshot/stop_blocks.parquet`). Stops that fall outside every
 polygon keep a NULL block. The step is optional: without the polygon
-file, `run_etl.py` skips it and the app simply carries no block data.
+file, `run_etl.py` skips it and the Streamlit app simply carries no block data.
 No block assignments are ever guessed.
 
 ### How disruption is assessed
@@ -263,9 +288,10 @@ that stop's block is shed. The model's assumptions:
 - Stops with an unknown block are never flagged, and stage 0 disables
   the whole model.
 
-### What the flags mean in the app
+### What the flags mean in Streamlit
 
-When the effective stage is above 0 and block data is available:
+When the effective stage is above 0 and block data is available in the
+Streamlit app:
 
 - An amber **⚡ Stage-affected** chip on a journey card means the bus is
   scheduled to be at the origin or destination stop while that stop's
@@ -298,12 +324,14 @@ official sources before travelling.
 
 - Timetable-based only — no real-time vehicle tracking
 - Public holidays follow the Sunday timetable but are not auto-detected
+- The custom website does not include the Streamlit departure timeline or
+  load-shedding UI; those are available only in `app.py`
 - A few of the newest routes/stops are missing from the city's open-data
   layers: 4 routes fall back to straight dashed lines in street mode, and
   ~23 stops are not shown on the map (they still appear in search)
-- Load shedding flags always use today's date (the day-type selector
-  carries no day of month) and check each journey end as a point in
-  time; the delay buffer is a fixed heuristic, not a prediction
+- In the Streamlit app, load-shedding flags always use today's date (the
+  day-type selector carries no day of month) and check each journey end as a
+  point in time; the delay buffer is a fixed heuristic, not a prediction
 - Transfer suggestions are timetable-based, not guaranteed connections:
   they assume a 3 minute minimum changeover, cap waits at 45 minutes,
   search at most two transfers, and try the nearest few changeover stops
