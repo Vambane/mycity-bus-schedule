@@ -207,7 +207,7 @@
     <div class="tab-panel active" id="panel-best" role="tabpanel" aria-labelledby="btn-best">
       {% if results.tabs.best %}
         {% for conn in results.tabs.best %}
-          {% if conn.legs %}
+          {% if conn.route_ids %}
             {% include 'components/transfer_card.html' %}
           {% else %}
             {% include 'components/connection_card.html' %}
@@ -224,7 +224,7 @@
     <div class="tab-panel" id="panel-fastest" role="tabpanel" aria-labelledby="btn-fastest">
       {% if results.tabs.fastest %}
         {% for conn in results.tabs.fastest %}
-          {% if conn.legs %}
+          {% if conn.route_ids %}
             {% include 'components/transfer_card.html' %}
           {% else %}
             {% include 'components/connection_card.html' %}
@@ -241,7 +241,7 @@
     <div class="tab-panel" id="panel-all" role="tabpanel" aria-labelledby="btn-all">
       {% if results.tabs.all_day %}
         {% for conn in results.tabs.all_day %}
-          {% if conn.legs %}
+          {% if conn.route_ids %}
             {% include 'components/transfer_card.html' %}
           {% else %}
             {% include 'components/connection_card.html' %}

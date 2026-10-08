@@ -20,8 +20,8 @@ from journey import find_connections, find_transfer_connections
 from disruption import assess_connection
 import ls_ui
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
-from journey_map import build_journey_map_data, _journey_map_html
-from system_map import build_network
+from journey_map import build_journey_map_data, _journey_map_html, leg_stop_sequence
+from system_map import build_network, get_route_colors
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +208,9 @@ async def search_page(
             }
         }
 
+        # Route colors for schematic display
+        route_colors = get_route_colors(conn)
+
         # Process direct connections
         if not direct_df.empty:
             results["has_results"] = True
@@ -226,6 +229,12 @@ async def search_page(
                 buffer = assessment.delay_buffer_min if assessment and assessment.affected else 0
                 adjusted_duration = ls_ui.adjusted_duration_text(row["duration_min"], buffer)
 
+                # Recover intermediate stop names for the schematic
+                stops = leg_stop_sequence(
+                    conn, row["route_id"], row.get("direction", ""),
+                    from_stop, to_stop, day_type,
+                )
+
                 direct_connections.append({
                     "route_id": row["route_id"],
                     "route_name": row["route_name"],
@@ -238,6 +247,8 @@ async def search_page(
                     "ls_chip": chip,
                     "ls_caption": caption,
                     "ls_adjusted_duration": adjusted_duration,
+                    "stops": stops,
+                    "route_color": route_colors.get(row["route_id"], "#666"),
                 })
 
             results["direct"] = direct_connections
@@ -257,20 +268,34 @@ async def search_page(
 
             transfer_connections = []
             for _, row in transfer_df.iterrows():
-                # Parse legs (format: "route1,route2" or "route1,route2,route3")
-                legs = row.get("legs", "").split(",") if row.get("legs") else []
+                # legs is already a list[dict], route_ids is already a list[str],
+                # via is already a list[str] — no parsing needed.
+                legs_data = row.get("legs", []) or []
+                route_ids = row.get("route_ids", []) or []
+                via = row.get("via", []) or []
 
-                # Parse via stops (format: "stop1" or "stop1,stop2")
-                via = row.get("via", "").split(",") if row.get("via") else []
+                # Recover intermediate stops for each leg of the transfer
+                leg_stops = []
+                leg_colors = []
+                for leg in legs_data:
+                    stops = leg_stop_sequence(
+                        conn, leg["route_id"], leg.get("direction", ""),
+                        leg["board"], leg["alight"], day_type,
+                    )
+                    leg_stops.append(stops)
+                    leg_colors.append(route_colors.get(leg["route_id"], "#666"))
 
                 transfer_connections.append({
-                    "legs": legs,
+                    "route_ids": route_ids,
+                    "legs": legs_data,
                     "via": via,
                     "dep": row["dep"][:5],
                     "arr": row["arr"][:5],
                     "duration": row["duration"],
                     "duration_min": row["duration_min"],
-                    "num_transfers": len(legs) - 1,
+                    "num_transfers": len(route_ids) - 1 if route_ids else 0,
+                    "leg_stops": leg_stops,
+                    "leg_colors": leg_colors,
                 })
 
             results["transfers"] = transfer_connections

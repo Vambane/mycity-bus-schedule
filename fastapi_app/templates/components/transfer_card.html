@@ -3,9 +3,9 @@
   <div class="card-header">
     <!-- Route chain: 216 -> T01 -> 105 -->
     <div class="route-chain">
-      {% for leg in conn.legs %}
-      <span class="route-badge {% if leg.startswith('T') %}trunk{% elif leg.startswith('2') or leg.startswith('1') %}direct{% else %}area{% endif %}">
-        {{ leg }}
+      {% for rid in conn.route_ids %}
+      <span class="route-badge {% if rid.startswith('T') %}trunk{% elif rid.startswith('2') or rid.startswith('1') %}direct{% else %}area{% endif %}">
+        {{ rid }}
       </span>
       {% if not loop.last %}
       <span class="route-chain-arrow" aria-hidden="true">&#8594;</span>
@@ -47,4 +47,51 @@
       <div class="journey-stop-name">{{ results.to_stop }}</div>
     </div>
   </div>
+
+  <!-- Expandable per-leg intermediate stops schematic -->
+  {% if conn.leg_stops %}
+  {% set total_intermediate = namespace(count=0) %}
+  {% for stops in conn.leg_stops %}
+    {% if stops|length > 2 %}
+      {% set total_intermediate.count = total_intermediate.count + stops|length - 2 %}
+    {% endif %}
+  {% endfor %}
+  {% if total_intermediate.count > 0 %}
+  <details class="journey-stops-detail">
+    <summary class="journey-stops-toggle">
+      {{ total_intermediate.count }} intermediate stop{% if total_intermediate.count != 1 %}s{% endif %}
+    </summary>
+    <div class="journey-stops-schematic">
+      {% for stops in conn.leg_stops %}
+        {% set leg_color = conn.leg_colors[loop.index0] if conn.leg_colors else '#666' %}
+        {% set leg = conn.legs[loop.index0] if conn.legs else {} %}
+        {% for stop in stops %}
+        <div class="journey-stop-row">
+          <div class="stop-line-segment {% if loop.first and loop.parentloop.first %}stop-line-segment--first{% elif loop.last and loop.parentloop.last %}stop-line-segment--last{% endif %}"
+               style="--route-color: {{ leg_color }};"></div>
+          {% if loop.first and not loop.parentloop.first %}
+          {# Transfer point: amber dot #}
+          <div class="stop-dot stop-dot--transfer"></div>
+          {% elif loop.first and loop.parentloop.first %}
+          <div class="stop-dot stop-dot--origin" style="--route-color: {{ leg_color }};"></div>
+          {% elif loop.last and loop.parentloop.last %}
+          <div class="stop-dot stop-dot--destination" style="--route-color: {{ leg_color }};"></div>
+          {% else %}
+          <div class="stop-dot stop-dot--intermediate" style="--route-color: {{ leg_color }};"></div>
+          {% endif %}
+          <span class="stop-name">{{ stop }}</span>
+          {% if loop.first and loop.parentloop.first %}
+          <span class="stop-time">{{ conn.dep }}</span>
+          {% elif loop.last and loop.parentloop.last %}
+          <span class="stop-time">{{ conn.arr }}</span>
+          {% elif loop.last and not loop.parentloop.last %}
+          <span class="stop-time stop-time--transfer">change</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+  {% endif %}
 </div>

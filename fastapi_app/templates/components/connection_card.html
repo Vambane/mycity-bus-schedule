@@ -44,4 +44,29 @@
       <div class="journey-stop-name">{{ results.to_stop }}</div>
     </div>
   </div>
+
+  <!-- Expandable intermediate stops schematic -->
+  {% if conn.stops and conn.stops|length > 2 %}
+  <details class="journey-stops-detail">
+    <summary class="journey-stops-toggle">
+      {{ conn.stops|length - 2 }} intermediate stop{% if conn.stops|length - 2 != 1 %}s{% endif %}
+    </summary>
+    <div class="journey-stops-schematic">
+      {% for stop in conn.stops %}
+      <div class="journey-stop-row">
+        <div class="stop-line-segment {% if loop.first %}stop-line-segment--first{% elif loop.last %}stop-line-segment--last{% endif %}"
+             style="--route-color: {{ conn.route_color }};"></div>
+        <div class="stop-dot {% if loop.first %}stop-dot--origin{% elif loop.last %}stop-dot--destination{% else %}stop-dot--intermediate{% endif %}"
+             style="--route-color: {{ conn.route_color }};"></div>
+        <span class="stop-name">{{ stop }}</span>
+        {% if loop.first %}
+        <span class="stop-time">{{ conn.dep }}</span>
+        {% elif loop.last %}
+        <span class="stop-time">{{ conn.arr }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
 </div>

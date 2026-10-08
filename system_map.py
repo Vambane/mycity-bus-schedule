@@ -59,6 +59,28 @@ def _route_color(route_id: str, trunk_i: int, direct_i: int, area_i: int) -> str
     return AREA_COLORS[area_i % len(AREA_COLORS)]
 
 
+def get_route_colors(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
+    """Return {route_id: hex_color} for all routes, without building the full graph.
+
+    Assigns colours in the same sorted order as build_network() so the two
+    always agree.
+    """
+    rows = con.execute(
+        "SELECT DISTINCT route_id FROM routes ORDER BY route_id"
+    ).fetchall()
+    colors: dict[str, str] = {}
+    trunk_i = direct_i = area_i = 0
+    for (route_id,) in rows:
+        colors[route_id] = _route_color(route_id, trunk_i, direct_i, area_i)
+        if route_id.startswith("T"):
+            trunk_i += 1
+        elif route_id.startswith("D"):
+            direct_i += 1
+        else:
+            area_i += 1
+    return colors
+
+
 def _route_category(route_id: str) -> str:
     """Official map legend category for a route."""
     if route_id.startswith("T"):

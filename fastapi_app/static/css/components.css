@@ -701,3 +701,136 @@
 .stagger-enter:nth-child(6) { animation-delay: 250ms; }
 .stagger-enter:nth-child(7) { animation-delay: 300ms; }
 .stagger-enter:nth-child(8) { animation-delay: 350ms; }
+
+/* ============================================================
+   JOURNEY STOPS SCHEMATIC (tube-map style)
+   ============================================================ */
+.journey-stops-detail {
+  margin-top: var(--sp-3);
+}
+
+.journey-stops-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--sp-2) 0;
+  user-select: none;
+  list-style: none;
+}
+
+.journey-stops-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.journey-stops-toggle::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--text-tertiary);
+  border-bottom: 2px solid var(--text-tertiary);
+  transform: rotate(-45deg);
+  transition: transform var(--duration) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.journey-stops-detail[open] > .journey-stops-toggle::before {
+  transform: rotate(45deg);
+}
+
+.journey-stops-schematic {
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-2);
+  animation: fadeUp var(--duration) var(--ease-out);
+}
+
+/* Each row: vertical line + dot + stop name + optional time */
+.journey-stop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  position: relative;
+  min-height: 28px;
+}
+
+/* Vertical coloured line between dots */
+.stop-line-segment {
+  position: absolute;
+  left: 5px;  /* centre of the 12px dot */
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--route-color, var(--text-tertiary));
+}
+
+.stop-line-segment--first {
+  top: 50%;
+}
+
+.stop-line-segment--last {
+  bottom: 50%;
+}
+
+/* Dots */
+.stop-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.stop-dot--origin {
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2);
+}
+
+.stop-dot--destination {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
+}
+
+.stop-dot--transfer {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
+}
+
+.stop-dot--intermediate {
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;  /* keep centred with 12px dots */
+  background: transparent;
+  border: 2px solid var(--route-color, var(--text-tertiary));
+}
+
+/* Stop name */
+.stop-name {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Time label (origin / destination / transfer) */
+.stop-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.stop-time--transfer {
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--warning);
+  font-style: italic;
+}
