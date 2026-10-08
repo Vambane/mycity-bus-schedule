@@ -1,0 +1,115 @@
+/* ============================================================
+   MyCiTi Design Tokens
+   ============================================================
+   Single source of truth for the design system.
+   Dark theme with gold #D4AF37 accent, Inter font.
+   All spacing follows a 4px grid: 4/8/12/16/24/32/48.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* --- brand --- */
+  --gold:            #D4AF37;
+  --gold-hover:      #E0C060;
+  --gold-press:      #BF9C2E;
+  --gold-muted:      rgba(212, 175, 55, 0.15);
+  --gold-focus:      rgba(212, 175, 55, 0.35);
+
+  /* --- surfaces --- */
+  --bg:              #0E0E10;
+  --bg-raised:       #16161A;
+  --bg-overlay:      #1C1C22;
+  --bg-card:         #1A1A1F;
+  --bg-card-hover:   #1E1E24;
+  --bg-input:        #131316;
+  --bg-header:       rgba(14, 14, 16, 0.80);
+
+  /* --- borders --- */
+  --border:          rgba(255, 255, 255, 0.08);
+  --border-subtle:   rgba(255, 255, 255, 0.05);
+  --border-strong:   rgba(255, 255, 255, 0.14);
+
+  /* --- text --- */
+  --text-primary:    #F0F0F0;
+  --text-secondary:  #A0A0A8;
+  --text-tertiary:   #6C6C74;
+  --text-inverse:    #0E0E10;
+
+  /* --- route badge colours (from system map) --- */
+  --route-trunk:     #E4003A;
+  --route-direct:    #0072BC;
+  --route-area:      #00843D;
+  --route-purple:    #9B51E0;
+  --route-orange:    #F2994A;
+
+  /* --- semantic --- */
+  --success:         #34D399;
+  --warning:         #FBBF24;
+  --danger:          #F87171;
+  --info:            #60A5FA;
+
+  /* --- load shedding stages --- */
+  --ls-ok-bg:        rgba(52, 211, 153, 0.12);
+  --ls-ok-fg:        #34D399;
+  --ls-warn-bg:      rgba(251, 191, 36, 0.12);
+  --ls-warn-fg:      #FBBF24;
+  --ls-crit-bg:      rgba(248, 113, 113, 0.12);
+  --ls-crit-fg:      #F87171;
+
+  /* --- spacing (4px grid) --- */
+  --sp-1:            4px;
+  --sp-2:            8px;
+  --sp-3:            12px;
+  --sp-4:            16px;
+  --sp-6:            24px;
+  --sp-8:            32px;
+  --sp-12:           48px;
+
+  /* --- radii --- */
+  --radius-xs:       6px;
+  --radius-sm:       8px;
+  --radius-md:       12px;
+  --radius-lg:       16px;
+  --radius-xl:       24px;
+  --radius-full:     9999px;
+
+  /* --- shadows --- */
+  --shadow-sm:       0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md:       0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg:       0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-glow:     0 0 24px rgba(212, 175, 55, 0.12);
+
+  /* --- typography --- */
+  --font:            'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:       'SF Mono', 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+
+  --text-xs:         0.75rem;    /* 12px */
+  --text-sm:         0.8125rem;  /* 13px */
+  --text-base:       0.9375rem;  /* 15px */
+  --text-md:         1rem;       /* 16px */
+  --text-lg:         1.125rem;   /* 18px */
+  --text-xl:         1.5rem;     /* 24px */
+  --text-2xl:        2rem;       /* 32px */
+  --text-3xl:        2.5rem;     /* 40px */
+
+  /* --- transitions --- */
+  --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:     cubic-bezier(0.45, 0, 0.55, 1);
+  --duration-fast:   120ms;
+  --duration:        200ms;
+  --duration-slow:   350ms;
+
+  /* --- layout --- */
+  --container-max:   1200px;
+  --header-height:   64px;
+}
+
+/* ---- Reduced motion preference ---- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration:      0ms;
+    --duration-slow: 0ms;
+  }
+}

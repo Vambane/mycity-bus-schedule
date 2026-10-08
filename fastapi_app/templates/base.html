@@ -1,61 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="MyCiTi bus timetables and journey planning for Cape Town">
-    <title>{% block title %}MyCiTi Bus Timetable{% endblock %}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MyCiTi bus timetables and journey planning for Cape Town">
+  <title>{% block title %}MyCiTi Bus Timetable{% endblock %}</title>
 
-    <!-- Stylesheets -->
-    <link rel="stylesheet" href="/static/css/main.css">
-    <link rel="stylesheet" href="/static/css/components.css">
+  <!-- Design system -->
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
 
-    {% block extra_css %}{% endblock %}
+  {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <h1 class="logo">
-                    <a href="/">🚌 MyCiTi Timetable</a>
-                </h1>
-                <nav class="nav">
-                    <a href="/" class="nav-link {% if page == 'search' %}active{% endif %}">Journey</a>
-                    <a href="/map" class="nav-link {% if page == 'map' %}active{% endif %}">Map</a>
-                </nav>
-            </div>
-            {% if ls_stage is defined %}
-            <div class="stage-indicator stage-{{ ls_stage.level }}">
-                <span class="stage-label">Load Shedding: Stage {{ ls_stage.level }}</span>
-                <span class="stage-source">({{ ls_stage.source }})</span>
-            </div>
-            {% endif %}
-        </div>
-    </header>
 
-    <!-- Main content -->
-    <main class="main">
-        <div class="container">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
+  <!-- ====== HEADER ====== -->
+  <header class="header" role="banner">
+    <div class="header-inner">
+      <a href="/" class="logo" aria-label="MyCiTi home">
+        <span class="logo-icon" aria-hidden="true">&#x1F68D;</span>
+        MyCiTi
+      </a>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <p class="footer-text">
-                Data from <a href="https://myciti.org.za" target="_blank" rel="noopener">MyCiTi</a> |
-                Load shedding via <a href="https://eskomsepush.gumroad.com/l/api" target="_blank" rel="noopener">EskomSePush</a> |
-                Built with FastAPI
-            </p>
-            <p class="footer-links">
-                <a href="https://github.com/yourusername/mycity-bus-schedule" target="_blank" rel="noopener">GitHub</a>
-            </p>
-        </div>
-    </footer>
+      <nav class="nav-pills" role="navigation" aria-label="Main navigation">
+        <span class="nav-indicator" id="nav-indicator"></span>
+        <a href="/"
+           class="nav-pill {% if page == 'search' %}active{% endif %}"
+           data-nav="search"
+           {% if page == 'search' %}aria-current="page"{% endif %}>
+          Search
+        </a>
+        <a href="/map"
+           class="nav-pill {% if page == 'map' %}active{% endif %}"
+           data-nav="map"
+           {% if page == 'map' %}aria-current="page"{% endif %}>
+          Map
+        </a>
+      </nav>
 
-    <!-- Scripts -->
-    {% block scripts %}{% endblock %}
+      {% if ls_stage is defined and ls_stage %}
+      <span class="ls-badge {% if ls_stage.level == 0 %}ls-badge--ok{% elif ls_stage.level <= 2 %}ls-badge--warn{% else %}ls-badge--crit{% endif %}"
+            role="status"
+            aria-label="Load shedding stage {{ ls_stage.level }}">
+        Stage {{ ls_stage.level }}
+        <span class="text-tertiary">({{ ls_stage.source }})</span>
+      </span>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- ====== MAIN ====== -->
+  <main class="main-content" role="main">
+    <div class="container">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-inner">
+        Data from <a href="https://myciti.org.za" target="_blank" rel="noopener">MyCiTi</a>
+        &middot;
+        Load shedding via <a href="https://eskomsepush.gumroad.com/l/api" target="_blank" rel="noopener">EskomSePush</a>
+        &middot;
+        Built with FastAPI
+      </div>
+    </div>
+  </footer>
+
+  <!-- Nav indicator positioning -->
+  <script>
+  (function() {
+    var active = document.querySelector('.nav-pill.active');
+    var indicator = document.getElementById('nav-indicator');
+    if (active && indicator) {
+      indicator.style.width = active.offsetWidth + 'px';
+      indicator.style.transform = 'translateX(' + active.offsetLeft + 'px)';
+    }
+  })();
+  </script>
+
+  {% block scripts %}{% endblock %}
 </body>
 </html>

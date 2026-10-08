@@ -1,55 +1,50 @@
 <!-- Transfer connection card -->
-<div class="card mb-2">
-    <div class="card-header">
-        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-            <!-- Route chain -->
-            {% for leg in conn.legs %}
-            <span class="route-badge {% if leg.startswith('T') %}trunk{% elif leg.startswith('2') or leg.startswith('1') %}direct{% else %}area{% endif %}">
-                {{ leg }}
-            </span>
-            {% if not loop.last %}
-            <span style="color: var(--text-muted);">→</span>
-            {% endif %}
-            {% endfor %}
-
-            <!-- Transfer badge -->
-            <span class="badge badge-transfer">
-                {{ conn.num_transfers }} transfer{% if conn.num_transfers > 1 %}s{% endif %}
-            </span>
-        </div>
+<div class="card card--interactive journey-card stagger-enter">
+  <div class="card-header">
+    <!-- Route chain: 216 -> T01 -> 105 -->
+    <div class="route-chain">
+      {% for leg in conn.legs %}
+      <span class="route-badge {% if leg.startswith('T') %}trunk{% elif leg.startswith('2') or leg.startswith('1') %}direct{% else %}area{% endif %}">
+        {{ leg }}
+      </span>
+      {% if not loop.last %}
+      <span class="route-chain-arrow" aria-hidden="true">&#8594;</span>
+      {% endif %}
+      {% endfor %}
     </div>
 
-    <div class="card-body">
-        <!-- Via stops -->
-        {% if conn.via %}
-        <div style="margin-bottom: 1rem; font-size: 0.875rem; color: var(--text-muted);">
-            Via {{ conn.via|join(', ') }}
-        </div>
-        {% endif %}
+    <span class="badge badge-transfer">
+      {{ conn.num_transfers }} transfer{% if conn.num_transfers > 1 %}s{% endif %}
+    </span>
+  </div>
 
-        <!-- Journey visualization -->
-        <div class="journey-visual">
-            <div>
-                <div class="time" style="font-size: 1.25rem; font-weight: 600;">{{ conn.dep }}</div>
-                <div style="font-size: 0.875rem; color: var(--text-muted);">{{ results.from_stop }}</div>
-            </div>
+  <!-- Via stops -->
+  {% if conn.via %}
+  <div class="journey-via">Via {{ conn.via|join(', ') }}</div>
+  {% endif %}
 
-            <div class="journey-dot origin"></div>
-
-            {% for via_stop in conn.via %}
-            <div class="journey-line" style="flex: 0 0 40px;"></div>
-            <div class="journey-dot transfer"></div>
-            {% endfor %}
-
-            <div class="journey-line">
-                <div class="journey-label">{{ conn.duration }}</div>
-            </div>
-            <div class="journey-dot destination"></div>
-
-            <div>
-                <div class="time" style="font-size: 1.25rem; font-weight: 600;">{{ conn.arr }}</div>
-                <div style="font-size: 0.875rem; color: var(--text-muted);">{{ results.to_stop }}</div>
-            </div>
-        </div>
+  <!-- Journey timeline -->
+  <div class="journey-viz">
+    <div class="journey-endpoint">
+      <div class="journey-time">{{ conn.dep }}</div>
+      <div class="journey-stop-name">{{ results.from_stop }}</div>
     </div>
+
+    <div class="journey-dot journey-dot--origin"></div>
+
+    {% for via_stop in conn.via %}
+    <div class="journey-line journey-line-short"></div>
+    <div class="journey-dot journey-dot--transfer"></div>
+    {% endfor %}
+
+    <div class="journey-line"></div>
+    <div class="journey-duration">{{ conn.duration }}</div>
+    <div class="journey-line"></div>
+    <div class="journey-dot journey-dot--destination"></div>
+
+    <div class="journey-endpoint" style="text-align: right;">
+      <div class="journey-time">{{ conn.arr }}</div>
+      <div class="journey-stop-name">{{ results.to_stop }}</div>
+    </div>
+  </div>
 </div>

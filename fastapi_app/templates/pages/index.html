@@ -4,197 +4,274 @@
 
 {% block content %}
 <div class="search-page">
-    <!-- Page header - Modern hero section -->
-    <div style="margin-bottom: 2.5rem;">
-        <h1 style="margin-bottom: 0.75rem;">🚌 MyCiTi Journey Planner</h1>
-        <p class="text-muted" style="font-size: 1.125rem;">Find the best routes and connections across Cape Town</p>
-    </div>
 
-    <!-- Search form - Modern elevated card -->
-    <div class="card" style="margin-bottom: 3rem; border: 2px solid var(--border);">
-        <div class="card-body">
-            <form action="/" method="get" style="margin: 0;">
-                <div class="grid grid-2">
-                    <!-- From stop -->
-                    <div class="form-group">
-                        <label for="from_stop" class="form-label">From</label>
-                        <select name="from_stop" id="from_stop" class="form-control" required>
-                            <option value="">Select origin stop...</option>
-                            {% for stop in all_stops %}
-                            <option value="{{ stop }}" {% if stop == from_stop %}selected{% endif %}>
-                                {{ stop }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
+  <!-- ====== HERO ====== -->
+  <section class="hero">
+    <h1 class="hero-title">Plan your journey</h1>
+    <p class="hero-subtitle">Search timetables and connections across Cape Town's MyCiTi bus network</p>
+  </section>
 
-                    <!-- To stop -->
-                    <div class="form-group">
-                        <label for="to_stop" class="form-label">To</label>
-                        <select name="to_stop" id="to_stop" class="form-control" required>
-                            <option value="">Select destination stop...</option>
-                            {% for stop in all_stops %}
-                            <option value="{{ stop }}" {% if stop == to_stop %}selected{% endif %}>
-                                {{ stop }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
+  <!-- ====== SEARCH CARD ====== -->
+  <div class="card card--search" style="margin-bottom: var(--sp-8);">
+    <form action="/" method="get" id="search-form" role="search" aria-label="Journey search">
 
-                <div class="grid grid-2">
-                    <!-- Day type selector -->
-                    <div class="form-group">
-                        <label class="form-label">Service Type</label>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="radio" name="day_type" value="weekday" {% if day_type == 'weekday' %}checked{% endif %}>
-                                Weekday
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="radio" name="day_type" value="saturday" {% if day_type == 'saturday' %}checked{% endif %}>
-                                Saturday
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="radio" name="day_type" value="sunday" {% if day_type == 'sunday' %}checked{% endif %}>
-                                Sunday
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Date selector (optional) -->
-                    <div class="form-group">
-                        <label for="search_date" class="form-label">Date (optional)</label>
-                        <input type="date" name="search_date" id="search_date" class="form-control"
-                               value="{{ search_date or '' }}"
-                               placeholder="Leave blank for today">
-                        <small class="text-muted">Leave blank to search from current time</small>
-                    </div>
-                </div>
-
-                <!-- Submit button -->
-                <button type="submit" class="btn btn-primary">
-                    Search Journeys
-                </button>
-
-                <!-- Swap button -->
-                {% if from_stop and to_stop %}
-                <a href="/?from_stop={{ to_stop }}&to_stop={{ from_stop }}&day_type={{ day_type }}"
-                   class="btn btn-secondary btn-icon"
-                   title="Swap stops">
-                    ⇄
-                </a>
-                {% endif %}
-            </form>
-        </div>
-    </div>
-
-    {% if error %}
-    <!-- Error message -->
-    <div class="alert alert-danger">
-        {{ error }}
-    </div>
-    {% endif %}
-
-    {% if results %}
-        {% if results.has_results %}
-        <!-- Results header -->
-        <div class="mb-2">
-            <h2>{{ results.from_stop }} → {{ results.to_stop }}</h2>
-            <p class="text-muted">
-                {% if results.search_date %}
-                Departures for {{ results.search_date }}
-                {% else %}
-                Departures from {{ results.current_time }}
-                {% endif %}
-            </p>
+      <!-- Row 1: From / To -->
+      <div class="form-grid form-grid--2col">
+        <!-- From stop combobox -->
+        <div class="form-group">
+          <label class="form-label" id="label-from">From</label>
+          <div class="combobox" data-combobox="from_stop">
+            <input type="text"
+                   class="combobox-input"
+                   placeholder="Type to search stops..."
+                   autocomplete="off"
+                   role="combobox"
+                   aria-expanded="false"
+                   aria-controls="list-from"
+                   aria-labelledby="label-from"
+                   aria-autocomplete="list"
+                   {% if from_stop %}value="{{ from_stop }}"{% endif %}>
+            <span class="combobox-chevron" aria-hidden="true">&#9662;</span>
+            <ul class="combobox-list" id="list-from" role="listbox" aria-labelledby="label-from">
+              {% for stop in all_stops %}
+              <li class="combobox-option"
+                  role="option"
+                  data-value="{{ stop }}"
+                  {% if stop == from_stop %}aria-selected="true"{% endif %}>
+                {{ stop }}
+              </li>
+              {% endfor %}
+            </ul>
+            <!-- Hidden native select for form submission -->
+            <select name="from_stop" class="combobox-native" required aria-hidden="true" tabindex="-1">
+              <option value="">Select origin...</option>
+              {% for stop in all_stops %}
+              <option value="{{ stop }}" {% if stop == from_stop %}selected{% endif %}>{{ stop }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
 
-        <!-- Next day notice -->
-        {% if results.showing_next_day %}
-        <div class="alert alert-info">
-            <strong>ℹ️ No more buses today</strong>
-            <p>The last bus has left for today. Showing tomorrow morning's departures instead.</p>
+        <!-- To stop combobox -->
+        <div class="form-group">
+          <label class="form-label" id="label-to">To</label>
+          <div class="combobox" data-combobox="to_stop">
+            <input type="text"
+                   class="combobox-input"
+                   placeholder="Type to search stops..."
+                   autocomplete="off"
+                   role="combobox"
+                   aria-expanded="false"
+                   aria-controls="list-to"
+                   aria-labelledby="label-to"
+                   aria-autocomplete="list"
+                   {% if to_stop %}value="{{ to_stop }}"{% endif %}>
+            <span class="combobox-chevron" aria-hidden="true">&#9662;</span>
+            <ul class="combobox-list" id="list-to" role="listbox" aria-labelledby="label-to">
+              {% for stop in all_stops %}
+              <li class="combobox-option"
+                  role="option"
+                  data-value="{{ stop }}"
+                  {% if stop == to_stop %}aria-selected="true"{% endif %}>
+                {{ stop }}
+              </li>
+              {% endfor %}
+            </ul>
+            <select name="to_stop" class="combobox-native" required aria-hidden="true" tabindex="-1">
+              <option value="">Select destination...</option>
+              {% for stop in all_stops %}
+              <option value="{{ stop }}" {% if stop == to_stop %}selected{% endif %}>{{ stop }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
+      </div>
+
+      <!-- Row 2: Service type / Date -->
+      <div class="form-grid form-grid--2col" style="margin-top: var(--sp-4);">
+        <!-- Day type segmented control -->
+        <div class="form-group">
+          <span class="form-label" id="label-day">Service</span>
+          <div class="segmented" role="radiogroup" aria-labelledby="label-day">
+            <span class="segmented-option">
+              <input type="radio" name="day_type" value="weekday" id="day-weekday"
+                     class="segmented-input" {% if day_type == 'weekday' %}checked{% endif %}>
+              <label for="day-weekday" class="segmented-label">Weekday</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="day_type" value="saturday" id="day-saturday"
+                     class="segmented-input" {% if day_type == 'saturday' %}checked{% endif %}>
+              <label for="day-saturday" class="segmented-label">Saturday</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="day_type" value="sunday" id="day-sunday"
+                     class="segmented-input" {% if day_type == 'sunday' %}checked{% endif %}>
+              <label for="day-sunday" class="segmented-label">Sunday</label>
+            </span>
+          </div>
+        </div>
+
+        <!-- Date picker -->
+        <div class="form-group">
+          <label for="search_date" class="form-label">Date (optional)</label>
+          <input type="date"
+                 name="search_date"
+                 id="search_date"
+                 class="form-input"
+                 value="{{ search_date or '' }}"
+                 aria-describedby="date-hint">
+          <span class="form-hint" id="date-hint">Leave blank to search from now</span>
+        </div>
+      </div>
+
+      <!-- Row 3: Actions -->
+      <div class="form-actions" style="margin-top: var(--sp-6);">
+        <button type="submit" class="btn btn-primary" id="search-btn">
+          Search Journeys
+        </button>
+
+        {% if from_stop and to_stop %}
+        <a href="/?from_stop={{ to_stop }}&to_stop={{ from_stop }}&day_type={{ day_type }}{% if search_date %}&search_date={{ search_date }}{% endif %}"
+           class="btn btn-ghost btn-icon btn-swap"
+           id="swap-btn"
+           title="Swap origin and destination"
+           aria-label="Swap origin and destination">
+          &#8693;
+        </a>
         {% endif %}
+      </div>
+    </form>
+  </div>
 
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('best')">
-                Best
-            </button>
-            <button class="tab" onclick="switchTab('fastest')">
-                Fastest
-            </button>
-            <button class="tab" onclick="switchTab('all')">
-                All Day
-            </button>
-        </div>
+  <!-- ====== ERROR ====== -->
+  {% if error %}
+  <div class="alert alert-danger" role="alert">
+    <div class="alert-title">Search error</div>
+    <p>{{ error }}</p>
+  </div>
+  {% endif %}
 
-        <!-- Best tab -->
-        <div id="tab-best" class="tab-content active">
-            {% if results.tabs.best %}
-                {% for conn in results.tabs.best %}
-                    {% if conn.legs %}
-                        {% include 'components/transfer_card.html' %}
-                    {% else %}
-                        {% include 'components/connection_card.html' %}
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">
-                    <div class="empty-state-message">No connections available</div>
-                </div>
-            {% endif %}
-        </div>
+  <!-- ====== RESULTS ====== -->
+  {% if results %}
+    {% if results.has_results %}
 
-        <!-- Fastest tab -->
-        <div id="tab-fastest" class="tab-content">
-            {% if results.tabs.fastest %}
-                {% for conn in results.tabs.fastest %}
-                    {% if conn.legs %}
-                        {% include 'components/transfer_card.html' %}
-                    {% else %}
-                        {% include 'components/connection_card.html' %}
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">
-                    <div class="empty-state-message">No connections available</div>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- All day tab -->
-        <div id="tab-all" class="tab-content">
-            {% if results.tabs.all_day %}
-                {% for conn in results.tabs.all_day %}
-                    {% if conn.legs %}
-                        {% include 'components/transfer_card.html' %}
-                    {% else %}
-                        {% include 'components/connection_card.html' %}
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">
-                    <div class="empty-state-message">No connections available</div>
-                </div>
-            {% endif %}
-        </div>
-
+    <!-- Results header -->
+    <div class="results-header">
+      <div class="results-route">
+        <h2 style="margin-bottom: 0;">{{ results.from_stop }}</h2>
+        <span class="results-arrow" aria-hidden="true">&#8594;</span>
+        <h2 style="margin-bottom: 0;">{{ results.to_stop }}</h2>
+      </div>
+      <p class="results-meta">
+        {% if results.search_date %}
+        Departures for {{ results.search_date }}
         {% else %}
-        <!-- No results -->
-        <div class="empty-state">
-            <div class="empty-state-icon">🚌</div>
-            <div class="empty-state-message">No routes found</div>
-            <p class="text-muted">
-                There are no direct or connecting routes between {{ results.from_stop }} and {{ results.to_stop }}
-                on {{ results.day_type }}s.
-            </p>
-        </div>
+        Departures from {{ results.current_time }}
         {% endif %}
+        &middot; {{ results.day_type | capitalize }} service
+      </p>
+    </div>
+
+    <!-- Next-day notice -->
+    {% if results.showing_next_day %}
+    <div class="alert alert-info" role="status">
+      <div class="alert-title">No more buses today</div>
+      <p>The last bus has left. Showing tomorrow morning's departures instead.</p>
+    </div>
     {% endif %}
+
+    <!-- Tabs -->
+    <div class="tab-bar" role="tablist" aria-label="Result views">
+      <span class="tab-indicator" id="tab-indicator"></span>
+      <button class="tab-btn active"
+              role="tab"
+              id="btn-best"
+              aria-controls="panel-best"
+              aria-selected="true"
+              data-tab="best">Best</button>
+      <button class="tab-btn"
+              role="tab"
+              id="btn-fastest"
+              aria-controls="panel-fastest"
+              aria-selected="false"
+              data-tab="fastest">Fastest</button>
+      <button class="tab-btn"
+              role="tab"
+              id="btn-all"
+              aria-controls="panel-all"
+              aria-selected="false"
+              data-tab="all">All Day</button>
+    </div>
+
+    <!-- Best tab panel -->
+    <div class="tab-panel active" id="panel-best" role="tabpanel" aria-labelledby="btn-best">
+      {% if results.tabs.best %}
+        {% for conn in results.tabs.best %}
+          {% if conn.legs %}
+            {% include 'components/transfer_card.html' %}
+          {% else %}
+            {% include 'components/connection_card.html' %}
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-title">No connections available</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Fastest tab panel -->
+    <div class="tab-panel" id="panel-fastest" role="tabpanel" aria-labelledby="btn-fastest">
+      {% if results.tabs.fastest %}
+        {% for conn in results.tabs.fastest %}
+          {% if conn.legs %}
+            {% include 'components/transfer_card.html' %}
+          {% else %}
+            {% include 'components/connection_card.html' %}
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-title">No connections available</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- All Day tab panel -->
+    <div class="tab-panel" id="panel-all" role="tabpanel" aria-labelledby="btn-all">
+      {% if results.tabs.all_day %}
+        {% for conn in results.tabs.all_day %}
+          {% if conn.legs %}
+            {% include 'components/transfer_card.html' %}
+          {% else %}
+            {% include 'components/connection_card.html' %}
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-title">No connections available</div>
+        </div>
+      {% endif %}
+    </div>
+
+    {% else %}
+    <!-- No results -->
+    <div class="empty-state">
+      <div class="empty-state-icon" aria-hidden="true">&#128652;</div>
+      <div class="empty-state-title">No routes found</div>
+      <p class="empty-state-text">
+        There are no direct or connecting routes between {{ results.from_stop }} and {{ results.to_stop }}
+        on {{ results.day_type }}s.
+      </p>
+    </div>
+    {% endif %}
+  {% endif %}
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/combobox.js"></script>
 <script src="/static/js/tabs.js"></script>
+<script src="/static/js/search.js"></script>
 {% endblock %}

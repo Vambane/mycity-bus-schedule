@@ -43,10 +43,9 @@ MARKER_COLORS = {
     "destination": "#c5221f",
 }
 
-_TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 _ATTRIBUTION = (
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-    ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 )
 
 _HTML_TEMPLATE = """<!DOCTYPE html>
