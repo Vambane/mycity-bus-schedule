@@ -1,0 +1,340 @@
+/* MyCiTi Bus Timetable - Modern Design System */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+
+:root {
+  /* Primary brand colors - inspired by modern transit apps */
+  --lime-accent: #c4ff32;
+  --lime-hover: #d4ff52;
+  --dark-bg: #1a1a1a;
+  --darker-bg: #0f0f0f;
+
+  /* Route categories (preserved from system_map.py) */
+  --trunk-red: #E4003A;
+  --direct-blue: #0072BC;
+  --area-green: #00843D;
+  --complementary-purple: #9B51E0;
+  --feeder-orange: #F2994A;
+
+  /* Load shedding stage colors */
+  --stage-0-bg: #e6f4ea;
+  --stage-0-fg: #137333;
+  --stage-1-bg: #fef7e0;
+  --stage-1-fg: #b45309;
+  --stage-2-bg: #fef7e0;
+  --stage-2-fg: #b45309;
+  --stage-3-bg: #fce8e6;
+  --stage-3-fg: #c5221f;
+  --stage-4-bg: #fce8e6;
+  --stage-4-fg: #c5221f;
+
+  /* Semantic colors */
+  --primary: var(--lime-accent);
+  --success: #00d084;
+  --warning: #ffb020;
+  --danger: #ff4757;
+
+  /* Neutrals - modern palette */
+  --bg: #f5f5f5;
+  --bg-gradient: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+  --surface: #ffffff;
+  --surface-dark: #2b2b2b;
+  --surface-hover: #fafafa;
+  --border: #e8e8e8;
+  --border-dark: #3a3a3a;
+  --text: #1a1a1a;
+  --text-muted: #6b6b6b;
+  --text-light: #9b9b9b;
+
+  /* Shadows - soft and modern */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12);
+
+  /* Border radius - generous and modern */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Spacing - consistent scale */
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 3rem;     /* 48px */
+
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg-gradient);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Container */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 var(--spacing-xl);
+  }
+}
+
+/* Header - modern sticky header */
+.header {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: var(--spacing-lg) 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.logo a {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  transition: color var(--transition);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.logo a:hover {
+  color: var(--lime-accent);
+}
+
+/* Navigation - modern pill style */
+.nav {
+  display: flex;
+  gap: var(--spacing-sm);
+  background: var(--surface);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-xs);
+}
+
+.nav-link {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-full);
+  transition: all var(--transition);
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.nav-link:hover {
+  color: var(--text);
+  background-color: var(--surface-hover);
+}
+
+.nav-link.active {
+  color: var(--dark-bg);
+  background-color: var(--lime-accent);
+}
+
+/* Stage indicator - modern badge */
+.stage-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-top: var(--spacing-sm);
+}
+
+.stage-indicator.stage-0 {
+  background-color: var(--stage-0-bg);
+  color: var(--stage-0-fg);
+}
+
+.stage-indicator.stage-1,
+.stage-indicator.stage-2 {
+  background-color: var(--stage-1-bg);
+  color: var(--stage-1-fg);
+}
+
+.stage-indicator.stage-3,
+.stage-indicator.stage-4,
+.stage-indicator.stage-5,
+.stage-indicator.stage-6,
+.stage-indicator.stage-7,
+.stage-indicator.stage-8 {
+  background-color: var(--stage-3-bg);
+  color: var(--stage-3-fg);
+}
+
+.stage-source {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* Main content */
+.main {
+  flex: 1;
+  padding: var(--spacing-xl) 0;
+}
+
+/* Footer - minimal and clean */
+.footer {
+  background-color: transparent;
+  border-top: 1px solid var(--border);
+  padding: var(--spacing-2xl) 0;
+  margin-top: auto;
+}
+
+.footer-text {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.footer-links {
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.footer a {
+  color: var(--text);
+  text-decoration: none;
+  transition: color var(--transition);
+  font-weight: 500;
+}
+
+.footer a:hover {
+  color: var(--lime-accent);
+}
+
+/* Typography - modern and clean */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--spacing-lg);
+  color: var(--text);
+}
+
+h1 {
+  font-size: 2.5rem;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 1.875rem;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-light {
+  color: var(--text-light);
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* Times (monospace for alignment) */
+.time {
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Utilities */
+.mt-1 { margin-top: var(--spacing-sm); }
+.mt-2 { margin-top: var(--spacing-md); }
+.mt-3 { margin-top: var(--spacing-lg); }
+.mb-1 { margin-bottom: var(--spacing-sm); }
+.mb-2 { margin-bottom: var(--spacing-md); }
+.mb-3 { margin-bottom: var(--spacing-lg); }
+
+.hidden {
+  display: none;
+}
+
+/* Responsive grid */
+.grid {
+  display: grid;
+  gap: var(--spacing-lg);
+}
+
+@media (min-width: 640px) {
+  .grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Responsive utilities */
+@media (max-width: 639px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  .nav {
+    width: 100%;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

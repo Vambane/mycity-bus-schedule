@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stop_name }} - MyCiTi Timetable{% endblock %}
+
+{% block content %}
+<div class="stop-page">
+    <!-- Page header -->
+    <div class="page-header mb-3">
+        <h1>🚏 {{ stop_name }}</h1>
+        <p class="text-muted">Upcoming departures {% if current_time %}from {{ current_time }}{% endif %}</p>
+    </div>
+
+    <!-- Load shedding warning -->
+    {% if ls_warning %}
+    <div class="alert alert-warning">
+        {{ ls_warning }}
+    </div>
+    {% endif %}
+
+    <!-- Day type selector -->
+    <div class="form-group">
+        <label class="form-label">Service Type</label>
+        <div class="tabs">
+            <a href="/stop/{{ stop_name }}?day_type=weekday"
+               class="tab {% if day_type == 'weekday' %}active{% endif %}">
+                Weekday
+            </a>
+            <a href="/stop/{{ stop_name }}?day_type=saturday"
+               class="tab {% if day_type == 'saturday' %}active{% endif %}">
+                Saturday
+            </a>
+            <a href="/stop/{{ stop_name }}?day_type=sunday"
+               class="tab {% if day_type == 'sunday' %}active{% endif %}">
+                Sunday
+            </a>
+        </div>
+    </div>
+
+    {% if error %}
+    <!-- Error message -->
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+    {% elif not routes %}
+    <!-- Empty state -->
+    <div class="empty-state">
+        <div class="empty-state-icon">🚌</div>
+        <div class="empty-state-message">No routes found for this stop</div>
+        <p class="text-muted">Try selecting a different day type or check the stop name.</p>
+    </div>
+    {% else %}
+    <!-- Routes summary -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">Routes Serving This Stop</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                {% for route in routes %}
+                <span class="route-badge {% if route.route_short_name.startswith('T') %}trunk{% elif route.route_short_name.startswith('2') or route.route_short_name.startswith('1') %}direct{% else %}area{% endif %}">
+                    {{ route.route_short_name }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Departures by route -->
+    {% if departures %}
+        {% for route_id, data in departures.items() %}
+        <div class="card mb-2">
+            <!-- Route header -->
+            <div class="card-header">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span class="route-badge {% if data.route.route_short_name.startswith('T') %}trunk{% elif data.route.route_short_name.startswith('2') or data.route.route_short_name.startswith('1') %}direct{% else %}area{% endif %}">
+                        {{ data.route.route_short_name }}
+                    </span>
+                    <span>{{ data.route.route_long_name }}</span>
+                </div>
+            </div>
+
+            <!-- Next departure metric -->
+            {% if data.next_departure %}
+            <div class="metric-card">
+                <div class="metric-label">Next Departure</div>
+                <div class="metric-value">{{ data.next_departure.time }}</div>
+                <div class="metric-subtitle">to {{ data.next_departure.headsign }}</div>
+            </div>
+            {% endif %}
+
+            <!-- Upcoming departures list -->
+            <div class="card-body">
+                <h4 style="margin-bottom: 1rem;">Upcoming Departures</h4>
+                <ul class="departure-list">
+                    {% for departure in data.upcoming %}
+                    <li class="departure-item">
+                        <div class="departure-info">
+                            <span class="departure-time time">{{ departure.time }}</span>
+                            <span class="departure-direction">{{ departure.headsign }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <!-- No upcoming departures -->
+    <div class="alert alert-info">
+        <strong>No more buses today</strong>
+        <p>There are no more scheduled departures for the selected routes on {{ day_type }}s.</p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- Back to search -->
+    <div class="mt-3">
+        <a href="/" class="btn btn-secondary">← Back to Journey Search</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCiTi Bus - Modern UI Demo</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="/">🚌 MyCiTi</a>
+                </div>
+                <nav class="nav">
+                    <a href="/" class="nav-link active">Search</a>
+                    <a href="/map" class="nav-link">Map</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="main">
+        <div class="container">
+            <!-- Hero section -->
+            <div style="margin-bottom: 2.5rem;">
+                <h1 style="margin-bottom: 0.75rem;">🚌 MyCiTi Journey Planner</h1>
+                <p class="text-muted" style="font-size: 1.125rem;">Find the best routes and connections across Cape Town</p>
+            </div>
+
+            <!-- Search form card -->
+            <div class="card" style="margin-bottom: 3rem; border: 2px solid var(--border);">
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">From</label>
+                            <select class="form-control">
+                                <option>Civic Centre</option>
+                                <option>Camps Bay</option>
+                                <option>Sea Point</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">To</label>
+                            <select class="form-control">
+                                <option>Camps Bay</option>
+                                <option>Civic Centre</option>
+                                <option>Hout Bay</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Service Type</label>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="radio" name="day_type" value="weekday" checked>
+                                    Weekday
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="radio" name="day_type" value="saturday">
+                                    Saturday
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="radio" name="day_type" value="sunday">
+                                    Sunday
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="search_date" class="form-label">Date (optional)</label>
+                            <input type="date" id="search_date" class="form-control" placeholder="Leave blank for today">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                        <button type="submit" class="btn btn-primary">Search Journeys</button>
+                        <button type="button" class="btn btn-secondary btn-icon">⇄</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results header -->
+            <div style="margin-bottom: 2rem;">
+                <h2>Civic Centre → Camps Bay</h2>
+                <p class="text-muted">Departures from 21:37</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active">Best</button>
+                <button class="tab">Fastest</button>
+                <button class="tab">All Day</button>
+            </div>
+
+            <!-- Connection cards -->
+            <div class="card mb-2">
+                <div class="card-header">
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <span class="route-badge direct">106</span>
+                        <span>To 106 Camps Bay</span>
+                        <span class="badge badge-fastest">Fastest</span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- Journey visualization -->
+                    <div class="journey-visual">
+                        <div>
+                            <div class="time" style="font-size: 1.25rem; font-weight: 600;">05:40</div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted);">Civic Centre</div>
+                        </div>
+
+                        <div class="journey-dot origin"></div>
+                        <div class="journey-line">
+                            <div class="journey-label">Direct · 41 min</div>
+                        </div>
+                        <div class="journey-dot destination"></div>
+
+                        <div>
+                            <div class="time" style="font-size: 1.25rem; font-weight: 600;">06:21</div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted);">Camps Bay</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Another connection card -->
+            <div class="card mb-2">
+                <div class="card-header">
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <span class="route-badge trunk">107</span>
+                        <span>To 107 Camps Bay</span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="journey-visual">
+                        <div>
+                            <div class="time" style="font-size: 1.25rem; font-weight: 600;">05:45</div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted);">Civic Centre</div>
+                        </div>
+
+                        <div class="journey-dot origin"></div>
+                        <div class="journey-line">
+                            <div class="journey-label">Direct · 35 min</div>
+                        </div>
+                        <div class="journey-dot destination"></div>
+
+                        <div>
+                            <div class="time" style="font-size: 1.25rem; font-weight: 600;">06:20</div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted);">Camps Bay</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transfer connection card -->
+            <div class="card mb-2">
+                <div class="card-header">
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <span class="route-badge direct">216</span>
+                        <span style="color: var(--text-muted);">→</span>
+                        <span class="route-badge trunk">T01</span>
+                        <span class="badge badge-transfer">1 transfer</span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div style="margin-bottom: 1rem; font-size: 0.875rem; color: var(--text-muted);">
+                        Via Gardens
+                    </div>
+
+                    <div class="journey-visual">
+                        <div>
+                            <div class="time" style="font-size: 1.25rem; font-weight: 600;">06:15</div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted);">Civic Centre</div>
+                        </div>
+
+                        <div class="journey-dot origin"></div>
+                        <div class="journey-line" style="flex: 0 0 40px;"></div>
+                        <div class="journey-dot transfer"></div>
+                        <div class="journey-line">
+                            <div class="journey-label">52 min</div>
+                        </div>
+                        <div class="journey-dot destination"></div>
+
+                        <div>
+                            <div class="time" style="font-size: 1.25rem; font-weight: 600;">07:07</div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted);">Camps Bay</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alert example -->
+            <div class="alert alert-info" style="margin-top: 3rem;">
+                <strong>ℹ️ No more buses today</strong>
+                <p>The last bus has left for today. Showing tomorrow morning's departures instead.</p>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p class="footer-text">MyCiTi Bus Timetable &copy; 2026</p>
+            <div class="footer-links">
+                <a href="https://github.com/yourusername/mycity-bus-schedule">GitHub</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

@@ -99,8 +99,11 @@ def find_connections(
     for _, cand in candidates.iterrows():
         for dep, arr in _pair_times(list(cand["from_times"]), list(cand["to_times"])):
             minutes = _to_minutes(arr) - _to_minutes(dep)
-            # Guard against pathological pairings (skipped-stop misalignment)
-            if 0 < minutes <= 300:
+            # Guard against pathological pairings (skipped-stop misalignment).
+            # Minimum 5 minutes filters out obvious impossibilities (1-3 min for
+            # long routes) from skip-stop patterns where unequal stop counts cause
+            # wrong trip pairing, while allowing legitimate short hops.
+            if 5 <= minutes <= 300:
                 rows.append({
                     "route_id": cand["route_id"],
                     "route_name": cand["route_name"],
