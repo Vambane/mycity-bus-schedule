@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}System Map - MyCiTi Timetable{% endblock %}
+
+{% block content %}
+<div class="map-page">
+    <h1>🗺️ MyCiTi Network Map</h1>
+    <p class="text-muted mb-2">Explore the full bus network. Click on stops to view timetables.</p>
+
+    <!-- Map container -->
+    <div style="width: 100%; height: 70vh; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-top: 1rem;">
+        <iframe
+            src="/static/map/system_map.html"
+            style="width: 100%; height: 100%; border: none;"
+            title="MyCiTi System Map"
+        ></iframe>
+    </div>
+
+    <!-- Map legend -->
+    <div class="card mt-3">
+        <div class="card-header">
+            <h3 class="card-title">Map Legend</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-2">
+                <div>
+                    <h4 style="margin-bottom: 0.5rem;">Route Types</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 0.5rem;">
+                            <span class="route-badge trunk">T01</span> Trunk Routes (Red)
+                        </li>
+                        <li style="margin-bottom: 0.5rem;">
+                            <span class="route-badge direct">216</span> Direct Routes (Blue)
+                        </li>
+                        <li style="margin-bottom: 0.5rem;">
+                            <span class="route-badge area">105</span> Area Routes (Green)
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="margin-bottom: 0.5rem;">How to Use</h4>
+                    <ul style="padding-left: 1.5rem;">
+                        <li>Click <strong>Schematic</strong> for simplified network view</li>
+                        <li>Click <strong>Street</strong> for street map overlay</li>
+                        <li>Click any stop marker to view its timetable</li>
+                        <li>Zoom and pan to explore the network</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

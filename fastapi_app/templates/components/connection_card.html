@@ -1,0 +1,50 @@
+<!-- Direct connection card -->
+<div class="card mb-2 {% if conn.ls_affected %}ls-affected{% endif %}">
+    <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <span class="route-badge {% if conn.route_name.startswith('T') %}trunk{% elif conn.route_name.startswith('2') or conn.route_name.startswith('1') %}direct{% else %}area{% endif %}">
+                {{ conn.route_name }}
+            </span>
+            <span>{{ conn.direction }}</span>
+            {% if conn.ls_chip %}
+            <span class="badge badge-ls-affected" style="background-color: {{ conn.ls_chip[1] }}; color: {{ conn.ls_chip[2] }};">
+                {{ conn.ls_chip[0] }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card-body">
+        {% if conn.ls_caption %}
+        <div class="alert alert-warning" style="margin-bottom: 1rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+            {{ conn.ls_caption }}
+        </div>
+        {% endif %}
+
+        <!-- Journey visualization -->
+        <div class="journey-visual">
+            <div>
+                <div class="time" style="font-size: 1.25rem; font-weight: 600;">{{ conn.dep }}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted);">{{ results.from_stop }}</div>
+            </div>
+
+            <div class="journey-dot origin"></div>
+            <div class="journey-line">
+                <div class="journey-label">
+                    Direct ·
+                    {% if conn.ls_adjusted_duration %}
+                        {{ conn.ls_adjusted_duration }}
+                    {% else %}
+                        {{ conn.duration }}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="journey-dot destination"></div>
+
+            <div>
+                <div class="time" style="font-size: 1.25rem; font-weight: 600;">{{ conn.arr }}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted);">{{ results.to_stop }}</div>
+            </div>
+        </div>
+    </div>
+</div>

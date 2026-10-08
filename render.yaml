@@ -1,8 +1,22 @@
 services:
   - type: web
-    name: myciti-bus-schedule
-    runtime: python
+    name: myciti-bus-timetable
+    env: python
+    region: frankfurt  # or oregon/singapore based on preference
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn webapp:app
-    healthCheckPath: /api/health
+    buildCommand: |
+      pip install -r requirements.txt
+      echo "Build complete - using existing database snapshot"
+    startCommand: uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT --workers 2
+    envVars:
+      - key: ESP_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: PYTHON_VERSION
+        value: 3.11
+    healthCheckPath: /
+    autoDeploy: true
+
+# Optional: If you want to rebuild the database on deploy
+# buildCommand: |
+#   pip install -r requirements.txt
+#   python run_etl.py || echo "Using snapshot - ETL failed but continuing"
