@@ -6,7 +6,7 @@ services:
     plan: free
     buildCommand: |
       pip install -r requirements.txt
-      echo "Build complete - using existing database snapshot"
+      python run_etl.py
     startCommand: uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT --workers 2
     envVars:
       - key: ESP_API_KEY
