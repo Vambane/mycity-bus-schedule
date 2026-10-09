@@ -11,6 +11,8 @@
       {{ conn.ls_chip[0] }}
     </span>
     {% endif %}
+    <a href="/?from_stop={{ results.to_stop|urlencode }}&to_stop={{ results.from_stop|urlencode }}&day_type={{ results.day_type }}"
+       class="btn-reverse" title="Search return trip" aria-label="Search return trip">&#8693;</a>
   </div>
 
   {% if conn.ls_caption %}

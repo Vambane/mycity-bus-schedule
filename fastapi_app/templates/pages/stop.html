@@ -49,20 +49,23 @@
         <p class="text-muted">Try selecting a different day type or check the stop name.</p>
     </div>
     {% else %}
-    <!-- Routes summary -->
+    <!-- Routes summary — badges are clickable to filter departures below -->
     <div class="card mb-3">
         <div class="card-header">
             <h3 class="card-title">Routes Serving This Stop</h3>
+            <span class="route-filter-status" id="route-filter-status"></span>
         </div>
         <div class="card-body">
-            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            <div class="route-filter-bar">
                 {% set seen_routes = [] %}
                 {% for route in routes %}
                   {% if route.route_id not in seen_routes %}
                     {% if seen_routes.append(route.route_id) %}{% endif %}
-                    <span class="route-badge {% if route.route_id.startswith('T') %}trunk{% elif route.route_id.startswith('D') %}direct{% else %}area{% endif %}">
+                    <button type="button"
+                            class="route-badge route-badge--filterable {% if route.route_id.startswith('T') %}trunk{% elif route.route_id.startswith('D') %}direct{% else %}area{% endif %}"
+                            data-route-id="{{ route.route_id }}">
                         {{ route.route_name }}
-                    </span>
+                    </button>
                   {% endif %}
                 {% endfor %}
             </div>
@@ -72,7 +75,7 @@
     <!-- Departures by route+direction -->
     {% if departures %}
         {% for dep_key, data in departures.items() %}
-        <div class="card mb-2">
+        <div class="card mb-2 departure-card" data-route-id="{{ data.route.route_id }}">
             <!-- Route header -->
             <div class="card-header">
                 <div style="display: flex; align-items: center; gap: 1rem;">
@@ -122,4 +125,9 @@
         <a href="/" class="btn btn-secondary">&#8592; Back to Journey Search</a>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/stop-filter.js"></script>
+<script src="/static/js/search.js"></script>
 {% endblock %}

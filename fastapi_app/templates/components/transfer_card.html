@@ -16,6 +16,8 @@
     <span class="badge badge-transfer">
       {{ conn.num_transfers }} transfer{% if conn.num_transfers > 1 %}s{% endif %}
     </span>
+    <a href="/?from_stop={{ results.to_stop|urlencode }}&to_stop={{ results.from_stop|urlencode }}&day_type={{ results.day_type }}"
+       class="btn-reverse" title="Search return trip" aria-label="Search return trip">&#8693;</a>
   </div>
 
   <!-- Via stops -->
