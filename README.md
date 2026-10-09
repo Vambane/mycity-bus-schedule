@@ -2,9 +2,9 @@
 
 A custom, responsive website for exploring Cape Town's MyCiTi bus network:
 plan a journey, browse upcoming departures, and explore an interactive route
-map. A small Flask API serves the website and reuses the Python timetable and
-network logic. The original Streamlit interface remains available for local
-development.
+map. A FastAPI backend serves the website with Jinja2 templates and reuses the
+Python timetable and network logic. The original Streamlit interface remains
+available for local development.
 
 The official MyCiTi site only publishes timetables as PDFs. This project
 scrapes those PDFs into a queryable database and adds the tools the site
@@ -20,6 +20,10 @@ clickable geographic system map.
   - When no direct route exists, the app suggests timetable-based
     connections with one transfer (or two, via a bridging line), showing
     each leg, the changeover stop, and the wait time
+  - Every result card has an expandable **tube-map schematic** listing
+    all intermediate stops along the route, drawn as a vertical line
+    with colour-coded dots (green origin, route-coloured intermediates,
+    amber transfer points, red destination)
   - A small map above the transfer results draws the next connection's
     legs in route colors with markers for the origin, each changeover
     stop, and the destination, with the same *Schematic* / *Street*
@@ -52,7 +56,8 @@ myciti.org.za route-timetable PDFs
 data/myciti.duckdb  ◄── City of Cape Town open data (stop coordinates,
         │               street route geometries: data/cct_*.geojson)
         ▼
-Streamlit app (app.py) ── Leaflet custom component (map_component/)
+FastAPI app (fastapi_app/) ── Jinja2 templates + Leaflet maps
+Streamlit app (app.py)    ── Leaflet custom component (map_component/)
 ```
 
 - `etl/scrape_myciti.py` downloads every route's timetable PDF and parses the
@@ -137,11 +142,11 @@ Requires Python 3.10+.
 # Install dependencies
 pip install -r requirements.txt
 
-# Start the website
-python webapp.py
+# Start the website (FastAPI)
+uvicorn fastapi_app.main:app --port 8000
 ```
 
-Open `http://localhost:5000`. The server builds its local DuckDB database from
+Open `http://localhost:8000`. The server builds its local DuckDB database from
 the committed Parquet snapshot on first start; no scraping is needed.
 
 ## Free website hosting
@@ -177,10 +182,23 @@ re-scraping.
 ## Project structure
 
 ```
+├── fastapi_app/              # FastAPI web application
+│   ├── main.py               # Application entry point
+│   ├── routes/
+│   │   └── search.py         # Journey search route handler
+│   ├── templates/
+│   │   ├── pages/            # Full page templates (index, stop view)
+│   │   └── components/       # Reusable card components (connection, transfer)
+│   └── static/
+│       ├── css/              # Design tokens, layout, component styles
+│       └── js/               # Combobox, tabs, search behaviour
 ├── app.py                    # Streamlit app (search, timetables, map tabs)
-├── system_map.py             # System-map graph builder + component wrapper
+├── journey.py                # Connection finder (direct + transfer)
+├── journey_map.py            # Inline Leaflet map for transfer itineraries
+├── system_map.py             # System-map graph builder + route colour palette
+├── disruption.py             # Load shedding schedule model
 ├── map_component/
-│   └── index.html            # Leaflet map frontend (custom component)
+│   └── index.html            # Leaflet map frontend (Streamlit component)
 ├── etl/
 │   ├── scrape_myciti.py      # PDF scraper/parser
 │   ├── load_db.py            # DuckDB loader
