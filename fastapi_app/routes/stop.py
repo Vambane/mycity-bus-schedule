@@ -106,33 +106,26 @@ async def stop_view(
         if stop_block and stage > 0:
             windows_min = _windows_min(stop_block, stage, today)
             if windows_min:
-                windows_str = [_fmt_window(start, end) for start, end in windows_min[:3]]  # First 3
+                windows_str = [_fmt_window(start, end) for start, end in windows_min[:3]]
                 ls_warning = ls_ui.stop_banner_text(stop_name, stop_block, windows_str)
 
-        # Query routes serving this stop
+        # Query routes serving this stop via the departures table.
+        # The DB has no GTFS trips/calendar — day_type filtering is direct.
         routes_query = """
         SELECT DISTINCT
-            r.route_id,
-            r.route_short_name,
-            r.route_long_name,
-            r.route_color
-        FROM stop_times st
-        JOIN trips t ON st.trip_id = t.trip_id
-        JOIN routes r ON t.route_id = r.route_id
-        JOIN stops s ON st.stop_id = s.stop_id
-        JOIN calendar c ON t.service_id = c.service_id
-        WHERE s.stop_name = ?
-            AND (
-                (? = 'weekday' AND (c.monday = 1 OR c.tuesday = 1 OR c.wednesday = 1 OR c.thursday = 1 OR c.friday = 1))
-                OR (? = 'saturday' AND c.saturday = 1)
-                OR (? = 'sunday' AND c.sunday = 1)
-            )
-        ORDER BY r.route_short_name
+            d.route_id,
+            r.route_name,
+            d.direction
+        FROM departures d
+        JOIN routes r ON d.route_id = r.route_id
+        WHERE d.stop_name = ?
+            AND d.day_type = ?
+        ORDER BY r.route_name, d.direction
         """
 
         routes_result = conn.execute(
             routes_query,
-            [stop_name, day_type, day_type, day_type]
+            [stop_name, day_type]
         ).fetchall()
 
         if not routes_result:
@@ -155,54 +148,51 @@ async def stop_view(
         routes = [
             {
                 "route_id": row[0],
-                "route_short_name": row[1],
-                "route_long_name": row[2],
-                "route_color": row[3],
+                "route_name": row[1],
+                "direction": row[2],
             }
             for row in routes_result
         ]
 
-        # Query upcoming departures for each route
+        # Query upcoming departures for each route+direction
         departures = {}
         for route in routes:
             departures_query = """
             SELECT
-                st.departure_time,
-                t.trip_headsign,
-                r.route_short_name
-            FROM stop_times st
-            JOIN trips t ON st.trip_id = t.trip_id
-            JOIN routes r ON t.route_id = r.route_id
-            JOIN stops s ON st.stop_id = s.stop_id
-            JOIN calendar c ON t.service_id = c.service_id
-            WHERE s.stop_name = ?
-                AND r.route_id = ?
-                AND st.departure_time >= ?
-                AND (
-                    (? = 'weekday' AND (c.monday = 1 OR c.tuesday = 1 OR c.wednesday = 1 OR c.thursday = 1 OR c.friday = 1))
-                    OR (? = 'saturday' AND c.saturday = 1)
-                    OR (? = 'sunday' AND c.sunday = 1)
-                )
-            ORDER BY st.departure_time
+                d.departure_time,
+                d.direction,
+                r.route_name
+            FROM departures d
+            JOIN routes r ON d.route_id = r.route_id
+            WHERE d.stop_name = ?
+                AND d.route_id = ?
+                AND d.direction = ?
+                AND d.day_type = ?
+                AND d.departure_time >= ?
+            ORDER BY d.departure_time
             LIMIT 10
             """
 
             dep_result = conn.execute(
                 departures_query,
-                [stop_name, route["route_id"], current_time, day_type, day_type, day_type]
+                [stop_name, route["route_id"], route["direction"],
+                 day_type, current_time]
             ).fetchall()
 
             route_departures = [
                 {
                     "time": row[0][:5] if row[0] else "",  # HH:MM format
-                    "headsign": row[1] or route["route_long_name"],
+                    "headsign": row[1] or "",
                     "route_name": row[2],
                 }
                 for row in dep_result
             ]
 
+            # Key by route_id + direction so multiple directions are separate
+            dep_key = f"{route['route_id']}_{route['direction']}"
+
             if route_departures:
-                departures[route["route_id"]] = {
+                departures[dep_key] = {
                     "route": route,
                     "next_departure": route_departures[0],
                     "upcoming": route_departures,
