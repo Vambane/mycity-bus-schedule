@@ -108,6 +108,66 @@
     });
   }
 
+  /* ---- Operator filter: reload stops when network changes ---- */
+  var operatorRadios = document.querySelectorAll('input[name="operator"]');
+  operatorRadios.forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      var op = radio.value;
+      fetch('/api/stops?operator=' + encodeURIComponent(op))
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          var stops = data.stops || [];
+          document.querySelectorAll('[data-combobox]').forEach(function (root) {
+            var list   = root.querySelector('.combobox-list');
+            var native = root.querySelector('.combobox-native');
+            var input  = root.querySelector('.combobox-input');
+
+            /* Preserve current selection if it still exists */
+            var currentVal = native.value;
+            var stillValid = stops.indexOf(currentVal) !== -1;
+
+            /* Rebuild <li> options */
+            list.innerHTML = '';
+            stops.forEach(function (stop) {
+              var li = document.createElement('li');
+              li.className = 'combobox-option';
+              li.setAttribute('role', 'option');
+              li.dataset.value = stop;
+              li.textContent = stop;
+              if (stop === currentVal) li.setAttribute('aria-selected', 'true');
+              list.appendChild(li);
+            });
+
+            /* Rebuild native <select> options */
+            native.innerHTML = '';
+            var placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select a stop...';
+            native.appendChild(placeholder);
+            stops.forEach(function (stop) {
+              var opt = document.createElement('option');
+              opt.value = stop;
+              opt.textContent = stop;
+              if (stop === currentVal) opt.selected = true;
+              native.appendChild(opt);
+            });
+
+            /* Clear input if the selected stop is no longer available */
+            if (!stillValid) {
+              input.value = '';
+              native.value = '';
+            }
+
+            /* combobox.js uses live DOM queries, so existing listeners
+               automatically pick up the rebuilt option elements. */
+          });
+        })
+        .catch(function (err) {
+          console.warn('Failed to fetch stops for operator:', op, err);
+        });
+    });
+  });
+
   /* ---- Form handling ---- */
   var form = document.getElementById('search-form');
   if (!form) return;

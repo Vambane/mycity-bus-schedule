@@ -10,13 +10,26 @@
 
   document.querySelectorAll('[data-combobox]').forEach(initCombobox);
 
+  /* Expose globally so search.js can re-init after operator changes */
+  window.initCombobox = initCombobox;
+
   function initCombobox(root) {
+    /* Guard: skip if already initialised (prevents double-binding) */
+    if (root._comboboxInit) return;
+    root._comboboxInit = true;
+
     var input   = root.querySelector('.combobox-input');
     var list    = root.querySelector('.combobox-list');
     var native  = root.querySelector('.combobox-native');
     var chevron = root.querySelector('.combobox-chevron');
-    var options = Array.from(list.querySelectorAll('.combobox-option'));
     var highlighted = -1;
+
+    /* Live DOM query — always returns the current set of options,
+       so after search.js rebuilds the list for a new operator,
+       existing event listeners still work correctly. */
+    function getOptions() {
+      return Array.from(list.querySelectorAll('.combobox-option'));
+    }
 
     /* --- Sync initial value --- */
     if (native.value) {
@@ -28,7 +41,7 @@
       var q = query.toLowerCase().trim();
       var visible = 0;
 
-      options.forEach(function (opt) {
+      getOptions().forEach(function (opt) {
         var match = !q || opt.textContent.trim().toLowerCase().indexOf(q) !== -1;
         opt.style.display = match ? '' : 'none';
         opt.removeAttribute('aria-selected');
@@ -73,7 +86,7 @@
       native.value = value;
 
       /* Mark selected */
-      options.forEach(function (o) { o.removeAttribute('aria-selected'); });
+      getOptions().forEach(function (o) { o.removeAttribute('aria-selected'); });
       opt.setAttribute('aria-selected', 'true');
 
       close();
@@ -81,7 +94,7 @@
 
     /* --- Keyboard navigation --- */
     function getVisible() {
-      return options.filter(function (o) { return o.style.display !== 'none'; });
+      return getOptions().filter(function (o) { return o.style.display !== 'none'; });
     }
 
     function highlightIndex(idx) {
@@ -139,7 +152,7 @@
       if (!root.contains(e.target)) {
         /* If user typed a partial match, try to resolve it */
         if (root.classList.contains('open')) {
-          var match = options.find(function (o) {
+          var match = getOptions().find(function (o) {
             return o.textContent.trim().toLowerCase() === input.value.toLowerCase().trim();
           });
           if (match) {
