@@ -242,12 +242,14 @@ async def search_page(
         # Route colors for schematic display
         route_colors = get_route_colors(conn)
 
+        # Initialize connections lists
+        direct_connections = []
+
         # Process direct connections
         if not direct_df.empty:
             results["has_results"] = True
 
             # Convert to list of dicts for template
-            direct_connections = []
             for _, row in direct_df.iterrows():
                 # Assess load shedding disruption
                 assessment = assess_connection(
