@@ -42,17 +42,22 @@ def _ensure_database() -> None:
         logger.info("Database rebuilt from snapshots.")
 
     # Run idempotent migrations so older databases gain new columns.
+    # A writable connection requires exclusive access in DuckDB, so if
+    # another process already holds the file open we skip gracefully.
     from etl.load_db import MIGRATIONS
-    con = duckdb.connect(str(db_path))
     try:
-        for stmt in MIGRATIONS:
-            try:
-                con.execute(stmt)
-            except duckdb.CatalogException:
-                pass  # Table doesn't exist yet — safe to skip
-        logger.info("Schema migrations applied.")
-    finally:
-        con.close()
+        con = duckdb.connect(str(db_path))
+        try:
+            for stmt in MIGRATIONS:
+                try:
+                    con.execute(stmt)
+                except duckdb.CatalogException:
+                    pass  # Table doesn't exist yet — safe to skip
+            logger.info("Schema migrations applied.")
+        finally:
+            con.close()
+    except duckdb.IOException:
+        logger.info("Database locked by another process — skipping migrations.")
 
 
 def init_connection_pool() -> None:
