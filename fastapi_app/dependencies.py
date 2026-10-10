@@ -3,6 +3,7 @@ import duckdb
 from cachetools import TTLCache
 from fastapi import HTTPException
 import logging
+from pathlib import Path
 from .config import settings
 
 logger = logging.getLogger(__name__)
@@ -13,11 +14,52 @@ _connection_pool: list[duckdb.DuckDBPyConnection] = []
 # In-memory cache with TTL
 _cache = TTLCache(maxsize=100, ttl=settings.cache_ttl)
 
+SNAPSHOT_DIR = Path(settings.db_path).parent / "snapshot"
+
+
+def _ensure_database() -> None:
+    """Rebuild the DB from Parquet snapshots if it doesn't exist, then run migrations."""
+    db_path = Path(settings.db_path)
+
+    if not db_path.exists():
+        snapshots = sorted(SNAPSHOT_DIR.glob("*.parquet"))
+        if not snapshots:
+            raise FileNotFoundError(
+                f"Database not found at {db_path} and no snapshot in {SNAPSHOT_DIR}."
+            )
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info("Building database from Parquet snapshots...")
+        con = duckdb.connect(str(db_path))
+        try:
+            for pq in snapshots:
+                con.execute(
+                    f"CREATE TABLE IF NOT EXISTS {pq.stem} AS "
+                    "SELECT * FROM read_parquet(?)",
+                    [str(pq)],
+                )
+        finally:
+            con.close()
+        logger.info("Database rebuilt from snapshots.")
+
+    # Run idempotent migrations so older databases gain new columns.
+    from etl.load_db import MIGRATIONS
+    con = duckdb.connect(str(db_path))
+    try:
+        for stmt in MIGRATIONS:
+            try:
+                con.execute(stmt)
+            except duckdb.CatalogException:
+                pass  # Table doesn't exist yet — safe to skip
+        logger.info("Schema migrations applied.")
+    finally:
+        con.close()
+
 
 def init_connection_pool() -> None:
     """Initialize DuckDB connection pool at startup."""
     global _connection_pool
     try:
+        _ensure_database()
         logger.info(f"Initializing connection pool with {settings.connection_pool_size} connections...")
         for i in range(settings.connection_pool_size):
             conn = duckdb.connect(settings.db_path, read_only=True)
