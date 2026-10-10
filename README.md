@@ -1,15 +1,16 @@
 # 🚌 MyCiTi Bus Timetable
 
-A custom, responsive website for exploring Cape Town's MyCiTi bus network:
-plan a journey, browse upcoming departures, and explore an interactive route
-map. A FastAPI backend serves the website with Jinja2 templates and reuses the
-Python timetable and network logic. The original Streamlit interface remains
-available for local development.
+A custom, responsive website for exploring Cape Town's MyCiTi bus network and
+the UCT shuttle service: plan a journey, browse upcoming departures, and
+explore an interactive route map. A FastAPI backend serves the website with
+Jinja2 templates and reuses the Python timetable and network logic. The
+original Streamlit interface remains available for local development.
 
-The official MyCiTi site only publishes timetables as PDFs. This project
-scrapes those PDFs into a queryable database and adds the tools the site
-doesn't have — live "next bus" lookups, a visual departure timeline, and a
-clickable geographic system map.
+Both MyCiTi and UCT only publish timetables as PDFs. This project scrapes
+those PDFs into a queryable database and adds the tools the sites don't
+have — live "next bus" lookups, a visual departure timeline, and a clickable
+geographic system map. The two operators are loaded independently and can be
+filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
 
 ## Features
 
@@ -50,8 +51,10 @@ clickable geographic system map.
 ## How it works
 
 ```
-myciti.org.za route-timetable PDFs
-        │  scraped + parsed (requests, pdfplumber)
+myciti.org.za route-timetable PDFs ──┐
+                                     │ scraped + parsed (requests, pdfplumber)
+uct.ac.za shuttle timetable PDFs  ──┘
+        │
         ▼
 data/myciti.duckdb  ◄── City of Cape Town open data (stop coordinates,
         │               street route geometries: data/cct_*.geojson)
@@ -60,9 +63,13 @@ FastAPI app (fastapi_app/) ── Jinja2 templates + Leaflet maps
 Streamlit app (app.py)    ── Leaflet custom component (map_component/)
 ```
 
-- `etl/scrape_myciti.py` downloads every route's timetable PDF and parses the
-  tables (one row per stop; day type and direction read from page headers).
-- `etl/load_db.py` loads routes, stops and ~170k departure times into DuckDB.
+- `etl/scrape_myciti.py` downloads every MyCiTi route's timetable PDF and
+  parses the tables (one row per stop; day type and direction from page headers).
+- `etl/scrape_uct.py` scrapes the UCT shuttle index page and parses its PDFs
+  (2-row format: stop names as columns, times as newline-delimited cells).
+- `etl/load_db.py` loads routes, stops and ~172k departure times into DuckDB.
+  Each operator's data is loaded independently — a full-refresh for one
+  operator leaves the other's rows untouched.
 - `system_map.py` builds the map network: stop order along each route is
   reconstructed from the timetable itself (the first trip of the day visits
   stops in sequence), then stops are matched by name to the city's official
@@ -80,10 +87,11 @@ erDiagram
     stops }o..o{ departures : "joined by stop_name"
 
     routes {
-        varchar route_id PK "e.g. T01, D04, 101"
+        varchar route_id PK "e.g. T01, D04, 101, UCT1"
         varchar route_name
         varchar route_description
         varchar detail_url "timetable PDF"
+        varchar operator "myciti | uct"
         timestamp scraped_at
     }
     stops {
@@ -94,6 +102,7 @@ erDiagram
         varchar direction "e.g. 'To 101 Vredehoek'"
         double stop_lat "unused; coords live in cct_stops.geojson"
         double stop_lon
+        varchar operator "myciti | uct"
         timestamp scraped_at
     }
     departures {
@@ -103,6 +112,7 @@ erDiagram
         varchar direction
         varchar day_type "weekday | saturday | sunday"
         varchar departure_time "HH:MM:SS"
+        varchar operator "myciti | uct"
         timestamp scraped_at
     }
     timetables {
@@ -111,6 +121,9 @@ erDiagram
         varchar route_name
         varchar day_type
         varchar timetable_url
+        date valid_from "timetable validity start"
+        date valid_until "timetable validity end"
+        varchar operator "myciti | uct"
         timestamp scraped_at
     }
     scrape_log {
@@ -120,6 +133,7 @@ erDiagram
         int routes_loaded
         int stops_loaded
         int departures_loaded
+        varchar operator "myciti | uct"
         varchar status "success | error"
         varchar notes
     }
@@ -129,10 +143,11 @@ erDiagram
     }
 ```
 
-`departures` is the core fact table (~170k rows) the app queries; `stops` ↔
-`departures` join on `stop_name` rather than a foreign key because the PDFs
-identify stops only by name. `scrape_log` is a standalone audit table, one
-row per ETL run.
+`departures` is the core fact table (~172k rows: ~171k MyCiTi + ~1.3k UCT) the
+app queries; `stops` ↔ `departures` join on `stop_name` rather than a foreign
+key because the PDFs identify stops only by name. Every table carries an
+`operator` column (`myciti` or `uct`) for per-network filtering and independent
+ETL runs. `scrape_log` is a standalone audit table, one row per ETL run.
 
 ## Run the website locally
 
@@ -168,16 +183,20 @@ To run the original Streamlit interface locally instead:
 streamlit run app.py
 ```
 
-To refresh the data from myciti.org.za (takes a few minutes):
+To refresh the data (takes a few minutes):
 
 ```bash
-python3 run_etl.py
+python3 run_etl.py            # MyCiTi only (default)
+python3 run_etl.py --uct      # UCT shuttle only
+python3 run_etl.py --all      # both operators
+python3 run_etl.py --uct --offline  # UCT from cached PDFs in data/uct_raw/
+python3 run_etl.py --inspect  # print what's in the DB without scraping
 ```
 
-The ETL rebuilds the database **and** re-exports the snapshot — commit the
-updated `data/snapshot/*.parquet` files so deployments pick up the new
-timetables. `run_etl.py --inspect` prints what's in the database without
-re-scraping.
+Each operator's ETL is independent — `--uct` replaces only UCT rows while
+MyCiTi data survives intact, and vice versa. The ETL rebuilds the database
+**and** re-exports the snapshot — commit the updated `data/snapshot/*.parquet`
+files so deployments pick up the new timetables.
 
 ## Project structure
 
@@ -200,13 +219,15 @@ re-scraping.
 ├── map_component/
 │   └── index.html            # Leaflet map frontend (Streamlit component)
 ├── etl/
-│   ├── scrape_myciti.py      # PDF scraper/parser
-│   ├── load_db.py            # DuckDB loader
+│   ├── scrape_myciti.py      # MyCiTi PDF scraper/parser
+│   ├── scrape_uct.py         # UCT shuttle PDF scraper/parser
+│   ├── load_db.py            # DuckDB loader (multi-operator)
 │   └── build_stop_blocks.py  # Optional stop-to-loadshedding-block mapping
-├── run_etl.py                # One-command ETL pipeline
+├── run_etl.py                # One-command ETL pipeline (--uct / --all)
 ├── data/
 │   ├── cct_stops.geojson     # Stop coordinates (City of Cape Town open data)
 │   ├── cct_routes.geojson    # Street route geometries (City of Cape Town)
+│   ├── uct_stops.csv         # UCT stop names (coordinates pending)
 │   ├── snapshot/             # Parquet snapshot — app rebuilds the DB from it
 │   └── myciti.duckdb         # Built from snapshot or ETL (not committed)
 └── requirements.txt
@@ -302,23 +323,27 @@ flags are schedule-based estimates, not live outage reports.
 
 ## Data sources & credits
 
-- Timetables: [MyCiTi](https://www.myciti.org.za) route timetable PDFs
+- MyCiTi timetables: [MyCiTi](https://www.myciti.org.za) route timetable PDFs
+- UCT shuttle timetables: [UCT Transport](https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables)
 - Stop coordinates & route geometries:
   [City of Cape Town Open Data Portal](https://odp-cctegis.opendata.arcgis.com/)
 - Basemap tiles: [CARTO](https://carto.com/attributions) /
   [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
 
-This is an unofficial hobby project, not affiliated with MyCiTi or the City of
-Cape Town. Timetable data is only as fresh as the last ETL run — always check
-official sources before travelling.
+This is an unofficial hobby project, not affiliated with MyCiTi, UCT, or the
+City of Cape Town. Timetable data is only as fresh as the last ETL run — always
+check official sources before travelling.
 
 ## Known limitations
 
 - Timetable-based only — no real-time vehicle tracking
 - Public holidays follow the Sunday timetable but are not auto-detected
-- A few of the newest routes/stops are missing from the city's open-data
-  layers: 4 routes fall back to straight dashed lines in street mode, and
-  ~23 stops are not shown on the map (they still appear in search)
+- A few of the newest MyCiTi routes/stops are missing from the city's
+  open-data layers: 4 routes fall back to straight dashed lines in street
+  mode, and ~23 stops are not shown on the map (they still appear in search)
+- UCT shuttle stops have no coordinates yet — they appear in search and
+  departure boards but not on the map. UCT timetables have validity dates;
+  the app shows a warning banner when they expire
 - Load shedding flags always use today's date (the day-type selector
   carries no day of month) and check each journey end as a point in
   time; the delay buffer is a fixed heuristic, not a prediction
