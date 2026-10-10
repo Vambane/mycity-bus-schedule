@@ -394,6 +394,84 @@ def _extract_validity_from_pdf(text: str) -> tuple[Optional[str], Optional[str]]
     return _parse_validity_dates(text)
 
 
+def _reconstruct_trips(
+    stop_times: dict[str, list[str]],
+    stop_order: list[str],
+    max_leg_min: int = 60,
+) -> list[dict[str, str]]:
+    """Reconstruct trips from independent stop time lists.
+
+    UCT PDFs list times per stop without trip associations. This function
+    infers which times belong to the same trip by matching times that form
+    a sensible progression across stops.
+
+    Args:
+        stop_times: {stop_name: [sorted times]}
+        stop_order: Stops in left-to-right table order (journey sequence)
+        max_leg_min: Max minutes between consecutive stops on one trip
+
+    Returns:
+        List of trips, each a dict {stop_name: departure_time}
+    """
+    if not stop_order or not stop_times:
+        return []
+
+    # Track which times have been assigned to trips
+    used: dict[str, set[str]] = {stop: set() for stop in stop_order}
+    trips: list[dict[str, str]] = []
+
+    # Start from the first stop and greedily build trips
+    first_stop = stop_order[0]
+    for start_time in stop_times.get(first_stop, []):
+        if start_time in used[first_stop]:
+            continue
+
+        # Try to build a complete trip starting at this time
+        trip: dict[str, str] = {first_stop: start_time}
+        current_time = start_time
+        valid = True
+
+        for i in range(1, len(stop_order)):
+            stop = stop_order[i]
+            if stop not in stop_times:
+                valid = False
+                break
+
+            # Find the earliest unused time after current_time
+            candidates = [
+                t for t in stop_times[stop]
+                if t not in used[stop] and t > current_time
+            ]
+            if not candidates:
+                valid = False
+                break
+
+            next_time = min(candidates)
+
+            # Check if the leg duration is reasonable
+            delta_min = _to_minutes(next_time) - _to_minutes(current_time)
+            if delta_min > max_leg_min:
+                valid = False
+                break
+
+            trip[stop] = next_time
+            current_time = next_time
+
+        # Only accept trips that visit all stops
+        if valid and len(trip) == len(stop_order):
+            for stop, time in trip.items():
+                used[stop].add(time)
+            trips.append(trip)
+
+    return trips
+
+
+def _to_minutes(hms: str) -> int:
+    """'HH:MM:SS' → minutes since midnight."""
+    h, m, _ = hms.split(":")
+    return int(h) * 60 + int(m)
+
+
 def _parse_uct_table(
     table: list[list[str | None]],
     route_id: str,
@@ -405,18 +483,18 @@ def _parse_uct_table(
     """Parse a single 2-row UCT timetable table.
 
     UCT PDF tables are 2 rows:
-        Row 0: stop names (one per column)
+        Row 0: stop names (one per column, left-to-right = journey order)
         Row 1: newline-delimited times per stop
 
-    Some tables have extra rows for notes ("Commuters should…") which
-    we detect and skip.
+    Times are reconstructed into trips by matching times that form a
+    sensible progression across stops (each stop's time > previous stop).
 
     Returns (stops_list, departures_list).
     """
     if not table or len(table) < 2:
         return [], []
 
-    # Row 0: stop names
+    # Row 0: stop names (in journey order)
     headers = [str(c).strip() if c else "" for c in table[0]]
     stop_names = [_clean_stop_name(h) for h in headers]
 
@@ -425,10 +503,12 @@ def _parse_uct_table(
     if len(valid_stops) < 2:
         return [], []
 
-    stops: list[dict] = []
-    departures: list[dict] = []
+    # Filter to only valid stop names, preserving order
+    stop_order = [s for s in stop_names if s is not None]
 
-    # Row 1 (and any subsequent data rows): times
+    # Collect all times per stop
+    stop_times: dict[str, list[str]] = {stop: [] for stop in stop_order}
+
     for row_idx in range(1, len(table)):
         row = table[row_idx]
         if not row:
@@ -442,37 +522,49 @@ def _parse_uct_table(
                 continue
 
             cell_str = str(cell).strip()
-            # Split newline-delimited times
             for line in cell_str.split("\n"):
                 line = line.strip()
                 if not line or line.lower() in SKIP_CELLS:
                     continue
                 t = _normalise_time(line)
                 if t:
-                    departures.append({
-                        "route_id": route_id,
-                        "stop_name": stop_name,
-                        "direction": direction,
-                        "day_type": day_type,
-                        "departure_time": t,
-                        "operator": "uct",
-                        "scraped_at": now,
-                    })
+                    stop_times[stop_name].append(t)
 
-    # Build stop entries from the header (preserving column order)
-    for seq, name in enumerate(stop_names, start=1):
-        if name is not None:
-            stops.append({
-                "stop_id": f"{route_id}_{direction}_{seq:03d}",
-                "stop_name": name,
+    # Sort times per stop
+    for stop in stop_times:
+        stop_times[stop].sort()
+
+    # Reconstruct trips from time lists
+    trips = _reconstruct_trips(stop_times, stop_order)
+
+    # Build departures from reconstructed trips
+    departures: list[dict] = []
+    for trip in trips:
+        for stop_name, time in trip.items():
+            departures.append({
                 "route_id": route_id,
-                "stop_sequence": seq,
+                "stop_name": stop_name,
                 "direction": direction,
-                "stop_lat": None,
-                "stop_lon": None,
+                "day_type": day_type,
+                "departure_time": time,
                 "operator": "uct",
                 "scraped_at": now,
             })
+
+    # Build stop entries from the header (preserving column order = journey order)
+    stops: list[dict] = []
+    for seq, name in enumerate(stop_order, start=1):
+        stops.append({
+            "stop_id": f"{route_id}_{direction}_{seq:03d}",
+            "stop_name": name,
+            "route_id": route_id,
+            "stop_sequence": seq,
+            "direction": direction,
+            "stop_lat": None,
+            "stop_lon": None,
+            "operator": "uct",
+            "scraped_at": now,
+        })
 
     return stops, departures
 
