@@ -8,7 +8,7 @@
   <!-- ====== HERO ====== -->
   <section class="hero">
     <h1 class="hero-title">Plan your journey</h1>
-    <p class="hero-subtitle">Search timetables and connections across Cape Town's MyCiTi bus network</p>
+    <p class="hero-subtitle">Search timetables and connections across Cape Town's bus networks</p>
   </section>
 
   <!-- ====== RECENT SEARCHES ====== -->
@@ -90,7 +90,7 @@
         </div>
       </div>
 
-      <!-- Row 2: Service type / Date -->
+      <!-- Row 2: Service type / Network / Date -->
       <div class="form-grid form-grid--2col" style="margin-top: var(--sp-4);">
         <!-- Day type segmented control -->
         <div class="form-group">
@@ -114,8 +114,32 @@
           </div>
         </div>
 
-        <!-- Date picker -->
+        <!-- Network operator filter -->
         <div class="form-group">
+          <span class="form-label" id="label-operator">Network</span>
+          <div class="segmented" role="radiogroup" aria-labelledby="label-operator">
+            <span class="segmented-option">
+              <input type="radio" name="operator" value="both" id="op-both"
+                     class="segmented-input" {% if operator == 'both' %}checked{% endif %}>
+              <label for="op-both" class="segmented-label">Both</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="operator" value="myciti" id="op-myciti"
+                     class="segmented-input" {% if operator == 'myciti' %}checked{% endif %}>
+              <label for="op-myciti" class="segmented-label">MyCiTi</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="operator" value="uct" id="op-uct"
+                     class="segmented-input" {% if operator == 'uct' %}checked{% endif %}>
+              <label for="op-uct" class="segmented-label">UCT</label>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2b: Date -->
+      <div style="margin-top: var(--sp-4);">
+        <div class="form-group" style="max-width: 50%;">
           <label for="search_date" class="form-label">Date (optional)</label>
           <input type="date"
                  name="search_date"
@@ -134,7 +158,7 @@
         </button>
 
         {% if from_stop and to_stop %}
-        <a href="/?from_stop={{ to_stop }}&to_stop={{ from_stop }}&day_type={{ day_type }}{% if search_date %}&search_date={{ search_date }}{% endif %}"
+        <a href="/?from_stop={{ to_stop }}&to_stop={{ from_stop }}&day_type={{ day_type }}&operator={{ operator }}{% if search_date %}&search_date={{ search_date }}{% endif %}"
            class="btn btn-ghost btn-icon btn-swap"
            id="swap-btn"
            title="Swap origin and destination"
@@ -145,6 +169,14 @@
       </div>
     </form>
   </div>
+
+  <!-- ====== UCT STALE DATA WARNING ====== -->
+  {% if uct_stale_warning %}
+  <div class="alert alert-warning" role="status">
+    <div class="alert-title">Timetable expired</div>
+    <p>{{ uct_stale_warning }}</p>
+  </div>
+  {% endif %}
 
   <!-- ====== ERROR ====== -->
   {% if error %}

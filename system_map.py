@@ -49,9 +49,19 @@ AREA_COLORS = [
     "#008C95", "#B86125", "#582C83", "#6BA539", "#003B5C", "#CE0058",
 ]
 
+# UCT shuttle palette — navy/teal tones distinct from MyCiTi categories
+UCT_COLORS = [
+    "#003F5C", "#2F6690", "#00838A", "#005B96", "#1B6B93",
+    "#3A7CA5", "#006D77", "#004E64", "#0A4D68", "#088395",
+    "#347B98", "#005C78", "#1A759F", "#168AAD", "#006D5B",
+]
 
-def _route_color(route_id: str, trunk_i: int, direct_i: int, area_i: int) -> str:
+
+def _route_color(route_id: str, trunk_i: int, direct_i: int,
+                 area_i: int, uct_i: int = 0) -> str:
     """Pick a color from the palette matching the route's category."""
+    if route_id.startswith("UCT"):
+        return UCT_COLORS[uct_i % len(UCT_COLORS)]
     if route_id.startswith("T"):
         return TRUNK_COLORS[trunk_i % len(TRUNK_COLORS)]
     if route_id.startswith("D"):
@@ -59,20 +69,35 @@ def _route_color(route_id: str, trunk_i: int, direct_i: int, area_i: int) -> str
     return AREA_COLORS[area_i % len(AREA_COLORS)]
 
 
-def get_route_colors(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
+def get_route_colors(
+    con: duckdb.DuckDBPyConnection,
+    operator: str = "both",
+) -> dict[str, str]:
     """Return {route_id: hex_color} for all routes, without building the full graph.
 
     Assigns colours in the same sorted order as build_network() so the two
     always agree.
+
+    Args:
+        operator: 'myciti', 'uct', or 'both' (no operator filter).
     """
+    op_filter = ""
+    params: list = []
+    if operator != "both":
+        op_filter = "WHERE operator = ?"
+        params.append(operator)
+
     rows = con.execute(
-        "SELECT DISTINCT route_id FROM routes ORDER BY route_id"
+        f"SELECT DISTINCT route_id FROM routes {op_filter} ORDER BY route_id",
+        params,
     ).fetchall()
     colors: dict[str, str] = {}
-    trunk_i = direct_i = area_i = 0
+    trunk_i = direct_i = area_i = uct_i = 0
     for (route_id,) in rows:
-        colors[route_id] = _route_color(route_id, trunk_i, direct_i, area_i)
-        if route_id.startswith("T"):
+        colors[route_id] = _route_color(route_id, trunk_i, direct_i, area_i, uct_i)
+        if route_id.startswith("UCT"):
+            uct_i += 1
+        elif route_id.startswith("T"):
             trunk_i += 1
         elif route_id.startswith("D"):
             direct_i += 1
@@ -83,6 +108,8 @@ def get_route_colors(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
 
 def _route_category(route_id: str) -> str:
     """Official map legend category for a route."""
+    if route_id.startswith("UCT"):
+        return "UCT Shuttle"
     if route_id.startswith("T"):
         return "Trunk"
     if route_id.startswith("D"):
@@ -195,7 +222,10 @@ def _match_coords(
 # Graph construction
 # ---------------------------------------------------------------------------
 
-def build_network(con: duckdb.DuckDBPyConnection) -> dict:
+def build_network(
+    con: duckdb.DuckDBPyConnection,
+    operator: str = "both",
+) -> dict:
     """
     Build the system-map graph from the departures table.
 
@@ -203,23 +233,35 @@ def build_network(con: duckdb.DuckDBPyConnection) -> dict:
     their earliest departure of the day — the first trip visits stops in
     sequence, so MIN(departure_time) reproduces the printed stop order.
 
+    Args:
+        operator: 'myciti', 'uct', or 'both' (no operator filter).
+
     Returns:
         {"nodes": [...], "links": [...], "routes": [...]} ready to embed
         as JSON in the d3 component.
     """
     # Earliest weekday departure per stop, per route direction; weekday has
     # the fullest service so every stop on the line appears.
+    # Optional operator filter narrows to one network.
+    op_filter = ""
+    params: list = []
+    if operator != "both":
+        op_filter = "AND operator = ?"
+        params.append(operator)
+
     ordered = con.execute(
-        """
+        f"""
         SELECT   route_id,
                  direction,
                  stop_name,
                  MIN(departure_time) AS first_dep
         FROM     departures
         WHERE    day_type = 'weekday'
+                 {op_filter}
         GROUP BY route_id, direction, stop_name
         ORDER    BY route_id, direction, first_dep
-        """
+        """,
+        params,
     ).df()
 
     route_names = dict(
@@ -228,10 +270,12 @@ def build_network(con: duckdb.DuckDBPyConnection) -> dict:
 
     # --- assign colors per route, grouped by category like the legend ---
     colors: dict[str, str] = {}
-    trunk_i = direct_i = area_i = 0
+    trunk_i = direct_i = area_i = uct_i = 0
     for route_id in sorted(ordered["route_id"].unique()):
-        colors[route_id] = _route_color(route_id, trunk_i, direct_i, area_i)
-        if route_id.startswith("T"):
+        colors[route_id] = _route_color(route_id, trunk_i, direct_i, area_i, uct_i)
+        if route_id.startswith("UCT"):
+            uct_i += 1
+        elif route_id.startswith("T"):
             trunk_i += 1
         elif route_id.startswith("D"):
             direct_i += 1

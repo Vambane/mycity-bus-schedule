@@ -57,9 +57,13 @@ def find_connections(
     from_stop: str,
     to_stop: str,
     day_type: str,
+    operator: str = "both",
 ) -> pd.DataFrame:
     """
     Return every direct service from `from_stop` to `to_stop` on `day_type`.
+
+    Args:
+        operator: 'myciti', 'uct', or 'both' (no operator filter).
 
     Returns a DataFrame with [route_id, route_name, direction, dep, arr,
     duration_min, duration] sorted by departure time. Empty if no route
@@ -68,8 +72,16 @@ def find_connections(
     # Candidate route+directions: both stops served, origin first. Stop
     # order within a direction is recovered from the first trip of the day
     # (MIN departure), the same technique the system map uses.
+    # Optional operator filter narrows departures to one network.
+    op_filter = ""
+    params: list = [day_type]
+    if operator != "both":
+        op_filter = "AND operator = ?"
+        params.append(operator)
+    params.extend([from_stop, to_stop])
+
     candidates = con.execute(
-        """
+        f"""
         WITH ordered AS (
             SELECT   route_id,
                      direction,
@@ -78,6 +90,7 @@ def find_connections(
                      LIST(departure_time ORDER BY departure_time) AS times
             FROM     departures
             WHERE    day_type = ?
+                     {op_filter}
             GROUP BY route_id, direction, stop_name
         )
         SELECT  a.route_id,
@@ -92,7 +105,7 @@ def find_connections(
           AND   b.stop_name = ?
           AND   a.first_dep < b.first_dep
         """,
-        [day_type, from_stop, to_stop],
+        params,
     ).df()
 
     rows = []
@@ -144,15 +157,25 @@ _TRANSFER_COLUMNS = [
 
 def _load_lines(
     con: duckdb.DuckDBPyConnection, day_type: str,
+    operator: str = "both",
 ) -> dict[tuple[str, str], dict[str, tuple[str, list[str]]]]:
     """Group the day's departures into lines.
 
     Returns {(route_id, direction): {stop_name: (first_dep, times)}} where
     first_dep encodes the stop's position along the line (the first trip
     of the day visits stops in order, as in the direct search).
+
+    Args:
+        operator: 'myciti', 'uct', or 'both' (no operator filter).
     """
+    op_filter = ""
+    params: list = [day_type]
+    if operator != "both":
+        op_filter = "AND operator = ?"
+        params.append(operator)
+
     df = con.execute(
-        """
+        f"""
         SELECT   route_id,
                  direction,
                  stop_name,
@@ -160,9 +183,10 @@ def _load_lines(
                  LIST(departure_time ORDER BY departure_time) AS times
         FROM     departures
         WHERE    day_type = ?
+                 {op_filter}
         GROUP BY route_id, direction, stop_name
         """,
-        [day_type],
+        params,
     ).df()
     lines: dict[tuple[str, str], dict[str, tuple[str, list[str]]]] = {}
     for row in df.itertuples():
@@ -360,6 +384,7 @@ def find_transfer_connections(
     to_stop: str,
     day_type: str,
     max_transfers: int = 2,
+    operator: str = "both",
 ) -> pd.DataFrame:
     """
     Return journeys from `from_stop` to `to_stop` requiring transfers.
@@ -368,12 +393,15 @@ def find_transfer_connections(
     bridging line) only when no one-transfer option exists. Each transfer
     needs at least MIN_TRANSFER_MIN minutes and at most MAX_WAIT_MIN.
 
+    Args:
+        operator: 'myciti', 'uct', or 'both' (no operator filter).
+
     Returns a DataFrame with [dep, arr, duration_min, duration, transfers,
     route_ids, via, legs] sorted by departure, reduced to the Pareto set
     (no journey that both leaves earlier and arrives later than another).
     Empty if nothing is found within the bounds.
     """
-    lines = _load_lines(con, day_type)
+    lines = _load_lines(con, day_type, operator)
     route_names = dict(
         con.execute("SELECT route_id, route_name FROM routes").fetchall()
     )

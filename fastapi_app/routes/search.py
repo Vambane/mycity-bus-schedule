@@ -55,6 +55,7 @@ async def search_page(
     to_stop: Optional[str] = None,
     day_type: Optional[str] = None,
     search_date: Optional[str] = None,  # Format: YYYY-MM-DD
+    operator: Optional[str] = None,     # 'both' | 'myciti' | 'uct'
     conn: duckdb.DuckDBPyConnection = Depends(get_connection)
 ):
     """
@@ -75,9 +76,13 @@ async def search_page(
     stage, stage_source = get_effective_stage()
     ls_stage = stage_display_info(stage, stage_source)
 
-    # Get all stops for dropdown
-    stops_query = "SELECT DISTINCT stop_name FROM stops ORDER BY stop_name"
-    all_stops = [row[0] for row in conn.execute(stops_query).fetchall()]
+    # Get all stops for dropdown, filtered by operator when specified
+    if operator and operator != "both":
+        stops_query = "SELECT DISTINCT stop_name FROM stops WHERE operator = ? ORDER BY stop_name"
+        all_stops = [row[0] for row in conn.execute(stops_query, [operator]).fetchall()]
+    else:
+        stops_query = "SELECT DISTINCT stop_name FROM stops ORDER BY stop_name"
+        all_stops = [row[0] for row in conn.execute(stops_query).fetchall()]
 
     # Handle date selection
     search_date_parsed = None
@@ -99,6 +104,28 @@ async def search_page(
     if day_type not in ["weekday", "saturday", "sunday"]:
         day_type = "weekday"
 
+    # Validate operator filter (default: show both networks)
+    if operator not in ("both", "myciti", "uct"):
+        operator = "both"
+
+    # Check for stale UCT timetable data
+    uct_stale_warning = None
+    if operator in ("uct", "both"):
+        try:
+            row = conn.execute(
+                "SELECT MAX(valid_until) FROM timetables WHERE operator = 'uct'"
+            ).fetchone()
+            if row and row[0]:
+                from datetime import date
+                expiry = row[0] if isinstance(row[0], date) else date.fromisoformat(str(row[0]))
+                if expiry < date.today():
+                    uct_stale_warning = (
+                        f"UCT shuttle timetable expired on {expiry.strftime('%d %b %Y')}. "
+                        "Data may be outdated."
+                    )
+        except Exception:
+            pass
+
     # If no search yet, show empty form
     if not from_stop:
         return templates.TemplateResponse(
@@ -111,15 +138,18 @@ async def search_page(
                 "to_stop": "",
                 "day_type": day_type,
                 "search_date": search_date or "",
+                "operator": operator,
                 "results": None,
                 "ls_stage": ls_stage,
+                "uct_stale_warning": uct_stale_warning,
             }
         )
 
     # If only from_stop is selected, redirect to single-stop view
     if not to_stop or to_stop == from_stop:
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(url=f"/stop/{from_stop}?day_type={day_type}")
+        return RedirectResponse(
+            url=f"/stop/{from_stop}?day_type={day_type}&operator={operator}")
 
     try:
         # Get current time for filtering
@@ -156,8 +186,8 @@ async def search_page(
             from_block = None
             to_block = None
 
-        # Search for direct connections
-        direct_df = find_connections(conn, from_stop, to_stop, day_type)
+        # Search for direct connections (scoped to selected operator)
+        direct_df = find_connections(conn, from_stop, to_stop, day_type, operator)
 
         # Filter for upcoming departures only
         showing_next_day = False
@@ -176,7 +206,8 @@ async def search_page(
         transfer_df = None
         if direct_df.empty:
             logger.info("No direct connections, searching for transfers...")
-            transfer_df = find_transfer_connections(conn, from_stop, to_stop, day_type)
+            transfer_df = find_transfer_connections(
+                conn, from_stop, to_stop, day_type, operator=operator)
 
             # Filter for upcoming departures
             if transfer_df is not None and not transfer_df.empty:
@@ -316,8 +347,10 @@ async def search_page(
                 "to_stop": to_stop,
                 "day_type": day_type,
                 "search_date": search_date or "",
+                "operator": operator,
                 "results": results,
                 "ls_stage": ls_stage,
+                "uct_stale_warning": uct_stale_warning,
             }
         )
 
@@ -333,8 +366,10 @@ async def search_page(
                 "to_stop": to_stop,
                 "day_type": day_type,
                 "search_date": search_date or "",
+                "operator": operator,
                 "results": None,
                 "error": f"Error searching for journeys: {str(e)}",
                 "ls_stage": ls_stage,
+                "uct_stale_warning": uct_stale_warning,
             }
         )

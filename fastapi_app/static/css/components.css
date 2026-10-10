@@ -411,6 +411,7 @@
 .route-badge.trunk  { background: var(--route-trunk); }
 .route-badge.direct { background: var(--route-direct); }
 .route-badge.area   { background: var(--route-area); }
+.route-badge.uct    { background: var(--route-uct); }
 
 /* Status badges */
 .badge {

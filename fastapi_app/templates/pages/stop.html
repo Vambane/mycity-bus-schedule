@@ -10,6 +10,14 @@
         <p class="text-muted">Upcoming departures {% if current_time %}from {{ current_time }}{% endif %}</p>
     </div>
 
+    <!-- UCT stale data warning -->
+    {% if uct_stale_warning %}
+    <div class="alert alert-warning">
+        <strong>Timetable expired</strong>
+        <p>{{ uct_stale_warning }}</p>
+    </div>
+    {% endif %}
+
     <!-- Load shedding warning -->
     {% if ls_warning %}
     <div class="alert alert-warning">
@@ -21,15 +29,15 @@
     <div class="form-group">
         <label class="form-label">Service Type</label>
         <div class="tabs">
-            <a href="/stop/{{ stop_name }}?day_type=weekday"
+            <a href="/stop/{{ stop_name }}?day_type=weekday&operator={{ operator }}"
                class="tab {% if day_type == 'weekday' %}active{% endif %}">
                 Weekday
             </a>
-            <a href="/stop/{{ stop_name }}?day_type=saturday"
+            <a href="/stop/{{ stop_name }}?day_type=saturday&operator={{ operator }}"
                class="tab {% if day_type == 'saturday' %}active{% endif %}">
                 Saturday
             </a>
-            <a href="/stop/{{ stop_name }}?day_type=sunday"
+            <a href="/stop/{{ stop_name }}?day_type=sunday&operator={{ operator }}"
                class="tab {% if day_type == 'sunday' %}active{% endif %}">
                 Sunday
             </a>
@@ -62,7 +70,7 @@
                   {% if route.route_id not in seen_routes %}
                     {% if seen_routes.append(route.route_id) %}{% endif %}
                     <button type="button"
-                            class="route-badge route-badge--filterable {% if route.route_id.startswith('T') %}trunk{% elif route.route_id.startswith('D') %}direct{% else %}area{% endif %}"
+                            class="route-badge route-badge--filterable {% if route.route_id.startswith('UCT') %}uct{% elif route.route_id.startswith('T') %}trunk{% elif route.route_id.startswith('D') %}direct{% else %}area{% endif %}"
                             data-route-id="{{ route.route_id }}">
                         {{ route.route_name }}
                     </button>
@@ -79,7 +87,7 @@
             <!-- Route header -->
             <div class="card-header">
                 <div style="display: flex; align-items: center; gap: 1rem;">
-                    <span class="route-badge {% if data.route.route_id.startswith('T') %}trunk{% elif data.route.route_id.startswith('D') %}direct{% else %}area{% endif %}">
+                    <span class="route-badge {% if data.route.route_id.startswith('UCT') %}uct{% elif data.route.route_id.startswith('T') %}trunk{% elif data.route.route_id.startswith('D') %}direct{% else %}area{% endif %}">
                         {{ data.route.route_name }}
                     </span>
                     <span class="journey-direction">{{ data.route.direction }}</span>

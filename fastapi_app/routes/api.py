@@ -1,6 +1,6 @@
 """JSON API endpoints for AJAX requests."""
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Dict, Any, Optional
 import logging
 import sys
 from pathlib import Path
@@ -17,18 +17,27 @@ router = APIRouter()
 
 
 @router.get("/map/network")
-async def network_data(conn: duckdb.DuckDBPyConnection = Depends(get_connection)) -> Dict[str, Any]:
+async def network_data(
+    operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
+    conn: duckdb.DuckDBPyConnection = Depends(get_connection),
+) -> Dict[str, Any]:
     """
     Get network graph data for the system map.
+
+    Args:
+        operator: 'both', 'myciti', or 'uct' — filter to one network.
 
     Returns:
         Dict containing nodes, links, routes, and paths for Leaflet rendering
     """
     try:
         from system_map import build_network
-        logger.info("Building network graph for system map...")
-        network = build_network(conn)
-        logger.info(f"Network graph built: {len(network.get('nodes', []))} nodes, {len(network.get('routes', []))} routes")
+        logger.info(f"Building network graph (operator={operator})...")
+        network = build_network(conn, operator=operator or "both")
+        logger.info(
+            f"Network graph built: {len(network.get('nodes', []))} nodes, "
+            f"{len(network.get('routes', []))} routes"
+        )
         return network
     except Exception as e:
         logger.error(f"Error building network data: {e}", exc_info=True)
@@ -36,20 +45,26 @@ async def network_data(conn: duckdb.DuckDBPyConnection = Depends(get_connection)
 
 
 @router.get("/stops")
-async def list_stops(conn: duckdb.DuckDBPyConnection = Depends(get_connection)) -> Dict[str, Any]:
+async def list_stops(
+    operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
+    conn: duckdb.DuckDBPyConnection = Depends(get_connection),
+) -> Dict[str, Any]:
     """
     Get list of all stops for autocomplete/dropdown.
+
+    Args:
+        operator: 'both', 'myciti', or 'uct' — filter to one network.
 
     Returns:
         Dict with stops list
     """
     try:
-        query = """
-        SELECT DISTINCT stop_name
-        FROM stops
-        ORDER BY stop_name
-        """
-        result = conn.execute(query).fetchall()
+        if operator and operator != "both":
+            query = "SELECT DISTINCT stop_name FROM stops WHERE operator = ? ORDER BY stop_name"
+            result = conn.execute(query, [operator]).fetchall()
+        else:
+            query = "SELECT DISTINCT stop_name FROM stops ORDER BY stop_name"
+            result = conn.execute(query).fetchall()
         stops = [row[0] for row in result]
         return {"stops": stops}
     except Exception as e:

@@ -56,6 +56,7 @@ async def stop_view(
     request: Request,
     stop_name: str,
     day_type: Optional[str] = None,
+    operator: Optional[str] = None,  # 'both' | 'myciti' | 'uct'
     conn: duckdb.DuckDBPyConnection = Depends(get_connection)
 ):
     """
@@ -77,6 +78,36 @@ async def stop_view(
         # Validate day type
         if day_type not in ["weekday", "saturday", "sunday"]:
             day_type = "weekday"
+
+        # Validate operator filter (default: show both networks)
+        if operator not in ("both", "myciti", "uct"):
+            operator = "both"
+
+        # Build operator SQL fragment used by queries below
+        op_filter = ""
+        op_params: list = []
+        if operator != "both":
+            op_filter = "AND d.operator = ?"
+            op_params = [operator]
+
+        # Check for stale UCT timetable data
+        uct_stale_warning = None
+        if operator in ("uct", "both"):
+            try:
+                row = conn.execute(
+                    "SELECT MAX(valid_until) FROM timetables WHERE operator = 'uct'"
+                ).fetchone()
+                if row and row[0]:
+                    from datetime import date
+                    expiry = (row[0] if isinstance(row[0], date)
+                              else date.fromisoformat(str(row[0])))
+                    if expiry < date.today():
+                        uct_stale_warning = (
+                            f"UCT shuttle timetable expired on "
+                            f"{expiry.strftime('%d %b %Y')}. Data may be outdated."
+                        )
+            except Exception:
+                pass
 
         # Get current time for filtering upcoming departures
         now = get_cape_town_time()
@@ -111,7 +142,8 @@ async def stop_view(
 
         # Query routes serving this stop via the departures table.
         # The DB has no GTFS trips/calendar — day_type filtering is direct.
-        routes_query = """
+        # Optional operator filter narrows to one network.
+        routes_query = f"""
         SELECT DISTINCT
             d.route_id,
             r.route_name,
@@ -120,12 +152,13 @@ async def stop_view(
         JOIN routes r ON d.route_id = r.route_id
         WHERE d.stop_name = ?
             AND d.day_type = ?
+            {op_filter}
         ORDER BY r.route_name, d.direction
         """
 
         routes_result = conn.execute(
             routes_query,
-            [stop_name, day_type]
+            [stop_name, day_type] + op_params
         ).fetchall()
 
         if not routes_result:
@@ -138,10 +171,12 @@ async def stop_view(
                     "page": "stop",
                     "stop_name": stop_name,
                     "day_type": day_type,
+                    "operator": operator,
                     "routes": [],
                     "departures": {},
                     "error": f"No routes found for stop '{stop_name}' on {day_type}s",
                     "ls_stage": ls_stage,
+                    "uct_stale_warning": uct_stale_warning,
                 }
             )
 
@@ -157,7 +192,7 @@ async def stop_view(
         # Query upcoming departures for each route+direction
         departures = {}
         for route in routes:
-            departures_query = """
+            departures_query = f"""
             SELECT
                 d.departure_time,
                 d.direction,
@@ -169,6 +204,7 @@ async def stop_view(
                 AND d.direction = ?
                 AND d.day_type = ?
                 AND d.departure_time >= ?
+                {op_filter}
             ORDER BY d.departure_time
             LIMIT 10
             """
@@ -176,7 +212,7 @@ async def stop_view(
             dep_result = conn.execute(
                 departures_query,
                 [stop_name, route["route_id"], route["direction"],
-                 day_type, current_time]
+                 day_type, current_time] + op_params
             ).fetchall()
 
             route_departures = [
@@ -206,11 +242,13 @@ async def stop_view(
                 "page": "stop",
                 "stop_name": stop_name,
                 "day_type": day_type,
+                "operator": operator,
                 "routes": routes,
                 "departures": departures,
                 "current_time": current_time[:5],
                 "ls_stage": ls_stage,
                 "ls_warning": ls_warning,
+                "uct_stale_warning": uct_stale_warning,
             }
         )
 
@@ -231,6 +269,7 @@ async def stop_view(
                 "page": "stop",
                 "stop_name": stop_name,
                 "day_type": day_type or "weekday",
+                "operator": operator or "both",
                 "routes": [],
                 "departures": {},
                 "error": f"Error loading stop data: {str(e)}",

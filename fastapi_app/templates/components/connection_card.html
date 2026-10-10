@@ -1,7 +1,7 @@
 <!-- Direct connection card -->
 <div class="card card--interactive journey-card stagger-enter {% if conn.ls_affected %}card--ls-affected{% endif %}">
   <div class="card-header">
-    <span class="route-badge {% if conn.route_name.startswith('T') %}trunk{% elif conn.route_name.startswith('2') or conn.route_name.startswith('1') %}direct{% else %}area{% endif %}">
+    <span class="route-badge {% if conn.route_id.startswith('UCT') %}uct{% elif conn.route_id.startswith('T') %}trunk{% elif conn.route_id.startswith('D') %}direct{% else %}area{% endif %}">
       {{ conn.route_name }}
     </span>
     <span class="journey-direction">{{ conn.direction }}</span>
@@ -11,7 +11,7 @@
       {{ conn.ls_chip[0] }}
     </span>
     {% endif %}
-    <a href="/?from_stop={{ results.to_stop|urlencode }}&to_stop={{ results.from_stop|urlencode }}&day_type={{ results.day_type }}"
+    <a href="/?from_stop={{ results.to_stop|urlencode }}&to_stop={{ results.from_stop|urlencode }}&day_type={{ results.day_type }}&operator={{ operator }}"
        class="btn-reverse" title="Search return trip" aria-label="Search return trip">&#8693;</a>
   </div>
 
