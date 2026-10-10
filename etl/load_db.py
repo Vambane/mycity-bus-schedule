@@ -1,12 +1,16 @@
 """
 etl/load_db.py — DuckDB Loader
 ================================
-Takes the structured data returned by scrape_myciti.scrape_all()
-and loads (or refreshes) it into a DuckDB database at data/myciti.duckdb.
+Takes the structured data returned by scrape_myciti.scrape_all() (or
+scrape_uct.scrape_all()) and loads it into a DuckDB database at
+data/myciti.duckdb.
+
+Each operator's data is loaded independently: a full-refresh for one
+operator leaves the other operator's rows untouched.
 
 Schema
 ------
-  routes       — one row per route
+  routes       — one row per route (keyed by operator + route_id)
   stops        — one row per stop per route (with direction & sequence)
   timetables   — metadata about each timetable page scraped
   departures   — individual departure times (the core query table)
@@ -38,6 +42,7 @@ CREATE TABLE IF NOT EXISTS routes (
     route_name        VARCHAR,
     route_description VARCHAR,
     detail_url        VARCHAR,
+    operator          VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
     scraped_at        TIMESTAMP
 );
 
@@ -50,6 +55,7 @@ CREATE TABLE IF NOT EXISTS stops (
     direction     VARCHAR,   -- 'outbound' | 'inbound'
     stop_lat      DOUBLE,
     stop_lon      DOUBLE,
+    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
     scraped_at    TIMESTAMP
 );
 
@@ -60,6 +66,9 @@ CREATE TABLE IF NOT EXISTS timetables (
     route_name    VARCHAR,
     day_type      VARCHAR,   -- 'weekday' | 'saturday' | 'sunday'
     timetable_url VARCHAR,
+    valid_from    DATE,      -- timetable validity start (NULL for MyCiTi)
+    valid_until   DATE,      -- timetable validity end (NULL for MyCiTi)
+    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
     scraped_at    TIMESTAMP
 );
 
@@ -71,6 +80,7 @@ CREATE TABLE IF NOT EXISTS departures (
     direction      VARCHAR,
     day_type       VARCHAR NOT NULL,  -- 'weekday' | 'saturday' | 'sunday'
     departure_time VARCHAR NOT NULL,  -- HH:MM:SS
+    operator       VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
     scraped_at     TIMESTAMP
 );
 
@@ -85,20 +95,44 @@ CREATE TABLE IF NOT EXISTS scrape_log (
     routes_loaded INTEGER,
     stops_loaded  INTEGER,
     departures_loaded INTEGER,
+    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
     status        VARCHAR,
     notes         VARCHAR
 );
 """
 
 # ---------------------------------------------------------------------------
+# Migration: add new columns to existing databases that lack them.
+# Each statement is idempotent — safe to run on every startup.
+# ---------------------------------------------------------------------------
+
+MIGRATIONS = [
+    "ALTER TABLE routes     ADD COLUMN IF NOT EXISTS operator VARCHAR DEFAULT 'myciti'",
+    "ALTER TABLE stops      ADD COLUMN IF NOT EXISTS operator VARCHAR DEFAULT 'myciti'",
+    "ALTER TABLE timetables ADD COLUMN IF NOT EXISTS operator VARCHAR DEFAULT 'myciti'",
+    "ALTER TABLE departures ADD COLUMN IF NOT EXISTS operator VARCHAR DEFAULT 'myciti'",
+    "ALTER TABLE timetables ADD COLUMN IF NOT EXISTS valid_from DATE",
+    "ALTER TABLE timetables ADD COLUMN IF NOT EXISTS valid_until DATE",
+    "ALTER TABLE scrape_log ADD COLUMN IF NOT EXISTS operator VARCHAR DEFAULT 'myciti'",
+]
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _truncate_tables(con: duckdb.DuckDBPyConnection) -> None:
-    """Clear all data tables before a fresh load (full-refresh strategy)."""
+def _truncate_tables(
+    con: duckdb.DuckDBPyConnection,
+    operator: str = "myciti",
+) -> None:
+    """Delete rows for one operator before a fresh load.
+
+    Only the specified operator's data is removed — other operators'
+    rows survive intact. This lets MyCiTi and UCT ETL runs happen
+    independently without interfering with each other.
+    """
     for table in ["departures", "timetables", "stops", "routes"]:
-        con.execute(f"DELETE FROM {table}")
-    log.info("All tables truncated — ready for fresh load.")
+        con.execute(f"DELETE FROM {table} WHERE operator = ?", [operator])
+    log.info(f"Tables truncated for operator={operator} — ready for fresh load.")
 
 
 def _insert_rows(
@@ -139,13 +173,21 @@ def _insert_rows(
 # Public loader
 # ---------------------------------------------------------------------------
 
-def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
+def load(
+    data: dict[str, list[dict]],
+    db_path: Path = DB_PATH,
+    operator: str = "myciti",
+) -> None:
     """
-    Load scraped MyCiTi data into DuckDB.
+    Load scraped data into DuckDB for a single operator.
+
+    Only the specified operator's rows are replaced; the other
+    operator's data remains intact.
 
     Args:
-        data:    Dict returned by scrape_myciti.scrape_all().
-        db_path: Path to the DuckDB file (created if it doesn't exist).
+        data:     Dict with keys {routes, stops, timetables, departures}.
+        db_path:  Path to the DuckDB file (created if it doesn't exist).
+        operator: Operator tag — 'myciti' or 'uct'.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     log.info(f"Opening DuckDB at {db_path}")
@@ -154,55 +196,70 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
     started_at = datetime.now(timezone.utc)
 
     try:
-        # Ensure schema exists
+        # Ensure schema exists (fresh DB) …
         con.execute(DDL)
-        log.info("Schema verified / created.")
+        # … and migrate existing DBs that lack new columns.
+        for stmt in MIGRATIONS:
+            con.execute(stmt)
+        log.info("Schema verified / migrated.")
 
-        # Full-refresh: truncate and reload
-        _truncate_tables(con)
+        # Stamp every row with its operator before inserting.
+        for collection in data.values():
+            for row in collection:
+                row.setdefault("operator", operator)
+
+        # Full-refresh for this operator only — other operators survive.
+        _truncate_tables(con, operator=operator)
 
         # --- routes ---
         routes_loaded = _insert_rows(
             con, "routes", data["routes"],
-            ["route_id", "route_name", "route_description", "detail_url", "scraped_at"],
+            ["route_id", "route_name", "route_description",
+             "detail_url", "operator", "scraped_at"],
         )
 
         # --- stops ---
         stops_loaded = _insert_rows(
             con, "stops", data["stops"],
             ["stop_id", "stop_name", "route_id", "stop_sequence",
-             "direction", "stop_lat", "stop_lon", "scraped_at"],
+             "direction", "stop_lat", "stop_lon", "operator", "scraped_at"],
         )
 
         # --- timetables ---
-        # Assign surrogate IDs before inserting
-        for i, row in enumerate(data["timetables"], start=1):
+        # Assign surrogate IDs that don't collide across operators: offset
+        # by MAX existing ID so a second operator's load is safe.
+        max_id = con.execute(
+            "SELECT COALESCE(MAX(id), 0) FROM timetables"
+        ).fetchone()[0]
+        for i, row in enumerate(data["timetables"], start=max_id + 1):
             row.setdefault("id", i)
         _insert_rows(
             con, "timetables", data["timetables"],
-            ["id", "route_id", "route_name", "day_type", "timetable_url", "scraped_at"],
+            ["id", "route_id", "route_name", "day_type", "timetable_url",
+             "valid_from", "valid_until", "operator", "scraped_at"],
         )
 
         # --- departures ---
-        for i, row in enumerate(data["departures"], start=1):
+        max_dep_id = con.execute(
+            "SELECT COALESCE(MAX(id), 0) FROM departures"
+        ).fetchone()[0]
+        for i, row in enumerate(data["departures"], start=max_dep_id + 1):
             row.setdefault("id", i)
         departures_loaded = _insert_rows(
             con, "departures", data["departures"],
             ["id", "route_id", "stop_name", "direction",
-             "day_type", "departure_time", "scraped_at"],
+             "day_type", "departure_time", "operator", "scraped_at"],
         )
 
         # --- audit log ---
         finished_at = datetime.now(timezone.utc)
-        # run_id is computed explicitly (not via the sequence default): a DB
-        # rebuilt from the Parquet snapshot has the table without the default.
         con.execute(
             """
             INSERT INTO scrape_log
               (run_id, started_at, finished_at, routes_loaded, stops_loaded,
-               departures_loaded, status, notes)
+               departures_loaded, operator, status, notes)
             VALUES ((SELECT COALESCE(MAX(run_id), 0) + 1 FROM scrape_log),
-                    ?, ?, ?, ?, ?, 'success', ?)
+                    ?, ?, ?, ?, ?, ?, 'success', ?)
             """,
             [
                 started_at.isoformat(),
@@ -210,13 +267,14 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
                 routes_loaded,
                 stops_loaded,
                 departures_loaded,
-                f"Full refresh completed in "
+                operator,
+                f"Full refresh ({operator}) completed in "
                 f"{(finished_at - started_at).total_seconds():.1f}s",
             ],
         )
 
         log.info(
-            f"Load complete — "
+            f"Load complete ({operator}) — "
             f"{routes_loaded} routes, {stops_loaded} stops, "
             f"{departures_loaded} departures."
         )
@@ -224,27 +282,24 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
         # Export a Parquet snapshot alongside the DB. The .duckdb file is
         # gitignored; committing the snapshot lets a fresh deployment
         # (e.g. Streamlit Cloud) rebuild the database without scraping.
-        snapshot_dir = db_path.parent / "snapshot"
-        snapshot_dir.mkdir(parents=True, exist_ok=True)
-        for table in ["routes", "stops", "timetables", "departures", "scrape_log"]:
-            con.execute(
-                f"COPY {table} TO '{snapshot_dir / table}.parquet' "
-                "(FORMAT PARQUET, COMPRESSION ZSTD)"
-            )
-        log.info(f"Snapshot exported to {snapshot_dir}/")
+        export_snapshot(con, db_path)
 
     except Exception as exc:
         log.error(f"Load failed: {exc}")
-        # The scrape_log insert can itself fail (e.g. schema not yet created)
-        # which would replace the original exception and obscure the root cause.
         try:
             con.execute(
                 """
-                INSERT INTO scrape_log (run_id, started_at, finished_at, status, notes)
+                INSERT INTO scrape_log
+                  (run_id, started_at, finished_at, operator, status, notes)
                 VALUES ((SELECT COALESCE(MAX(run_id), 0) + 1 FROM scrape_log),
-                        ?, ?, 'error', ?)
+                        ?, ?, ?, 'error', ?)
                 """,
-                [started_at.isoformat(), datetime.now(timezone.utc).isoformat(), str(exc)],
+                [
+                    started_at.isoformat(),
+                    datetime.now(timezone.utc).isoformat(),
+                    operator,
+                    str(exc),
+                ],
             )
         except Exception as log_exc:
             log.warning(f"  Additionally, scrape_log error insert failed: {log_exc}")
@@ -252,6 +307,21 @@ def load(data: dict[str, list[dict]], db_path: Path = DB_PATH) -> None:
 
     finally:
         con.close()
+
+
+def export_snapshot(
+    con: duckdb.DuckDBPyConnection,
+    db_path: Path = DB_PATH,
+) -> None:
+    """Export all tables to Parquet files in the snapshot directory."""
+    snapshot_dir = db_path.parent / "snapshot"
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    for table in ["routes", "stops", "timetables", "departures", "scrape_log"]:
+        con.execute(
+            f"COPY {table} TO '{snapshot_dir / table}.parquet' "
+            "(FORMAT PARQUET, COMPRESSION ZSTD)"
+        )
+    log.info(f"Snapshot exported to {snapshot_dir}/")
 
 
 # ---------------------------------------------------------------------------
@@ -270,11 +340,25 @@ def inspect(db_path: Path = DB_PATH) -> None:
         except Exception:
             print(f"  {t:<20} (not found)")
 
+    # Show per-operator breakdown if the column exists
+    print("\n--- Rows per operator ---")
+    for t in ["routes", "departures"]:
+        try:
+            rows = con.execute(
+                f"SELECT operator, COUNT(*) FROM {t} GROUP BY operator ORDER BY operator"
+            ).fetchall()
+            for op, cnt in rows:
+                print(f"  {t:<20} {op or 'NULL':<10} {cnt:>6}")
+        except Exception:
+            pass
+
     print("\n--- Sample routes ---")
     try:
-        rows = con.execute("SELECT route_id, route_name FROM routes LIMIT 10").fetchall()
+        rows = con.execute(
+            "SELECT route_id, route_name, operator FROM routes LIMIT 10"
+        ).fetchall()
         for r in rows:
-            print(f"  {r[0]:<10} {r[1]}")
+            print(f"  {r[2] or 'myciti':<8} {r[0]:<10} {r[1]}")
     except Exception as e:
         print(f"  (error: {e})")
 
@@ -282,14 +366,14 @@ def inspect(db_path: Path = DB_PATH) -> None:
     try:
         rows = con.execute(
             """
-            SELECT route_id, stop_name, day_type, departure_time
+            SELECT route_id, stop_name, day_type, departure_time, operator
             FROM   departures
-            ORDER  BY route_id, day_type, departure_time
+            ORDER  BY operator, route_id, day_type, departure_time
             LIMIT  10
             """
         ).fetchall()
         for r in rows:
-            print(f"  {r[0]:<8} {r[2]:<10} {r[3]}  {r[1]}")
+            print(f"  {r[4] or 'myciti':<8} {r[0]:<8} {r[2]:<10} {r[3]}  {r[1]}")
     except Exception as e:
         print(f"  (error: {e})")
 
