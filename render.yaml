@@ -5,7 +5,7 @@ services:
     region: frankfurt  # or oregon/singapore based on preference
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT --workers 2
+    startCommand: uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ESP_API_KEY
         sync: false  # Set manually in Render dashboard
