@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS routes (
 CREATE TABLE IF NOT EXISTS stops (
     stop_id       VARCHAR PRIMARY KEY,
     stop_name     VARCHAR NOT NULL,
-    route_id      VARCHAR NOT NULL REFERENCES routes(route_id),
+    route_id      VARCHAR NOT NULL,
     stop_sequence INTEGER,
     direction     VARCHAR,   -- 'outbound' | 'inbound'
     stop_lat      DOUBLE,
@@ -158,7 +158,10 @@ def _insert_rows(
 
     placeholders = ", ".join(["?"] * len(columns))
     col_list = ", ".join(columns)
-    sql = f"INSERT OR REPLACE INTO {table} ({col_list}) VALUES ({placeholders})"
+    # Plain INSERT — the operator's rows are truncated before loading,
+    # so there are no conflicts. INSERT OR REPLACE requires PK constraints
+    # which are absent on tables rebuilt from Parquet snapshots.
+    sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})"
 
     values = [
         tuple(row.get(col) for col in columns)
