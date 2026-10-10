@@ -770,6 +770,17 @@ def scrape_all(offline: bool = False) -> dict[str, list[dict]]:
             seen_stop_keys.add(key)
             deduped_stops.append(s)
 
+    # Regenerate stop_id to ensure uniqueness after dedup
+    # (prevents duplicate IDs when shared PDFs produce overlapping sequences)
+    from collections import defaultdict
+    seq_counters: dict[tuple[str, str], int] = defaultdict(int)
+    for stop in deduped_stops:
+        route_dir_key = (stop["route_id"], stop["direction"])
+        seq = seq_counters[route_dir_key]
+        stop["stop_id"] = f"{stop['route_id']}_{stop['direction']}_{seq:03d}"
+        stop["stop_sequence"] = seq
+        seq_counters[route_dir_key] += 1
+
     # Clean internal keys from route dicts before returning
     clean_routes = [
         {k: v for k, v in r.items() if not k.startswith("_")}
