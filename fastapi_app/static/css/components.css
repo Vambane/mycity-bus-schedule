@@ -1097,3 +1097,15 @@
 .btn-trip-preview:active {
   background: var(--gold-press);
 }
+
+/* Header fit at 390px — keep source meaning, short form ("Stage 0 · default") */
+.ls-badge__src--short { display: none; }
+@media (max-width: 479px) {
+  .header-inner { gap: var(--sp-2); padding-inline: var(--sp-3); }
+  .logo { font-size: var(--text-base); gap: var(--sp-1); }
+  .nav-pills { gap: 4px; }
+  .nav-pill { padding: 6px 12px; }
+  .ls-badge { white-space: nowrap; padding: var(--sp-1) var(--sp-2); font-size: 11px; flex-shrink: 0; }
+  .ls-badge__src--long { display: none; }
+  .ls-badge__src--short { display: inline; }
+}

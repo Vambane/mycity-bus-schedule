@@ -40,6 +40,10 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   reset, preview bar) uses dark glass (`#1A1A1F` / `#F0F0F0`) with gold
   active states; search and **Preview this trip** use gold primary actions.
   Trip preview remains **estimated from timetable — not live GPS**.
+  Map tiles are standard OpenStreetMap (no API key), darkened with a CSS
+  filter on the tile layer only so route lines and stops keep their colours.
+  On phones (<480px) the header compacts and the load-shedding badge reads
+  e.g. `Stage 0 · default` (full source in its tooltip / screen-reader label).
 - **Interactive system map** — the full network on real Cape Town geography
   (Leaflet + OpenStreetMap tiles), with a toggle between:
   - *Schematic*: square-ish 45°/90° lines in the style of the official route map
