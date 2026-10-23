@@ -50,6 +50,19 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   tap opens the timetable. Legend highlight dims inactive stops (~0.2
   opacity) while active-route stops stay full size and opacity. Stops sit
   at their true coordinates (~96% geolocated).
+- **Trip preview** — on eligible journey results, a deliberate
+  **Preview this trip** control opens the system map with a single
+  timetable-interpolated ghost marker on that trip’s path (street
+  geometry when available, otherwise schematic). The ghost uses a muted
+  route colour at ~45% opacity with a hollow/dashed ring. While preview
+  is active the map always shows the Compliance caption
+  `Estimated from timetable — not live GPS.` (optional planning-aid
+  line beneath). Preview never starts from legend highlight, stop click,
+  or map open alone. The control is hidden for soft-paired legs, stale
+  scrapes, wrong day type, or trips already past their arrival. Dismiss
+  with **Clear preview**, choosing another trip, or leaving the map.
+  Clock: Africa/Johannesburg. FastAPI-first (v1 previews the first leg
+  of a transfer).
 - **Load shedding awareness**: a sidebar panel shows the current Eskom
   stage (via EskomSePush when configured, manually overridable, defaulting to
   stage 0), and journey results, departure boards and the departure map

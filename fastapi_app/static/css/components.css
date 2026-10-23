@@ -1060,3 +1060,14 @@
     margin-bottom: var(--sp-4);
   }
 }
+
+
+/* Trip preview — deliberate control only (Design trip-preview-interaction.md) */
+.trip-preview-actions {
+  margin-top: var(--sp-3);
+  display: flex;
+  gap: var(--sp-2);
+}
+.btn-trip-preview {
+  font-size: var(--text-sm);
+}

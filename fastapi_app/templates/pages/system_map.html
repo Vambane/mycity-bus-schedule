@@ -14,7 +14,7 @@
   <!-- Map container -->
   <div style="width: 100%; height: 75vh; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;">
     <iframe
-      src="/static/map/system_map.html"
+      src="{{ map_iframe_src | default('/static/map/system_map.html') }}"
       style="width: 100%; height: 100%; border: none;"
       title="MyCiTi System Map"
       loading="lazy">

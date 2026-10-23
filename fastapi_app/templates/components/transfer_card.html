@@ -97,4 +97,13 @@
   </details>
   {% endif %}
   {% endif %}
+
+  {% if conn.preview_ok %}
+  <div class="trip-preview-actions">
+    <a class="btn btn-secondary btn-trip-preview"
+       href="/map?preview=1&amp;route_id={{ conn.preview_route_id|urlencode }}&amp;direction={{ conn.preview_direction|urlencode }}&amp;day_type={{ results.day_type }}&amp;board={{ conn.preview_board|urlencode }}&amp;alight={{ conn.preview_alight|urlencode }}&amp;dep={{ conn.preview_dep|urlencode }}">
+      Preview this trip
+    </a>
+  </div>
+  {% endif %}
 </div>
