@@ -980,3 +980,83 @@
   color: var(--text-tertiary);
   margin-left: auto;
 }
+
+/* ============================================================
+   TRUST STRIP (Compliance lines 1–5 placement)
+   Muted caption — must not compete with departure times.
+   ============================================================ */
+.trust-strip {
+  margin: var(--sp-4) 0 var(--sp-6);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  max-width: 52rem;
+}
+
+.trust-strip__line {
+  margin: 0 0 var(--sp-2);
+}
+
+.trust-strip__line:last-child {
+  margin-bottom: 0;
+}
+
+.trust-strip a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-word;
+}
+
+.trust-strip a:hover {
+  color: var(--gold);
+}
+
+.trust-strip--shedding,
+.shedding-panel .trust-strip__line--shedding {
+  margin-top: var(--sp-3);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.trust-strip__line--location {
+  margin-top: var(--sp-2);
+}
+
+/* Honest wake banner — never a blank first paint */
+.wake-banner {
+  background: var(--bg-overlay);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.wake-banner[hidden] {
+  display: none !important;
+}
+
+.wake-banner--noscript {
+  background: var(--ls-warn-bg);
+  color: var(--ls-warn-fg);
+}
+
+.footer-sources {
+  margin: 0 0 var(--sp-2);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.footer-links {
+  margin: 0;
+}
+
+@media (max-width: 390px) {
+  .trust-strip {
+    padding-left: var(--sp-3);
+    margin-bottom: var(--sp-4);
+  }
+}

@@ -1,0 +1,19 @@
+{# Compliance lines 1–3 — muted caption under journey/board/map results. Exact wording. #}
+<aside class="trust-strip" role="note" aria-label="Data disclaimer">
+  <p class="trust-strip__line">
+    Unofficial community timetable — not affiliated with MyCiTi, UCT, or the City of Cape Town.
+  </p>
+  <p class="trust-strip__line">
+    Timetable as of {{ scraped_at | default('unknown — run ETL to refresh') }}.
+    Always confirm on
+    <a href="{{ myciti_url | default('https://www.myciti.org.za') }}"
+       target="_blank" rel="noopener">https://www.myciti.org.za</a>
+    or
+    <a href="{{ uct_transport_url | default('https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables') }}"
+       target="_blank" rel="noopener">https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables</a>
+    before you travel.
+  </p>
+  <p class="trust-strip__line">
+    Times are from published PDFs / open data, not live GPS. Treat this as a planning aid only.
+  </p>
+</aside>

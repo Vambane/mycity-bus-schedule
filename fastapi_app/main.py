@@ -1,13 +1,19 @@
 """FastAPI application entry point."""
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
 from pathlib import Path
 
 from .config import settings
-from .dependencies import init_connection_pool, close_connection_pool
+from .dependencies import (
+    init_connection_pool,
+    close_connection_pool,
+    is_pool_ready,
+    get_connection,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -15,6 +21,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+APP_VERSION = "2.0.0"
 
 
 @asynccontextmanager
@@ -33,7 +41,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MyCiTi Bus Timetable",
     description="Journey planning and timetable system for MyCiTi buses in Cape Town",
-    version="2.0.0",
+    version=APP_VERSION,
     lifespan=lifespan,
 )
 
@@ -62,8 +70,53 @@ app.include_router(system_map.router, tags=["Map"])
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for deployment monitoring."""
-    return {"status": "ok", "version": "2.0.0"}
+    """
+    Fast health check for deployment monitors.
+
+    Does not run ETL. Returns non-200 / degraded when the DuckDB pool or
+    snapshot-backed data is unavailable (fail-loud for empty boards).
+    """
+    from .services.trust import get_scraped_at_display, get_scraped_at_raw
+
+    db_ready = is_pool_ready()
+    scraped_at = None
+    scraped_display = None
+    status = "ok"
+
+    if not db_ready:
+        status = "degraded"
+        body = {
+            "status": status,
+            "version": APP_VERSION,
+            "db_ready": False,
+            "scraped_at": None,
+        }
+        return JSONResponse(status_code=503, content=body)
+
+    try:
+        conn = get_connection()
+        raw = get_scraped_at_raw(conn)
+        scraped_at = raw.isoformat(sep=" ", timespec="seconds") if raw else None
+        scraped_display = get_scraped_at_display(conn)
+        # Cheap readiness probe — must not touch PDF ETL.
+        conn.execute("SELECT 1").fetchone()
+        if raw is None:
+            status = "degraded"
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Health check DB probe failed: %s", exc)
+        status = "degraded"
+        db_ready = False
+
+    body = {
+        "status": status,
+        "version": APP_VERSION,
+        "db_ready": db_ready,
+        "scraped_at": scraped_at,
+        "scraped_at_display": scraped_display,
+    }
+    if status != "ok":
+        return JSONResponse(status_code=503, content=body)
+    return body
 
 
 if __name__ == "__main__":

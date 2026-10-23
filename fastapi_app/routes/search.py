@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from fastapi_app.dependencies import get_connection
 from fastapi_app.config import settings
+from fastapi_app.services.trust import trust_context
 import duckdb
 
 # Import core business logic
@@ -142,6 +143,7 @@ async def search_page(
                 "results": None,
                 "ls_stage": ls_stage,
                 "uct_stale_warning": uct_stale_warning,
+                **trust_context(conn),
             }
         )
 
@@ -353,6 +355,12 @@ async def search_page(
                 "results": results,
                 "ls_stage": ls_stage,
                 "uct_stale_warning": uct_stale_warning,
+                **trust_context(
+                    conn,
+                    show_shedding_trust=any(
+                        c.get("ls_affected") for c in results.get("direct", [])
+                    ),
+                ),
             }
         )
 
@@ -373,5 +381,6 @@ async def search_page(
                 "error": f"Error searching for journeys: {str(e)}",
                 "ls_stage": ls_stage,
                 "uct_stale_warning": uct_stale_warning,
+                **trust_context(conn),
             }
         )

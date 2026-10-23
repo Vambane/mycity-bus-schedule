@@ -10,6 +10,8 @@
         <p class="text-muted">Upcoming departures {% if current_time %}from {{ current_time }}{% endif %}</p>
     </div>
 
+    {% include 'components/trust_strip.html' %}
+
     <!-- UCT stale data warning -->
     {% if uct_stale_warning %}
     <div class="alert alert-warning">
@@ -20,8 +22,9 @@
 
     <!-- Load shedding warning -->
     {% if ls_warning %}
-    <div class="alert alert-warning">
+    <div class="alert alert-warning shedding-panel">
         {{ ls_warning }}
+        {% include 'components/shedding_trust.html' %}
     </div>
     {% endif %}
 
