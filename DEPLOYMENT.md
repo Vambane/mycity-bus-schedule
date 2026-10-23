@@ -1,255 +1,119 @@
-# 🚀 Deployment Guide - MyCiTi Bus Timetable
+# Deployment Guide — MyCiTi Bus Timetable
 
-## Quick Start - 5 Minutes to Live! ⚡
-
-Your app is **ready to deploy** with the beautiful new UI! Choose Render for the easiest experience.
+Production surface is **FastAPI + Jinja** (`fastapi_app/`). Streamlit (`app.py`) is for local development only.
 
 ---
 
-## Option 1: Render (Recommended) ⭐
+## Cold start / DuckDB boot pin (required reading)
 
-**Why Render:**
-- ✅ 750 hours/month FREE (enough for 24/7)
-- ✅ Auto HTTPS certificate
-- ✅ Auto deploys from GitHub
-- ✅ Zero configuration needed
-- ✅ `render.yaml` already configured!
+Cold start must **not** run a full PDF ETL. The process rebuilds DuckDB from committed Parquet snapshots.
 
-### Deploy in 5 Steps:
+| Item | Value |
+|------|--------|
+| Start command | `uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT` |
+| Snapshot path | `data/snapshot/*.parquet` (routes, stops, departures, timetables, scrape_log, …) |
+| Runtime DB | `data/myciti.duckdb` — **rebuilt on boot** by `fastapi_app/dependencies.py` → `_ensure_database` when missing |
+| Fail-loud | If the `.duckdb` file and the snapshot directory are both missing, startup raises `FileNotFoundError` — do **not** serve empty boards |
+| Health | `GET /health` — fast JSON (`status`, `version`, `db_ready`, `scraped_at`); non-200 / `degraded` when DB/snapshot missing; never blocks on ETL |
 
-**Step 1: Push to GitHub**
-```bash
-cd /Users/dumisani/Documents/Code\ \&\ Projects/github/mycity-bus-schedule
-git add .
-git commit -m "Ready for deployment with modern UI"
-git push origin main
-```
-
-**Step 2: Sign Up at Render**
-- Go to https://render.com
-- Click "Get Started for Free"
-- Sign in with GitHub (easiest)
-
-**Step 3: Create Web Service**
-- Click "New +" → "Web Service"
-- Click "Connect account" to connect GitHub
-- Find and select your repo: `mycity-bus-schedule`
-- Render auto-detects your `render.yaml` ✅
-
-**Step 4: Configure (auto-filled!)**
-- **Name:** myciti-bus-timetable
-- **Branch:** main
-- **Plan:** Free
-- Everything else is pre-configured in `render.yaml`!
-
-**Step 5: Optional - Add Load Shedding API**
-- Go to "Environment" tab
-- Add variable: `ESP_API_KEY` = `your_eskomsepush_key`
-- (Get key at https://eskomsepush.gumroad.com/l/api)
-- Skip this if you don't want load shedding features
-
-**Step 6: Deploy! 🚀**
-- Click "Create Web Service"
-- Wait 2-3 minutes for build
-- **Your app is live!** 🎉
-
-Your URL: `https://myciti-bus-timetable.onrender.com`
+`scraped_at` for the trust strip and `/health` comes from `scrape_log.finished_at` (latest successful ETL). If absent, the UI shows an honest “unknown — run ETL to refresh” (never a fake date).
 
 ---
 
-## Option 2: Railway (Also Great!)
+## Option 1: Railway (preferred host notes)
 
-**Features:**
-- ✅ $5 free credit/month
-- ✅ Very fast deploys
-- ✅ Simple interface
+**Product note (Oct 2026):** Railway deploy is currently **parked** by product — keep these docs accurate for the day it is unpaused. Do not treat a live Railway URL as required for Now 2–4 merge.
 
-### Steps:
+**Why Railway:** fast deploys, simple GitHub connect, `$PORT` injection.
 
-1. **Sign up:** https://railway.app → Login with GitHub
-2. **New Project:** Click "New Project" → "Deploy from GitHub repo"
-3. **Select repo:** Choose `mycity-bus-schedule`
-4. **Add environment:**
-   - Key: `PORT` Value: `8000`
-   - Key: `ESP_API_KEY` Value: `your_key` (optional)
-5. **Settings → Generate Domain**
+### Steps (when unpaused)
 
-Your URL: `myciti-bus-timetable.up.railway.app`
+1. Sign up: https://railway.app → Login with GitHub  
+2. New Project → Deploy from GitHub repo → `mycity-bus-schedule`  
+3. Start command (if not auto-detected):  
+   `uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT`  
+4. Ensure `data/snapshot/*.parquet` is in the deployed tree (committed in repo).  
+5. Optional env: `ESP_API_KEY` for live load-shedding stage.  
+6. Settings → Generate Domain. Probe `GET /health` until `status=ok` and `db_ready=true`.
 
 ---
 
-## Option 3: Fly.io (Global Edge)
+## Option 2: Render (alternative)
 
-**Features:**
-- ✅ 3 free VMs
-- ✅ Global deployment
+`render.yaml` is present for a free-tier Web Service. Same start command and snapshot rules as above.
 
-### Steps:
+1. https://render.com → New → Web Service → connect the GitHub repo  
+2. Confirm start: `uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT`  
+3. Free tier spins down after idle — first request is a cold start; `/health` and the Jinja shell (honest wake banner) should respond without a blank page once the process is up  
+4. Optional: `ESP_API_KEY`
+
+---
+
+## Option 3: Fly.io (edge)
 
 ```bash
-# Install CLI
-brew install flyctl
-
-# Login
 fly auth login
-
-# Deploy
-fly launch
-# Say YES to defaults
-# Choose region (closest to Cape Town: Johannesburg)
-
-# Deploy
+fly launch   # accept defaults; region near Cape Town / Johannesburg
 fly deploy
 ```
 
-Your URL: `myciti-bus-timetable.fly.dev`
+Use the same uvicorn start command and snapshot path.
 
 ---
 
-## 🔍 Pre-Deployment Checklist
-
-Before deploying, verify:
+## Pre-deploy checklist
 
 ```bash
-# Test locally
+# Local smoke (uses snapshot → DuckDB boot path)
 uvicorn fastapi_app.main:app --port 8000 --reload
 
-# Open browser
+curl -s localhost:8000/health
+# expect: {"status":"ok","version":"2.0.0","db_ready":true,"scraped_at":"..."}
+
+# Open search chrome (From / To above the fold) + trust strip after a search
 open http://localhost:8000
-
-# Check journey search works
-# Check modern UI loads correctly
-# Check CSS/images load
 ```
 
-If everything works locally, it'll work on Render! ✅
+Also see `qa/live-smoke-checklist.md` once a public host is live.
 
 ---
 
-## 📊 After Deployment
+## After deploy
 
-### Test Your Live App:
-
-1. **Homepage:** `https://your-app.onrender.com/`
-2. **Search:** `https://your-app.onrender.com/?from_stop=Civic+Centre&to_stop=Camps+Bay&day_type=weekday`
-3. **System Map:** `https://your-app.onrender.com/map`
-
-### Monitor in Render Dashboard:
-- **Logs:** Real-time application logs
-- **Metrics:** CPU, memory usage
-- **Deploys:** History of all deployments
+1. `GET /health` → `status=ok`, `db_ready=true`  
+2. Homepage shows search chrome immediately (not blank white)  
+3. Journey results and stop boards show Compliance trust lines 1–3; footer shows sources (line 5)  
+4. Sample journey (e.g. Camps Bay → Civic Centre) returns rows or an explicit empty state  
 
 ---
 
-## 🎨 Custom Domain (Optional)
+## Troubleshooting
 
-Want `myciti.yourdomain.com`?
+**App won't start / loud error about snapshot**  
+→ Ensure `data/snapshot/*.parquet` is deployed. Do not expect PDF scraping on cold start.
 
-1. Buy domain at Namecheap/Google Domains (~$10/year)
-2. In Render: Settings → Custom Domain → Add
-3. Update your domain's DNS:
-   - Type: `CNAME`
-   - Name: `myciti` (or `@` for root)
-   - Value: `myciti-bus-timetable.onrender.com`
-4. Wait 5-60 minutes for DNS propagation
-5. SSL auto-configured! 🔒
+**`/health` returns 503 / `degraded`**  
+→ Connection pool or `scrape_log` missing. Check logs for `_ensure_database` / DuckDB errors.
+
+**Slow first load on free tier**  
+→ Process spin-up, then snapshot→DuckDB rebuild. Subsequent requests use the pool. Honest wake copy appears when `db_ready` is false.
+
+**Static files missing**  
+→ `fastapi_app/main.py` mounts `/static` from `fastapi_app/static/`.
 
 ---
 
-## 🐛 Troubleshooting
+## Updating timetable data
 
-### App won't start?
-**Check Render logs:**
-- Dashboard → Your service → Logs tab
-- Look for errors in red
+Run ETL locally (or in CI), refresh Parquet snapshots, commit:
 
-**Common issues:**
 ```bash
-# Missing dependencies?
-# → Add to requirements.txt and redeploy
-
-# Database file missing?
-# → Ensure data/myciti.duckdb is in repo
-
-# Port error?
-# → render.yaml uses $PORT (correct) ✅
+python run_etl.py
+# confirm data/snapshot/*.parquet updated, then commit
 ```
 
-### Slow first load?
-- Free tier "spins down" after 15 min inactivity
-- First request takes ~30 seconds (cold start)
-- Subsequent requests are instant!
-
-### Static files not loading?
-- Check `fastapi_app/main.py` has:
-  ```python
-  app.mount("/static", StaticFiles(directory="fastapi_app/static"), name="static")
-  ```
-- Verify files exist in `fastapi_app/static/`
+Hosts rebuild `.duckdb` from those snapshots on next cold start.
 
 ---
 
-## 💡 Pro Tips
-
-**Keep your free tier:**
-- Render gives 750 hrs/month free
-- That's enough for ONE app running 24/7
-- Use one web service
-
-**Faster deploys:**
-- Render caches pip installs
-- Second deploy takes ~30 seconds
-
-**Auto-deploy from GitHub:**
-- Every push to `main` auto-deploys
-- Perfect for continuous updates
-- Disable in Settings if needed
-
-**Database:**
-- DuckDB file is in your repo (committed)
-- No separate database needed
-- Updates: run `python run_etl.py` locally, commit new DB
-
----
-
-## 🚀 Recommended: Deploy to Render Now!
-
-**Why wait?** Deploy in 5 minutes:
-
-1. ✅ Your `render.yaml` is ready
-2. ✅ Your beautiful UI is ready  
-3. ✅ Your database is ready
-4. ✅ Everything is configured!
-
-**Just:**
-```bash
-git push origin main
-```
-
-**Then:** Go to render.com → New Web Service → Select repo → Deploy!
-
----
-
-## 📈 Scaling (Future)
-
-When your app grows:
-
-**Render Paid Plans:**
-- Starter: $7/month (never sleeps, more RAM)
-- Standard: $25/month (autoscaling, analytics)
-
-**Alternatives:**
-- AWS Elastic Beanstalk
-- Google Cloud Run
-- Azure App Service
-- DigitalOcean App Platform
-
-But start with FREE! 🎉
-
----
-
-**Questions?** Check:
-- Render Docs: https://render.com/docs/deploy-fastapi
-- FastAPI Deployment: https://fastapi.tiangolo.com/deployment/
-
-**Ready to go live? Let's deploy! 🚀**
+**Questions?** FastAPI deployment: https://fastapi.tiangolo.com/deployment/

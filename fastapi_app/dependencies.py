@@ -25,7 +25,9 @@ def _ensure_database() -> None:
         snapshots = sorted(SNAPSHOT_DIR.glob("*.parquet"))
         if not snapshots:
             raise FileNotFoundError(
-                f"Database not found at {db_path} and no snapshot in {SNAPSHOT_DIR}."
+                f"Database not found at {db_path} and no Parquet snapshot in "
+                f"{SNAPSHOT_DIR}. Cold start requires data/snapshot/*.parquet "
+                f"(rebuilds .duckdb on boot — do not run full PDF ETL on cold start)."
             )
         db_path.parent.mkdir(parents=True, exist_ok=True)
         logger.info("Building database from Parquet snapshots...")
@@ -86,6 +88,11 @@ def close_connection_pool() -> None:
             logger.warning(f"Error closing connection: {e}")
     _connection_pool.clear()
     logger.info("Connection pool closed")
+
+
+def is_pool_ready() -> bool:
+    """True when the read-only DuckDB pool has at least one connection."""
+    return bool(_connection_pool)
 
 
 def get_connection() -> duckdb.DuckDBPyConnection:

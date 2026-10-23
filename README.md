@@ -8,7 +8,7 @@ original Streamlit interface remains available for local development.
 
 Both MyCiTi and UCT only publish timetables as PDFs. This project scrapes
 those PDFs into a queryable database and adds the tools the sites don't
-have — live "next bus" lookups, a visual departure timeline, and a clickable
+have — next-departure lookups from published timetables, a visual departure timeline, and a clickable
 geographic system map. The two operators are loaded independently and can be
 filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
 
@@ -44,9 +44,24 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   Click a route in the legend to highlight it; click any stop to open its
   timetable. Stops sit at their true coordinates (~96% geolocated).
 - **Load shedding awareness**: a sidebar panel shows the current Eskom
-  stage (live via EskomSePush, manually overridable, defaulting to
+  stage (via EskomSePush when configured, manually overridable, defaulting to
   stage 0), and journey results, departure boards and the departure map
   flag connections and time windows hit by scheduled shedding
+
+## Cold start (DuckDB snapshot)
+
+Production boots with:
+
+```bash
+uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT
+```
+
+On cold start, `fastapi_app/dependencies.py` rebuilds `data/myciti.duckdb` from
+`data/snapshot/*.parquet` if the DB file is missing. **Do not** run full PDF ETL
+on cold start. Missing snapshot → loud startup failure (no silent empty boards).
+`GET /health` reports `status`, `version`, `db_ready`, and `scraped_at` without
+blocking on ETL. See [DEPLOYMENT.md](DEPLOYMENT.md). Railway deploy is currently
+parked by product; Render remains a documented alternative.
 
 ## How it works
 

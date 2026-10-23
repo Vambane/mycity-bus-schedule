@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from fastapi_app.dependencies import get_connection
 from fastapi_app.config import settings
+from fastapi_app.services.trust import trust_context
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
 from disruption import _windows_min, _fmt_window
 import ls_ui
@@ -177,6 +178,7 @@ async def stop_view(
                     "error": f"No routes found for stop '{stop_name}' on {day_type}s",
                     "ls_stage": ls_stage,
                     "uct_stale_warning": uct_stale_warning,
+                    **trust_context(conn),
                 }
             )
 
@@ -249,6 +251,7 @@ async def stop_view(
                 "ls_stage": ls_stage,
                 "ls_warning": ls_warning,
                 "uct_stale_warning": uct_stale_warning,
+                **trust_context(conn, show_shedding_trust=bool(ls_warning)),
             }
         )
 
@@ -274,5 +277,6 @@ async def stop_view(
                 "departures": {},
                 "error": f"Error loading stop data: {str(e)}",
                 "ls_stage": ls_stage,
+                **trust_context(conn),
             }
         )

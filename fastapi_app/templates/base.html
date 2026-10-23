@@ -13,7 +13,18 @@
 
   {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body{% if db_ready is defined and not db_ready %} data-db-ready="false"{% else %} data-db-ready="true"{% endif %}>
+
+  <!-- Honest wake: visible shell while cold start / DB not ready; never blank page -->
+  <div id="wake-banner" class="wake-banner" role="status" aria-live="polite"
+       {% if db_ready is defined and not db_ready %}{% else %}hidden{% endif %}>
+    Starting up… timetable data is loading. Search will work in a moment.
+  </div>
+  <noscript>
+    <div class="wake-banner wake-banner--noscript" role="status">
+      Starting up… enable JavaScript for journey search, or refresh if this page looks incomplete.
+    </div>
+  </noscript>
 
   <!-- ====== HEADER ====== -->
   <header class="header" role="banner">
@@ -61,17 +72,24 @@
   <footer class="footer" role="contentinfo">
     <div class="container">
       <div class="footer-inner">
-        Data from <a href="https://myciti.org.za" target="_blank" rel="noopener">MyCiTi</a>
-        &amp; <a href="https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables" target="_blank" rel="noopener">UCT Shuttle</a>
-        &middot;
-        Load shedding via <a href="https://eskomsepush.gumroad.com/l/api" target="_blank" rel="noopener">EskomSePush</a>
-        &middot;
-        Built with FastAPI
+        <p class="footer-sources">
+          Sources: MyCiTi route PDFs · UCT shuttle timetables · City of Cape Town Open Data · OSM/CARTO
+        </p>
+        <p class="footer-links">
+          Confirm on
+          <a href="https://www.myciti.org.za" target="_blank" rel="noopener">MyCiTi</a>
+          &amp;
+          <a href="https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables" target="_blank" rel="noopener">UCT Transport</a>
+          &middot;
+          Load shedding via <a href="https://eskomsepush.gumroad.com/l/api" target="_blank" rel="noopener">EskomSePush</a>
+          &middot;
+          Unofficial community timetable
+        </p>
       </div>
     </div>
   </footer>
 
-  <!-- Nav indicator positioning -->
+  <!-- Nav indicator + honest wake -->
   <script>
   (function() {
     var active = document.querySelector('.nav-pill.active');
@@ -79,6 +97,10 @@
     if (active && indicator) {
       indicator.style.width = active.offsetWidth + 'px';
       indicator.style.transform = 'translateX(' + active.offsetLeft + 'px)';
+    }
+    var wake = document.getElementById('wake-banner');
+    if (wake && document.body.getAttribute('data-db-ready') === 'true') {
+      wake.hidden = true;
     }
   })();
   </script>

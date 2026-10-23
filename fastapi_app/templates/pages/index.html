@@ -207,6 +207,13 @@
       </p>
     </div>
 
+    {% include 'components/trust_strip.html' %}
+    {% if show_shedding_trust %}
+    <div class="trust-strip trust-strip--shedding">
+      {% include 'components/shedding_trust.html' %}
+    </div>
+    {% endif %}
+
     <!-- Next-day notice -->
     {% if results.showing_next_day %}
     <div class="alert alert-info" role="status">
@@ -291,6 +298,7 @@
 
     {% else %}
     <!-- No results -->
+    {% include 'components/trust_strip.html' %}
     <div class="empty-state">
       <div class="empty-state-icon" aria-hidden="true">&#128652;</div>
       <div class="empty-state-title">No routes found</div>
