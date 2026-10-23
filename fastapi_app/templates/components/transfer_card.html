@@ -67,26 +67,27 @@
       {% for stops in conn.leg_stops %}
         {% set leg_color = conn.leg_colors[loop.index0] if conn.leg_colors else '#666' %}
         {% set leg = conn.legs[loop.index0] if conn.legs else {} %}
+        {% set outer = loop %}
         {% for stop in stops %}
         <div class="journey-stop-row">
-          <div class="stop-line-segment {% if loop.first and loop.parentloop.first %}stop-line-segment--first{% elif loop.last and loop.parentloop.last %}stop-line-segment--last{% endif %}"
+          <div class="stop-line-segment {% if loop.first and outer.first %}stop-line-segment--first{% elif loop.last and outer.last %}stop-line-segment--last{% endif %}"
                style="--route-color: {{ leg_color }};"></div>
-          {% if loop.first and not loop.parentloop.first %}
+          {% if loop.first and not outer.first %}
           {# Transfer point: amber dot #}
           <div class="stop-dot stop-dot--transfer"></div>
-          {% elif loop.first and loop.parentloop.first %}
+          {% elif loop.first and outer.first %}
           <div class="stop-dot stop-dot--origin" style="--route-color: {{ leg_color }};"></div>
-          {% elif loop.last and loop.parentloop.last %}
+          {% elif loop.last and outer.last %}
           <div class="stop-dot stop-dot--destination" style="--route-color: {{ leg_color }};"></div>
           {% else %}
           <div class="stop-dot stop-dot--intermediate" style="--route-color: {{ leg_color }};"></div>
           {% endif %}
           <span class="stop-name">{{ stop }}</span>
-          {% if loop.first and loop.parentloop.first %}
+          {% if loop.first and outer.first %}
           <span class="stop-time">{{ conn.dep }}</span>
-          {% elif loop.last and loop.parentloop.last %}
+          {% elif loop.last and outer.last %}
           <span class="stop-time">{{ conn.arr }}</span>
-          {% elif loop.last and not loop.parentloop.last %}
+          {% elif loop.last and not outer.last %}
           <span class="stop-time stop-time--transfer">change</span>
           {% endif %}
         </div>
