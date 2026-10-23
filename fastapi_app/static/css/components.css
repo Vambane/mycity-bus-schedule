@@ -1109,3 +1109,18 @@
   .ls-badge__src--long { display: none; }
   .ls-badge__src--short { display: inline; }
 }
+
+/* Active nav pill painted from the active link's own box (not a JS translate,
+   which mis-measured before fonts/media rules applied). */
+.nav-indicator { display: none !important; }
+.nav-pill.active { background: var(--gold); color: var(--text-inverse); }
+@media (max-width: 479px) {
+  .nav-pills { flex-shrink: 1; min-width: 0; }
+  .logo { flex-shrink: 1; min-width: 0; }
+  .ls-badge { flex-shrink: 0; }
+}
+@media (max-width: 374px) {
+  .logo { font-size: var(--text-sm); }
+  .nav-pill { font-size: 12px; }
+  .ls-badge { font-size: 10px; }
+}
