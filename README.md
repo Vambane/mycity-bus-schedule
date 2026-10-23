@@ -41,7 +41,7 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   active states; search and **Preview this trip** use gold primary actions.
   Trip preview remains **estimated from timetable — not live GPS**.
 - **Interactive system map** — the full network on real Cape Town geography
-  (Leaflet + CARTO dark basemap), with a toggle between:
+  (Leaflet + OpenStreetMap tiles), with a toggle between:
   - *Schematic*: square-ish 45°/90° lines in the style of the official route map
   - *Street*: the exact road-following route geometries from city open data
 
