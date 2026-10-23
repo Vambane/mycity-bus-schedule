@@ -41,7 +41,7 @@ async def network_data(
         return network
     except Exception as e:
         logger.error(f"Error building network data: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to build network data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to build network data: {str(e)}") from e
 
 
 @router.get("/stops")
@@ -69,4 +69,4 @@ async def list_stops(
         return {"stops": stops}
     except Exception as e:
         logger.error(f"Error fetching stops: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch stops")
+        raise HTTPException(status_code=500, detail="Failed to fetch stops") from e
