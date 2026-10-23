@@ -44,6 +44,8 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   filter on the tile layer only so route lines and stops keep their colours.
   On phones (<480px) the header compacts and the load-shedding badge reads
   e.g. `Stage 0 · default` (full source in its tooltip / screen-reader label).
+  The gold active Search/Map pill is drawn on the active link itself, so it
+  always sits behind its label at any width (checked at 390px and 360px).
 - **Interactive system map** — the full network on real Cape Town geography
   (Leaflet + OpenStreetMap tiles), with a toggle between:
   - *Schematic*: square-ish 45°/90° lines in the style of the official route map
