@@ -70,3 +70,39 @@ async def list_stops(
     except Exception as e:
         logger.error(f"Error fetching stops: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch stops") from e
+
+
+@router.get("/trip-preview")
+async def trip_preview(
+    route_id: str = Query(..., min_length=1),
+    direction: str = Query(..., min_length=1),
+    day_type: str = Query(..., pattern="^(weekday|saturday|sunday)$"),
+    board: str = Query(..., min_length=1),
+    alight: str = Query(..., min_length=1),
+    dep: str = Query(..., min_length=4),
+    arr: Optional[str] = Query(None),
+    conn: duckdb.DuckDBPyConnection = Depends(get_connection),
+) -> Dict[str, Any]:
+    """Timetable-interpolated ghost position for a deliberate trip preview.
+
+    Never starts from legend/stop click — callers must pass an explicit trip.
+    Hide reasons: soft pairing, stale scrape, wrong day, past last bus.
+    """
+    try:
+        from fastapi_app.services.trip_preview import build_trip_preview
+
+        return build_trip_preview(
+            conn,
+            route_id=route_id,
+            direction=direction,
+            day_type=day_type,
+            board=board,
+            alight=alight,
+            dep=dep,
+            arr=arr,
+        )
+    except Exception as e:
+        logger.error("Error building trip preview: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to build trip preview"
+        ) from e

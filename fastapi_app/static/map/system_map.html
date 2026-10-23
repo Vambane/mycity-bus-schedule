@@ -41,6 +41,21 @@
   .hub-label { background:transparent; border:none; box-shadow:none;
                font-weight:700; font-size:10px; color:#222;
                text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
+
+  #preview-bar { display:none; position:absolute; left:54px; top:48px; z-index:1000;
+                 max-width:min(360px, calc(100% - 80px));
+                 background:rgba(255,255,255,.96); color:#222;
+                 border-radius:8px; padding:8px 10px; font-size:12px; line-height:1.35;
+                 box-shadow:0 1px 6px rgba(0,0,0,.25); }
+  #preview-bar .cap { font-weight:700; margin:0 0 2px; }
+  #preview-bar .cap-opt { color:#555; margin:0 0 6px; font-size:11px; }
+  #preview-bar .meta { color:#666; font-size:11px; margin:0 0 6px; }
+  #preview-clear { border:none; background:#eee; color:#222; border-radius:6px;
+                   padding:4px 10px; cursor:pointer; font-size:12px; }
+  #preview-clear:hover { background:#ddd; }
+  .ghost-label { background:rgba(255,255,255,.92); border:1px dashed #666;
+                 color:#333; font-size:11px; font-weight:700; padding:2px 6px;
+                 border-radius:4px; box-shadow:none; }
   #loading { position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
              background:rgba(255,255,255,.95); padding:20px; border-radius:10px;
              box-shadow:0 2px 10px rgba(0,0,0,.2); z-index:2000; }
@@ -55,6 +70,12 @@
     <button id="btn-street">Street</button>
   </div>
   <div id="legend"></div>
+  <div id="preview-bar" role="status" aria-live="polite">
+    <p class="cap" id="preview-cap"></p>
+    <p class="cap-opt" id="preview-cap-opt"></p>
+    <p class="meta" id="preview-meta"></p>
+    <button type="button" id="preview-clear">Clear preview</button>
+  </div>
   <div id="hint">Click a stop to view its timetable · click a route to highlight</div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -288,7 +309,112 @@ function initMap(graph) {
   reset.textContent = "Show all routes";
   reset.onclick = () => { active = null; applyHighlight(); };
   legend.appendChild(reset);
+
+  // --- Trip preview (deliberate only; never from legend/stop click) ---
+  maybeStartPreview(map, color);
 }
+
+function clearPreviewQuery() {
+  try {
+    const u = new URL(window.location.href);
+    ["preview","route_id","direction","day_type","board","alight","dep","arr"].forEach(k => u.searchParams.delete(k));
+    const next = u.pathname + (u.search ? u.search : "") + u.hash;
+    window.history.replaceState({}, "", next);
+    // Parent /map page may own the query — ask it to clear too
+    if (window.parent && window.parent !== window) {
+      try {
+        const pu = new URL(window.parent.location.href);
+        ["preview","route_id","direction","day_type","board","alight","dep","arr"].forEach(k => pu.searchParams.delete(k));
+        window.parent.history.replaceState({}, "", pu.pathname + (pu.search ? pu.search : "") + pu.hash);
+      } catch (e) { /* cross-origin: ignore */ }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function maybeStartPreview(map, colorByRoute) {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("preview") !== "1") return;
+  const route_id = params.get("route_id");
+  const direction = params.get("direction");
+  const day_type = params.get("day_type");
+  const board = params.get("board");
+  const alight = params.get("alight");
+  const dep = params.get("dep");
+  if (!route_id || !direction || !day_type || !board || !alight || !dep) return;
+
+  const q = new URLSearchParams({
+    route_id, direction, day_type, board, alight, dep,
+  });
+  const arr = params.get("arr");
+  if (arr) q.set("arr", arr);
+
+  fetch("/api/trip-preview?" + q.toString())
+    .then(r => { if (!r.ok) throw new Error("preview fetch failed"); return r.json(); })
+    .then(data => {
+      if (!data.eligible) {
+        console.info("Trip preview hidden:", data.hide_reason);
+        return;
+      }
+      showTripPreview(map, data);
+    })
+    .catch(err => console.error("Trip preview error:", err));
+}
+
+function showTripPreview(map, data) {
+  if (!map._previewPane) {
+    map.createPane("preview");
+    map.getPane("preview").style.zIndex = 700;
+    map._previewPane = true;
+  }
+  const layers = [];
+  const path = L.polyline(data.path, {
+    pane: "preview",
+    color: data.ghost_color,
+    weight: 4,
+    opacity: 0.55,
+    dashArray: "6 8",
+    interactive: false,
+  }).addTo(map);
+  layers.push(path);
+
+  const ghost = L.circleMarker([data.ghost.lat, data.ghost.lon], {
+    pane: "preview",
+    radius: 9,
+    color: data.ghost_color,
+    weight: 2,
+    dashArray: "4 3",
+    fillColor: data.ghost_color,
+    fillOpacity: data.ghost_opacity || 0.45,
+  }).addTo(map);
+  ghost.bindTooltip(data.caption, {
+    permanent: true, direction: "top", offset: [0, -10], className: "ghost-label",
+  });
+  layers.push(ghost);
+
+  map.fitBounds(path.getBounds(), { padding: [40, 40], maxZoom: 14 });
+
+  const bar = document.getElementById("preview-bar");
+  const compliance = "Estimated from timetable — not live GPS.";
+  document.getElementById("preview-cap").textContent = compliance;
+  const opt = document.getElementById("preview-cap-opt");
+  const bits = [];
+  if (data.outside_window) bits.push("Outside trip window — showing scheduled start/end");
+  if (data.caption_optional) bits.push(data.caption_optional);
+  opt.textContent = bits.join(" · ");
+  document.getElementById("preview-meta").textContent =
+    data.route_id + " · " + data.dep + "–" + data.arr + " · " + data.geometry_source + " path · as of " + data.now;
+  bar.style.display = "block";
+
+  function tearDown() {
+    layers.forEach(l => { try { map.removeLayer(l); } catch (e) {} });
+    bar.style.display = "none";
+    clearPreviewQuery();
+  }
+  document.getElementById("preview-clear").onclick = tearDown;
+  // Leaving the map page dismisses; within iframe, parent navigation covers it.
+  map._clearTripPreview = tearDown;
+}
+
 </script>
 </body>
 </html>

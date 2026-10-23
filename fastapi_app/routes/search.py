@@ -23,6 +23,7 @@ import ls_ui
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
 from journey_map import build_journey_map_data, _journey_map_html, leg_stop_sequence
 from system_map import build_network, get_route_colors
+from fastapi_app.services.trip_preview import preview_ok_for_card
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +271,16 @@ async def search_page(
                     from_stop, to_stop, day_type,
                 )
 
+                preview_ok = preview_ok_for_card(
+                    conn,
+                    route_id=row["route_id"],
+                    direction=row.get("direction", ""),
+                    day_type=day_type,
+                    board=from_stop,
+                    alight=to_stop,
+                    dep=row["dep"][:5],
+                    arr=row["arr"][:5],
+                )
                 direct_connections.append({
                     "route_id": row["route_id"],
                     "route_name": row["route_name"],
@@ -284,6 +295,7 @@ async def search_page(
                     "ls_adjusted_duration": adjusted_duration,
                     "stops": stops,
                     "route_color": route_colors.get(row["route_id"], "#666"),
+                    "preview_ok": preview_ok,
                 })
 
             results["direct"] = direct_connections
@@ -320,6 +332,28 @@ async def search_page(
                     leg_stops.append(stops)
                     leg_colors.append(route_colors.get(leg["route_id"], "#666"))
 
+                # v1: preview first leg only (full multi-leg ghost is a follow-up)
+                first = legs_data[0] if legs_data else None
+                preview_ok = False
+                preview_meta = {}
+                if first:
+                    preview_ok = preview_ok_for_card(
+                        conn,
+                        route_id=first["route_id"],
+                        direction=first.get("direction", ""),
+                        day_type=day_type,
+                        board=first["board"],
+                        alight=first["alight"],
+                        dep=str(first.get("dep", ""))[:5],
+                        arr=str(first.get("arr", ""))[:5] or None,
+                    )
+                    preview_meta = {
+                        "preview_route_id": first["route_id"],
+                        "preview_direction": first.get("direction", ""),
+                        "preview_board": first["board"],
+                        "preview_alight": first["alight"],
+                        "preview_dep": str(first.get("dep", ""))[:5],
+                    }
                 transfer_connections.append({
                     "route_ids": route_ids,
                     "legs": legs_data,
@@ -331,6 +365,8 @@ async def search_page(
                     "num_transfers": len(route_ids) - 1 if route_ids else 0,
                     "leg_stops": leg_stops,
                     "leg_colors": leg_colors,
+                    "preview_ok": preview_ok,
+                    **preview_meta,
                 })
 
             results["transfers"] = transfer_connections
