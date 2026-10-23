@@ -2,7 +2,7 @@
 <!--
   Interactive MyCiTi system map — Streamlit custom component frontend.
 
-  Leaflet map over Cape Town (CARTO light tiles). Stops sit at their true
+  Leaflet map over Cape Town (CARTO dark tiles). Stops sit at their true
   coordinates (City of Cape Town open data); route lines can be toggled
   between square-ish schematic (45°/90° elbows, official-map style) and
   the exact street-following geometries.
@@ -21,32 +21,34 @@
   #wrap    { position:relative; width:100%; height:700px; }
   #map     { width:100%; height:100%; border-radius:10px; }
   #legend  { position:absolute; top:10px; right:10px; width:215px; max-height:80%;
-             overflow-y:auto; background:rgba(255,255,255,.95); color:#222;
+             overflow-y:auto; background:rgba(26,26,31,.94); color:#F0F0F0;
              border-radius:10px; padding:10px 12px; font-size:12px; z-index:1000;
-             box-shadow:0 1px 6px rgba(0,0,0,.25); }
+             box-shadow:0 2px 12px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.08); }
   #legend h4 { margin:6px 0 3px; font-size:11px; text-transform:uppercase;
-               letter-spacing:.06em; color:#777; }
+               letter-spacing:.06em; color:#A0A0A8; }
   .lrow    { display:flex; align-items:center; gap:6px; padding:2px 4px;
              border-radius:5px; cursor:pointer; line-height:1.25; }
-  .lrow:hover { background:rgba(0,0,0,.06); }
-  .lrow.active { background:rgba(0,0,0,.12); }
+  .lrow:hover { background:rgba(255,255,255,.06); }
+  .lrow.active { background:rgba(212,175,55,.18); }
   .swatch  { flex:0 0 22px; height:5px; border-radius:2px; }
   .rid     { flex:0 0 34px; font-weight:700; }
   #style-toggle { position:absolute; top:10px; left:54px; z-index:1000;
-                  background:#fff; border-radius:8px; overflow:hidden;
-                  box-shadow:0 1px 6px rgba(0,0,0,.25); display:flex; }
+                  background:#1A1A1F; border-radius:8px; overflow:hidden;
+                  box-shadow:0 2px 12px rgba(0,0,0,.45); display:flex;
+                  border:1px solid rgba(255,255,255,.08); }
   #style-toggle button { border:none; padding:7px 12px; font-size:12px;
-                         cursor:pointer; background:#fff; color:#333; }
-  #style-toggle button.on { background:#0072BC; color:#fff; font-weight:700; }
-  #hint    { position:absolute; left:10px; bottom:10px; color:#555;
-             font-size:11px; background:rgba(255,255,255,.85);
-             padding:4px 8px; border-radius:6px; z-index:1000; }
+                         cursor:pointer; background:#1A1A1F; color:#F0F0F0; }
+  #style-toggle button.on { background:#D4AF37; color:#0E0E10; font-weight:700; }
+  #hint    { position:absolute; left:10px; bottom:10px; color:#A0A0A8;
+             font-size:11px; background:rgba(26,26,31,.9);
+             padding:4px 8px; border-radius:6px; z-index:1000;
+             border:1px solid rgba(255,255,255,.08); }
   #reset   { margin-top:8px; width:100%; padding:4px; border:none; border-radius:6px;
-             background:#eee; color:#333; cursor:pointer; font-size:12px; }
-  #reset:hover { background:#ddd; }
+             background:#2A2A32; color:#F0F0F0; cursor:pointer; font-size:12px; }
+  #reset:hover { background:#3A3A44; }
   .hub-label { background:transparent; border:none; box-shadow:none;
-               font-weight:700; font-size:10px; color:#222;
-               text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
+               font-weight:700; font-size:10px; color:#F0F0F0;
+               text-shadow:0 0 3px #000, 0 0 3px #000, 0 0 3px #000; }
 </style>
 </head>
 <body>
@@ -106,9 +108,11 @@ function initMap(graph) {
   // setView immediately: layers added to a view-less map (possible while
   // the tab is hidden) never attach their SVG renderer.
   const map = L.map("map", { zoomSnap: 0.25 }).setView([-33.92, 18.55], 10);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+               + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
                + ' · stops &copy; City of Cape Town',
+    subdomains: "abcd",
     maxZoom: 19,
   }).addTo(map);
 

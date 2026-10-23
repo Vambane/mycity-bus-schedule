@@ -332,6 +332,14 @@
   margin-top: var(--sp-2);
 }
 
+@media (max-width: 480px) {
+  .form-actions #search-btn,
+  .form-actions .btn-primary {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+}
+
 /* ============================================================
    TABS (Best / Fastest / All Day)
    ============================================================ */
@@ -440,6 +448,12 @@
    ============================================================ */
 .journey-card {
   margin-bottom: var(--sp-4);
+  padding: var(--sp-4); /* tighter than default .card */
+}
+
+.journey-card .journey-time,
+.journey-card .stop-time {
+  font-weight: 700;
 }
 
 /* --- Journey timeline visualisation --- */
@@ -989,7 +1003,7 @@
   margin: var(--sp-4) 0 var(--sp-6);
   padding: var(--sp-3) var(--sp-4);
   border-left: 2px solid var(--border-strong);
-  color: var(--text-tertiary);
+  color: var(--text-secondary); /* muted, readable on dark — not a hero */
   font-size: var(--text-xs);
   line-height: 1.55;
   max-width: 52rem;
@@ -1070,4 +1084,16 @@
 }
 .btn-trip-preview {
   font-size: var(--text-sm);
+  /* gold primary action — matches Search CTA */
+  background: var(--gold);
+  color: var(--text-inverse);
+  border: none;
+}
+.btn-trip-preview:hover {
+  background: var(--gold-hover);
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.25);
+  color: var(--text-inverse);
+}
+.btn-trip-preview:active {
+  background: var(--gold-press);
 }
