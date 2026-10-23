@@ -51,11 +51,11 @@
       </nav>
 
       {% if ls_stage is defined and ls_stage %}
-      {% set ls_full %}Stage {{ ls_stage.level }} ({{ ls_stage.source }}{% if ls_stage.source == 'default' %}, not live from EskomSePush{% endif %}){% endset %}
+      {% set ls_full %}Stage {{ ls_stage.level }} ({{ ls_stage.source }}){% endset %}
       <span class="ls-badge {% if ls_stage.level == 0 %}ls-badge--ok{% elif ls_stage.level <= 2 %}ls-badge--warn{% else %}ls-badge--crit{% endif %}"
             role="status"
             title="{{ ls_full }}"
-            aria-label="Load shedding {{ ls_full }}">
+            aria-label="{{ ls_full }}">
         Stage {{ ls_stage.level }}
         <span class="text-tertiary ls-badge__src ls-badge__src--long">({{ ls_stage.source }})</span>
         <span class="text-tertiary ls-badge__src ls-badge__src--short">&middot; {{ ls_stage.source }}</span>
