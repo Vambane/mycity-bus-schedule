@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}{% if journey %}{{ journey.from_stop }} → {{ journey.to_stop }}{% else %}Journey{% endif %} - MyCiTi Timetable{% endblock %}
+
+{% block content %}
+<div class="journey-page">
+  {% if error %}
+  <section class="hero">
+    <p class="hero-subtitle"><a href="/">← Back to search</a></p>
+    <h1 class="hero-title">Journey</h1>
+  </section>
+  {% include 'components/trust_strip.html' %}
+  <div class="alert alert-warning" role="alert">{{ error }}</div>
+  {% else %}
+  <p class="journey-back">
+    <a href="{{ journey.back_href }}">← Search results</a>
+  </p>
+
+  <section class="hero hero--journey">
+    <h1 class="hero-title">{{ journey.from_stop }} → {{ journey.to_stop }}</h1>
+    <p class="hero-subtitle">
+      {{ journey.day_type }} · {{ journey.dep }}–{{ journey.arr }}
+      {% if journey.duration %} · {{ journey.duration }}{% endif %}
+    </p>
+    <div class="route-chain" style="margin-top: var(--sp-3);">
+      {% for rid in journey.route_ids %}
+      <span class="route-badge {% if rid.startswith('UCT') %}uct{% elif rid.startswith('T') %}trunk{% elif rid.startswith('D') %}direct{% else %}area{% endif %}">
+        {% if journey.kind == 'direct' and journey.route_name and loop.first %}{{ journey.route_name }}{% else %}{{ rid }}{% endif %}
+      </span>
+      {% if not loop.last %}
+      <span class="route-chain-arrow" aria-hidden="true">&#8594;</span>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% if journey.kind == 'direct' and journey.direction %}
+    <p class="journey-direction" style="margin-top: var(--sp-2);">{{ journey.direction }}</p>
+    {% endif %}
+    {% if journey.via %}
+    <p class="journey-via">Via {{ journey.via|join(', ') }}</p>
+    {% endif %}
+  </section>
+
+  {% include 'components/trust_strip.html' %}
+
+  <div class="card journey-schematic-card">
+    <div class="card-header">
+      <h2 style="margin:0; font-size: var(--text-md);">All stops</h2>
+    </div>
+
+    {% if journey.kind == 'direct' %}
+    <div class="journey-stops-schematic journey-stops-schematic--page">
+      {% for stop in journey.stops %}
+      <div class="journey-stop-row">
+        <div class="stop-line-segment {% if loop.first %}stop-line-segment--first{% elif loop.last %}stop-line-segment--last{% endif %}"
+             style="--route-color: {{ journey.route_color }};"></div>
+        <div class="stop-dot {% if loop.first %}stop-dot--origin{% elif loop.last %}stop-dot--destination{% else %}stop-dot--intermediate{% endif %} stop-dot--page"
+             style="--route-color: {{ journey.route_color }};"></div>
+        <span class="stop-name stop-name--page">{{ stop }}</span>
+        {% if loop.first %}
+        <span class="stop-time">{{ journey.dep }}</span>
+        {% elif loop.last %}
+        <span class="stop-time">{{ journey.arr }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="journey-stops-schematic journey-stops-schematic--page">
+      {% for stops in journey.leg_stops %}
+        {% set leg_color = journey.leg_colors[loop.index0] if journey.leg_colors else '#666' %}
+        {% set outer = loop %}
+        {% for stop in stops %}
+        <div class="journey-stop-row">
+          <div class="stop-line-segment {% if loop.first and outer.first %}stop-line-segment--first{% elif loop.last and outer.last %}stop-line-segment--last{% endif %}"
+               style="--route-color: {{ leg_color }};"></div>
+          {% if loop.first and not outer.first %}
+          <div class="stop-dot stop-dot--transfer stop-dot--page"></div>
+          {% elif loop.first and outer.first %}
+          <div class="stop-dot stop-dot--origin stop-dot--page" style="--route-color: {{ leg_color }};"></div>
+          {% elif loop.last and outer.last %}
+          <div class="stop-dot stop-dot--destination stop-dot--page" style="--route-color: {{ leg_color }};"></div>
+          {% else %}
+          <div class="stop-dot stop-dot--intermediate stop-dot--page" style="--route-color: {{ leg_color }};"></div>
+          {% endif %}
+          <span class="stop-name stop-name--page">{{ stop }}</span>
+          {% if loop.first and outer.first %}
+          <span class="stop-time">{{ journey.dep }}</span>
+          {% elif loop.last and outer.last %}
+          <span class="stop-time">{{ journey.arr }}</span>
+          {% elif loop.last and not outer.last %}
+          <span class="stop-time stop-time--transfer">change</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="journey-page-actions">
+    {% if journey.preview_ok %}
+    <a class="btn btn-secondary btn-trip-preview"
+       href="/map?preview=1&amp;route_id={{ journey.preview_route_id|urlencode }}&amp;direction={{ journey.preview_direction|urlencode }}&amp;day_type={{ journey.day_type }}&amp;board={{ journey.preview_board|urlencode }}&amp;alight={{ journey.preview_alight|urlencode }}&amp;dep={{ journey.preview_dep|urlencode }}">
+      Preview this trip
+    </a>
+    {% endif %}
+    <a class="btn btn-ghost" href="/map">Network map</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

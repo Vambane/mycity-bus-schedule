@@ -60,12 +60,13 @@ templates = Jinja2Templates(env=jinja_env)
 app.state.templates = templates
 
 # Import and register routes
-from .routes import api, search, stop, system_map
+from .routes import api, search, stop, system_map, journey
 
 app.include_router(api.router, prefix="/api", tags=["API"])
 app.include_router(search.router, tags=["Search"])
 app.include_router(stop.router, tags=["Stop"])
 app.include_router(system_map.router, tags=["Map"])
+app.include_router(journey.router, tags=["Journey"])
 
 
 @app.get("/health")

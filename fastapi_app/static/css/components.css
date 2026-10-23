@@ -1071,3 +1071,87 @@
 .btn-trip-preview {
   font-size: var(--text-sm);
 }
+
+/* Journey card → dedicated schematic page (Design search-journey-schematic.md) */
+.journey-card {
+  position: relative;
+}
+.journey-card-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  text-indent: -9999px;
+  overflow: hidden;
+}
+.journey-card-front {
+  position: relative;
+  z-index: 0;
+  pointer-events: none;
+}
+.journey-card-control {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+.journey-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  flex-wrap: wrap;
+}
+.journey-card-hint {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.journey-card:hover .journey-card-hint {
+  color: var(--text-secondary);
+}
+
+/* Journey schematic page — Design dot sizes */
+.journey-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: var(--sp-8);
+}
+.journey-back {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--text-sm);
+}
+.journey-schematic-card {
+  margin-top: var(--sp-4);
+}
+.journey-stops-schematic--page {
+  padding: var(--sp-3) var(--sp-2) var(--sp-4);
+}
+.journey-stops-schematic--page .stop-line-segment {
+  left: 6px; /* centre of 14px page dots */
+}
+.stop-dot--page.stop-dot--origin,
+.stop-dot--page.stop-dot--destination,
+.stop-dot--page.stop-dot--transfer {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+.stop-dot--page.stop-dot--intermediate {
+  width: 10px;
+  height: 10px;
+  margin: 0 2px;
+  background: var(--route-color, var(--text-tertiary));
+  border: 2px solid #1a1a1a;
+  box-sizing: border-box;
+}
+.stop-name--page {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.journey-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+}

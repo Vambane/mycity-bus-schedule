@@ -1,6 +1,10 @@
-<!-- Direct connection card -->
+<!-- Direct connection card — click body → /journey schematic (Design) -->
 <div class="card card--interactive journey-card stagger-enter {% if conn.ls_affected %}card--ls-affected{% endif %}">
-  <div class="card-header">
+  <a class="journey-card-hit"
+     href="{{ conn.journey_href }}"
+     aria-label="View all stops for {{ results.from_stop }} to {{ results.to_stop }}"></a>
+
+  <div class="card-header journey-card-front">
     <span class="route-badge {% if conn.route_id.startswith('UCT') %}uct{% elif conn.route_id.startswith('T') %}trunk{% elif conn.route_id.startswith('D') %}direct{% else %}area{% endif %}">
       {{ conn.route_name }}
     </span>
@@ -12,17 +16,17 @@
     </span>
     {% endif %}
     <a href="/?from_stop={{ results.to_stop|urlencode }}&to_stop={{ results.from_stop|urlencode }}&day_type={{ results.day_type }}&operator={{ operator }}"
-       class="btn-reverse" title="Search return trip" aria-label="Search return trip">&#8693;</a>
+       class="btn-reverse journey-card-control"
+       title="Search return trip" aria-label="Search return trip">&#8693;</a>
   </div>
 
   {% if conn.ls_caption %}
-  <div class="alert alert-warning" style="margin-bottom: var(--sp-4); padding: var(--sp-3) var(--sp-4);">
+  <div class="alert alert-warning journey-card-front" style="margin-bottom: var(--sp-4); padding: var(--sp-3) var(--sp-4);">
     {{ conn.ls_caption }}
   </div>
   {% endif %}
 
-  <!-- Journey timeline -->
-  <div class="journey-viz">
+  <div class="journey-viz journey-card-front">
     <div class="journey-endpoint">
       <div class="journey-time">{{ conn.dep }}</div>
       <div class="journey-stop-name">{{ results.from_stop }}</div>
@@ -47,37 +51,13 @@
     </div>
   </div>
 
-  <!-- Expandable intermediate stops schematic -->
-  {% if conn.stops and conn.stops|length > 2 %}
-  <details class="journey-stops-detail">
-    <summary class="journey-stops-toggle">
-      {{ conn.stops|length - 2 }} intermediate stop{% if conn.stops|length - 2 != 1 %}s{% endif %}
-    </summary>
-    <div class="journey-stops-schematic">
-      {% for stop in conn.stops %}
-      <div class="journey-stop-row">
-        <div class="stop-line-segment {% if loop.first %}stop-line-segment--first{% elif loop.last %}stop-line-segment--last{% endif %}"
-             style="--route-color: {{ conn.route_color }};"></div>
-        <div class="stop-dot {% if loop.first %}stop-dot--origin{% elif loop.last %}stop-dot--destination{% else %}stop-dot--intermediate{% endif %}"
-             style="--route-color: {{ conn.route_color }};"></div>
-        <span class="stop-name">{{ stop }}</span>
-        {% if loop.first %}
-        <span class="stop-time">{{ conn.dep }}</span>
-        {% elif loop.last %}
-        <span class="stop-time">{{ conn.arr }}</span>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </div>
-  </details>
-  {% endif %}
-
-  {% if conn.preview_ok %}
-  <div class="trip-preview-actions">
-    <a class="btn btn-secondary btn-trip-preview"
+  <div class="journey-card-footer journey-card-front">
+    <span class="journey-card-hint">View stops</span>
+    {% if conn.preview_ok %}
+    <a class="btn btn-secondary btn-trip-preview journey-card-control"
        href="/map?preview=1&amp;route_id={{ conn.route_id|urlencode }}&amp;direction={{ conn.direction|urlencode }}&amp;day_type={{ results.day_type }}&amp;board={{ results.from_stop|urlencode }}&amp;alight={{ results.to_stop|urlencode }}&amp;dep={{ conn.dep|urlencode }}&amp;arr={{ conn.arr|urlencode }}">
       Preview this trip
     </a>
+    {% endif %}
   </div>
-  {% endif %}
 </div>

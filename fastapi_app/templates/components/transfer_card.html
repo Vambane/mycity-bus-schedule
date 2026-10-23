@@ -1,7 +1,10 @@
-<!-- Transfer connection card -->
+<!-- Transfer connection card — click body → /journey schematic (Design) -->
 <div class="card card--interactive journey-card stagger-enter">
-  <div class="card-header">
-    <!-- Route chain: 216 -> T01 -> 105 -->
+  <a class="journey-card-hit"
+     href="{{ conn.journey_href }}"
+     aria-label="View all stops for {{ results.from_stop }} to {{ results.to_stop }}"></a>
+
+  <div class="card-header journey-card-front">
     <div class="route-chain">
       {% for rid in conn.route_ids %}
       <span class="route-badge {% if rid.startswith('UCT') %}uct{% elif rid.startswith('T') %}trunk{% elif rid.startswith('D') %}direct{% else %}area{% endif %}">
@@ -17,16 +20,15 @@
       {{ conn.num_transfers }} transfer{% if conn.num_transfers > 1 %}s{% endif %}
     </span>
     <a href="/?from_stop={{ results.to_stop|urlencode }}&to_stop={{ results.from_stop|urlencode }}&day_type={{ results.day_type }}&operator={{ operator }}"
-       class="btn-reverse" title="Search return trip" aria-label="Search return trip">&#8693;</a>
+       class="btn-reverse journey-card-control"
+       title="Search return trip" aria-label="Search return trip">&#8693;</a>
   </div>
 
-  <!-- Via stops -->
   {% if conn.via %}
-  <div class="journey-via">Via {{ conn.via|join(', ') }}</div>
+  <div class="journey-via journey-card-front">Via {{ conn.via|join(', ') }}</div>
   {% endif %}
 
-  <!-- Journey timeline -->
-  <div class="journey-viz">
+  <div class="journey-viz journey-card-front">
     <div class="journey-endpoint">
       <div class="journey-time">{{ conn.dep }}</div>
       <div class="journey-stop-name">{{ results.from_stop }}</div>
@@ -50,60 +52,13 @@
     </div>
   </div>
 
-  <!-- Expandable per-leg intermediate stops schematic -->
-  {% if conn.leg_stops %}
-  {% set total_intermediate = namespace(count=0) %}
-  {% for stops in conn.leg_stops %}
-    {% if stops|length > 2 %}
-      {% set total_intermediate.count = total_intermediate.count + stops|length - 2 %}
-    {% endif %}
-  {% endfor %}
-  {% if total_intermediate.count > 0 %}
-  <details class="journey-stops-detail">
-    <summary class="journey-stops-toggle">
-      {{ total_intermediate.count }} intermediate stop{% if total_intermediate.count != 1 %}s{% endif %}
-    </summary>
-    <div class="journey-stops-schematic">
-      {% for stops in conn.leg_stops %}
-        {% set leg_color = conn.leg_colors[loop.index0] if conn.leg_colors else '#666' %}
-        {% set leg = conn.legs[loop.index0] if conn.legs else {} %}
-        {% set outer = loop %}
-        {% for stop in stops %}
-        <div class="journey-stop-row">
-          <div class="stop-line-segment {% if loop.first and outer.first %}stop-line-segment--first{% elif loop.last and outer.last %}stop-line-segment--last{% endif %}"
-               style="--route-color: {{ leg_color }};"></div>
-          {% if loop.first and not outer.first %}
-          {# Transfer point: amber dot #}
-          <div class="stop-dot stop-dot--transfer"></div>
-          {% elif loop.first and outer.first %}
-          <div class="stop-dot stop-dot--origin" style="--route-color: {{ leg_color }};"></div>
-          {% elif loop.last and outer.last %}
-          <div class="stop-dot stop-dot--destination" style="--route-color: {{ leg_color }};"></div>
-          {% else %}
-          <div class="stop-dot stop-dot--intermediate" style="--route-color: {{ leg_color }};"></div>
-          {% endif %}
-          <span class="stop-name">{{ stop }}</span>
-          {% if loop.first and outer.first %}
-          <span class="stop-time">{{ conn.dep }}</span>
-          {% elif loop.last and outer.last %}
-          <span class="stop-time">{{ conn.arr }}</span>
-          {% elif loop.last and not outer.last %}
-          <span class="stop-time stop-time--transfer">change</span>
-          {% endif %}
-        </div>
-        {% endfor %}
-      {% endfor %}
-    </div>
-  </details>
-  {% endif %}
-  {% endif %}
-
-  {% if conn.preview_ok %}
-  <div class="trip-preview-actions">
-    <a class="btn btn-secondary btn-trip-preview"
+  <div class="journey-card-footer journey-card-front">
+    <span class="journey-card-hint">View stops</span>
+    {% if conn.preview_ok %}
+    <a class="btn btn-secondary btn-trip-preview journey-card-control"
        href="/map?preview=1&amp;route_id={{ conn.preview_route_id|urlencode }}&amp;direction={{ conn.preview_direction|urlencode }}&amp;day_type={{ results.day_type }}&amp;board={{ conn.preview_board|urlencode }}&amp;alight={{ conn.preview_alight|urlencode }}&amp;dep={{ conn.preview_dep|urlencode }}">
       Preview this trip
     </a>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
