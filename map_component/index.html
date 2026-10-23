@@ -171,30 +171,87 @@ function initMap(graph) {
 
   schematicLayer.addTo(map);              // default: square-ish, per request
 
-  // --- stop markers, sized by how many routes serve them ---
-  const markers = [];
-  for (const n of graph.nodes) {
-    const m = L.circleMarker([n.lat, n.lon], {
-      radius: 2.5 + 1.2 * Math.sqrt(n.n),
-      // white = interchange (3+ routes); otherwise the serving route's color
-      fillColor: n.n >= 3 ? "#ffffff" : color[n.routes[0]],
-      fillOpacity: 1, color: "#333", weight: 1,
-    }).addTo(map);
-    m._node = n;
-    m.bindTooltip(
-      `<b>${n.id}</b><br><span style="color:#0072BC">${n.routes.join(" · ")}</span>` +
-      `<br><span style="color:#888">click to load timetable</span>`,
-      { direction: "top", offset: [0, -6] });
-    // Permanent labels for the big interchanges only
-    if (n.n >= 6) {
-      m.bindTooltip(n.id, { permanent: true, direction: "top",
-                            offset: [0, -8], className: "hub-label" });
-    }
-    m.on("click", () =>
-      toStreamlit("streamlit:setComponentValue", { value: n.id, dataType: "json" }));
-    markers.push(m);
+  // --- stop markers (Design: map-stop-markers.md) ---
+  map.createPane("stops");
+  map.getPane("stops").style.zIndex = 650;
+
+  function stopBucket(n) {
+    if (n.n >= 6) return { radius: 7, fillColor: "#ffffff", weight: 2.5 };
+    if (n.n >= 3) return { radius: 6, fillColor: "#ffffff", weight: 2 };
+    return { radius: 5, fillColor: color[n.routes[0]], weight: 2 };
   }
 
+  const markers = [];
+  let stickyId = null;
+  let stickyTimer = null;
+  function clearSticky() {
+    stickyId = null;
+    if (stickyTimer) { clearTimeout(stickyTimer); stickyTimer = null; }
+  }
+  map.on("movestart", clearSticky);
+
+  function fromTouch(e) {
+    const oe = e && e.originalEvent;
+    if (oe && oe.pointerType === "touch") return true;
+    if (oe && oe.touches && oe.touches.length) return true;
+    return window.matchMedia("(pointer: coarse)").matches;
+  }
+
+  function selectStop(stopId) {
+    toStreamlit("streamlit:setComponentValue", { value: stopId, dataType: "json" });
+  }
+
+  for (const n of graph.nodes) {
+    const st = stopBucket(n);
+    const halo = L.circleMarker([n.lat, n.lon], {
+      pane: "stops",
+      radius: st.radius + 2,
+      fillColor: "#ffffff",
+      fillOpacity: 0.95,
+      stroke: false,
+      interactive: false,
+    }).addTo(map);
+    const m = L.circleMarker([n.lat, n.lon], {
+      pane: "stops",
+      radius: st.radius,
+      fillColor: st.fillColor,
+      fillOpacity: 1,
+      color: "#1a1a1a",
+      weight: st.weight,
+    }).addTo(map);
+    m._node = n;
+    m._halo = halo;
+    const tipHtml =
+      `<b>${n.id}</b><br><span style="color:#0072BC">${n.routes.join(" · ")}</span>` +
+      `<br><span style="color:#888">Tap for timetable</span>`;
+    m.bindTooltip(tipHtml, { direction: "top", offset: [0, -6], sticky: false });
+    if (n.n >= 6) {
+      L.tooltip({
+        permanent: true, direction: "top", offset: [0, -10],
+        className: "hub-label", pane: "stops",
+      }).setContent(n.id).setLatLng([n.lat, n.lon]).addTo(map);
+    }
+    m.on("click", (e) => {
+      if (fromTouch(e)) {
+        if (stickyId === n.id) {
+          clearSticky();
+          selectStop(n.id);
+          return;
+        }
+        clearSticky();
+        stickyId = n.id;
+        m.openTooltip();
+        stickyTimer = setTimeout(() => {
+          stickyId = null;
+          stickyTimer = null;
+          m.closeTooltip();
+        }, 2500);
+        return;
+      }
+      selectStop(n.id);
+    });
+    markers.push(m);
+  }
   // --- schematic / street toggle ---
   const btnS = document.getElementById("btn-schematic");
   const btnT = document.getElementById("btn-street");
@@ -215,7 +272,11 @@ function initMap(graph) {
     }
     for (const m of markers) {
       const on = !active || m._node.routes.includes(active);
-      m.setStyle({ fillOpacity: on ? 1 : 0.08, opacity: on ? 1 : 0.08 });
+      const op = on ? 1 : 0.2;
+      m.setStyle({ fillOpacity: on ? 1 : 0.2, opacity: op });
+      if (m._halo) {
+        m._halo.setStyle({ fillOpacity: on ? 0.95 : 0.2, opacity: on ? 0.95 : 0.2 });
+      }
     }
     document.querySelectorAll(".lrow").forEach(el =>
       el.classList.toggle("active", el.dataset.route === active));
