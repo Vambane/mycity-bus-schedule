@@ -37,12 +37,19 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   route/direction, with a marker at the current time, so frequency, peak
   bunching and the last bus are visible at a glance
 - **Interactive system map** — the full network on real Cape Town geography
-  (Leaflet + CARTO tiles), with a toggle between:
+  (Leaflet + OpenStreetMap tiles), with a toggle between:
   - *Schematic*: square-ish 45°/90° lines in the style of the official route map
   - *Street*: the exact road-following route geometries from city open data
 
-  Click a route in the legend to highlight it; click any stop to open its
-  timetable. Stops sit at their true coordinates (~96% geolocated).
+  Stop markers are sized to stay readable on the lines (Design buckets):
+  1–2 routes → radius 5 (route colour); 3–5 → radius 6 (white); 6+ hubs →
+  radius 7 (white) with a permanent name label. Each stop has a white
+  behind-halo and sits in a Leaflet pane above the polylines. Desktop:
+  hover shows the stop name (and routes); click opens the timetable.
+  Touch: first tap sticky-shows the name (~2.5 s, no navigation); second
+  tap opens the timetable. Legend highlight dims inactive stops (~0.2
+  opacity) while active-route stops stay full size and opacity. Stops sit
+  at their true coordinates (~96% geolocated).
 - **Load shedding awareness**: a sidebar panel shows the current Eskom
   stage (via EskomSePush when configured, manually overridable, defaulting to
   stage 0), and journey results, departure boards and the departure map
