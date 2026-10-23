@@ -2,7 +2,7 @@
 <!--
   Interactive MyCiTi system map — Streamlit custom component frontend.
 
-  Leaflet map over Cape Town (CARTO dark tiles). Stops sit at their true
+  Leaflet map over Cape Town (OpenStreetMap tiles). Stops sit at their true
   coordinates (City of Cape Town open data); route lines can be toggled
   between square-ish schematic (45°/90° elbows, official-map style) and
   the exact street-following geometries.
@@ -49,6 +49,7 @@
   .hub-label { background:transparent; border:none; box-shadow:none;
                font-weight:700; font-size:10px; color:#F0F0F0;
                text-shadow:0 0 3px #000, 0 0 3px #000, 0 0 3px #000; }
+  .leaflet-tile-pane { filter:invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
 </style>
 </head>
 <body>
@@ -108,11 +109,9 @@ function initMap(graph) {
   // setView immediately: layers added to a view-less map (possible while
   // the tab is hidden) never attach their SVG renderer.
   const map = L.map("map", { zoomSnap: 0.25 }).setView([-33.92, 18.55], 10);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-               + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
                + ' · stops &copy; City of Cape Town',
-    subdomains: "abcd",
     maxZoom: 19,
   }).addTo(map);
 

@@ -63,6 +63,7 @@
              background:rgba(26,26,31,.95); color:#F0F0F0; padding:20px; border-radius:10px;
              box-shadow:0 2px 12px rgba(0,0,0,.45); z-index:2000;
              border:1px solid rgba(255,255,255,.08); }
+  .leaflet-tile-pane { filter:invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
 </style>
 </head>
 <body>
@@ -118,11 +119,9 @@ function initMap(graph) {
   const nodeById = Object.fromEntries(graph.nodes.map(n => [n.id, n]));
 
   const map = L.map("map", { zoomSnap: 0.25 }).setView([-33.92, 18.55], 10);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-               + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
                + ' · stops &copy; City of Cape Town',
-    subdomains: "abcd",
     maxZoom: 19,
   }).addTo(map);
 
