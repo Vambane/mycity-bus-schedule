@@ -261,6 +261,18 @@
     }
 
     el.appendChild(span);
+
+    /* Phones: a copy sits on the "Direct · N min" line so both stop names
+       share one left edge (CSS shows exactly one of the two). */
+    var viz = el.closest('.journey-viz');
+    var dur = viz && el.closest('.journey-endpoint') === viz.querySelector('.journey-endpoint')
+      ? viz.querySelector('.journey-duration') : null;
+    if (dur && !dur.querySelector('.time-relative')) {
+      var copy = span.cloneNode(true);
+      copy.classList.add('time-relative--inline');
+      copy.setAttribute('aria-hidden', 'true');
+      dur.appendChild(copy);
+    }
   }
 
   if (document.readyState === 'loading') {
