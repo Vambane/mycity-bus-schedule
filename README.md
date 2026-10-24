@@ -80,7 +80,7 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   Trust strip and deliberate Preview (same gates as below) live on
   the page.
   The page title line shows the day as `Weekday` / `Saturday` / `Sunday`, and
-  the **Search** header tab stays active while viewing a journey.
+  the **Search** header tab stays active while viewing a journey. The page footer credits map data to `OpenStreetMap` (no CARTO).
 - **Trip preview** — on eligible journey results, a deliberate
   **Preview this trip** control opens the system map with a single
   timetable-interpolated ghost marker on that trip’s path (street
