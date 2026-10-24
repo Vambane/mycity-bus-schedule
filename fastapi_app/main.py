@@ -5,6 +5,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
+import os
+import time
 from pathlib import Path
 
 from .config import settings
@@ -55,6 +57,26 @@ templates_dir = Path(__file__).parent / "templates"
 from jinja2 import Environment, FileSystemLoader
 jinja_env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=True, cache_size=0)
 templates = Jinja2Templates(env=jinja_env)
+
+# Cache-busting version for local static assets: short git SHA on Render,
+# otherwise a startup timestamp (changes on every restart).
+ASSET_V = (os.environ.get("RENDER_GIT_COMMIT") or "")[:7] or str(int(time.time()))
+jinja_env.globals["asset_v"] = ASSET_V
+app.state.asset_v = ASSET_V
+
+
+@app.middleware("http")
+async def cache_control_headers(request, call_next):
+    """no-cache on HTML and /static so browsers (iOS Safari) always revalidate.
+
+    Static stays no-cache rather than immutable: unversioned /static URLs can
+    still be requested, so long-lived caching is not guaranteed safe.
+    """
+    response = await call_next(request)
+    ctype = response.headers.get("content-type", "")
+    if request.url.path.startswith("/static/") or ctype.startswith("text/html"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 
 # Make templates available globally
 app.state.templates = templates
