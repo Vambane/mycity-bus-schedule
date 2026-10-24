@@ -1208,3 +1208,8 @@
   gap: var(--sp-3);
   margin-top: var(--sp-5);
 }
+
+/* Journey page: long route names wrap instead of widening the page */
+.journey-page .route-chain { flex-wrap: wrap; min-width: 0; }
+.journey-page .route-badge { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
+.journey-page, .journey-page > * { min-width: 0; }
