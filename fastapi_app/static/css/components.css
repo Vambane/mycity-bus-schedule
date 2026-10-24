@@ -1140,7 +1140,7 @@
 
   .journey-viz {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     column-gap: var(--sp-3);
     row-gap: var(--sp-2);
     align-items: baseline;
