@@ -139,3 +139,15 @@ def test_static_assets_are_versioned_and_no_cache(client):
     assert client.get(f"/static/css/base.css?v={ASSET_V}").headers["cache-control"] == "no-cache"
     m = client.get("/map").text
     assert f"/static/map/system_map.html?v={ASSET_V}" in m
+def test_stage_badge_accessible_name_not_duplicated(client):
+    """Badge name is exactly 'Stage 0 (default)'; visible text is aria-hidden."""
+    import re
+
+    html = client.get("/").text
+    m = re.search(r'<span class="ls-badge[^"]*"(.*?)</span>\s*</span>', html, re.S)
+    assert m, "badge not rendered"
+    badge = m.group(0)
+    assert 'aria-label="Stage 0 (default)"' in badge
+    assert 'title="Stage 0 (default)"' in badge
+    assert '<span class="ls-badge__text" aria-hidden="true">' in badge
+    assert "&middot; default" in badge or "· default" in badge

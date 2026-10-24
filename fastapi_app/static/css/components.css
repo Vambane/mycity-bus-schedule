@@ -202,6 +202,8 @@
   width: 0;
   height: 0;
   pointer-events: none;
+  right: 0;
+  max-width: 100%;
 }
 
 /* --- Segmented control (day type) --- */
@@ -1100,7 +1102,7 @@
 
 /* Header fit at 390px — keep source meaning, short form ("Stage 0 · default") */
 .ls-badge__src--short { display: none; }
-@media (max-width: 479px) {
+@media (max-width: 480px) {
   .header-inner { gap: var(--sp-2); padding-inline: var(--sp-3); }
   .logo { font-size: var(--text-base); gap: var(--sp-1); }
   .nav-pills { gap: 4px; }
