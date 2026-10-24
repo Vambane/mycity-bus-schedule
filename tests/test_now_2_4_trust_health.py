@@ -45,7 +45,7 @@ def test_homepage_paints_search_chrome(client):
     # Footer sources (Compliance line 5)
     assert "Sources: MyCiTi route PDFs" in html
     assert "City of Cape Town Open Data" in html
-    assert "OSM/CARTO" in html
+    assert "OpenStreetMap" in html
 
 
 def test_trust_strip_on_search_results(client):

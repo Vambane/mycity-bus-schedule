@@ -21,10 +21,11 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   - When no direct route exists, the app suggests timetable-based
     connections with one transfer (or two, via a bridging line), showing
     each leg, the changeover stop, and the wait time
-  - Every result card has an expandable **tube-map schematic** listing
-    all intermediate stops along the route, drawn as a vertical line
-    with colour-coded dots (green origin, route-coloured intermediates,
-    amber transfer points, red destination)
+  - Each result card is **clickable** and opens a dedicated **journey
+    schematic page** (`/journey`) listing every stop with a full
+    tube-map diagram (search results stay compact — no open-by-default
+    stop lists on cards). **Preview this trip** and reverse-search keep
+    their own hit targets
   - A small map above the transfer results draws the next connection's
     legs in route colors with markers for the origin, each changeover
     stop, and the destination, with the same *Schematic* / *Street*
@@ -84,6 +85,15 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   tap opens the timetable. Legend highlight dims inactive stops (~0.2
   opacity) while active-route stops stay full size and opacity. Stops sit
   at their true coordinates (~96% geolocated).
+- **Journey schematic page** — tap a search result card (outside
+  Preview / reverse) to open `/journey` with every stop named and
+  a full vertical tube-map schematic (origin/destination/transfer
+  dots 14px; intermediates 10px filled route colour + dark ring).
+  Back returns to the same search. No Leaflet on this page in v1.
+  Trust strip and deliberate Preview (same gates as below) live on
+  the page.
+  The page title line shows the day as `Weekday` / `Saturday` / `Sunday`, and
+  the **Search** header tab stays active while viewing a journey. The page footer credits map data to `OpenStreetMap` (no CARTO). Tapping the card body opens the journey; **Preview this trip** and the ⇅ return-trip button sit above the card's tap overlay and keep their own actions.
 - **Trip preview** — on eligible journey results, a deliberate
   **Preview this trip** control opens the system map with a single
   timetable-interpolated ghost marker on that trip’s path (street

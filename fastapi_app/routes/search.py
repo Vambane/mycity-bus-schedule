@@ -24,6 +24,10 @@ from fastapi_app.services.ls_service import get_effective_stage, stage_display_i
 from journey_map import build_journey_map_data, _journey_map_html, leg_stop_sequence
 from system_map import build_network, get_route_colors
 from fastapi_app.services.trip_preview import preview_ok_for_card
+from fastapi_app.services.journey_page import (
+    journey_href_direct,
+    journey_href_transfer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -296,6 +300,16 @@ async def search_page(
                     "stops": stops,
                     "route_color": route_colors.get(row["route_id"], "#666"),
                     "preview_ok": preview_ok,
+                    "journey_href": journey_href_direct(
+                        from_stop=from_stop,
+                        to_stop=to_stop,
+                        day_type=day_type,
+                        route_id=row["route_id"],
+                        direction=row.get("direction", ""),
+                        dep=row["dep"][:5],
+                        arr=row["arr"][:5],
+                        operator=operator or "both",
+                    ),
                 })
 
             results["direct"] = direct_connections
@@ -366,6 +380,13 @@ async def search_page(
                     "leg_stops": leg_stops,
                     "leg_colors": leg_colors,
                     "preview_ok": preview_ok,
+                    "journey_href": journey_href_transfer(
+                        from_stop=from_stop,
+                        to_stop=to_stop,
+                        day_type=day_type,
+                        legs=legs_data,
+                        operator=operator or "both",
+                    ),
                     **preview_meta,
                 })
 
