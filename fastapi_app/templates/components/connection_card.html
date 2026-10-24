@@ -25,7 +25,7 @@
   <div class="journey-viz">
     <div class="journey-endpoint">
       <div class="journey-time">{{ conn.dep }}</div>
-      <div class="journey-stop-name" title="{{ results.from_stop }}">{{ results.from_stop }}</div>
+      <div class="journey-stop-name" title="{{ results.from_stop }}" aria-label="{{ results.from_stop }}">{{ results.from_stop }}</div>
     </div>
 
     <div class="journey-dot journey-dot--origin"></div>
@@ -43,7 +43,7 @@
 
     <div class="journey-endpoint" style="text-align: right;">
       <div class="journey-time">{{ conn.arr }}</div>
-      <div class="journey-stop-name" title="{{ results.to_stop }}">{{ results.to_stop }}</div>
+      <div class="journey-stop-name" title="{{ results.to_stop }}" aria-label="{{ results.to_stop }}">{{ results.to_stop }}</div>
     </div>
   </div>
 
