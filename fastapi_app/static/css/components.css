@@ -1124,3 +1124,67 @@
   .nav-pill { font-size: 12px; }
   .ls-badge { font-size: 10px; }
 }
+
+/* ============================================================
+   Mobile search cards (<=480px): 2-col grid — times left (never
+   truncated), stop names right (ellipsis, full name in title).
+   Order: depart row · "Direct · N min" · arrive row.
+   ============================================================ */
+@media (max-width: 480px) {
+  .journey-card,
+  .journey-card > *,
+  .card-header > * { min-width: 0; }
+  .journey-card { overflow-wrap: anywhere; }
+  .card-header { flex-wrap: wrap; }
+  .card-header .route-badge { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
+
+  .journey-viz {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--sp-3);
+    row-gap: var(--sp-2);
+    align-items: baseline;
+    padding: var(--sp-3);
+  }
+  .journey-endpoint { display: contents; }
+  .journey-viz .journey-dot,
+  .journey-viz .journey-line { display: none; }
+
+  .journey-time {
+    grid-column: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .journey-stop-name {
+    grid-column: 2;
+    min-width: 0;
+    max-width: none;
+    margin-top: 0;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+  }
+  .journey-duration {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    white-space: normal;
+  }
+
+  /* Tabs scroll inside their own pill; page never scrolls sideways */
+  .tab-bar {
+    display: flex;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab-btn { flex: 0 0 auto; padding: var(--sp-2) var(--sp-4); }
+
+  .trust-strip { overflow-wrap: anywhere; }
+}
