@@ -32,9 +32,9 @@ async def map_page(
     # Forward deliberate preview query params into the Leaflet iframe only.
     # Preview never starts from legend/stop click — only when ?preview=1&… is set.
     qs = str(request.url.query) if request.url.query else ""
-    iframe_src = "/static/map/system_map.html"
+    iframe_src = f"/static/map/system_map.html?v={request.app.state.asset_v}"
     if qs:
-        iframe_src = f"{iframe_src}?{qs}"
+        iframe_src = f"{iframe_src}&{qs}"
     return templates.TemplateResponse(
         request=request,
         name="pages/system_map.html",

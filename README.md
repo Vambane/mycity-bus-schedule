@@ -51,6 +51,19 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   → arrive: times stay full size and never truncate, while long stop names
   shorten with an ellipsis (full name in the tooltip). Result tabs scroll
   inside their own pill; the page itself never scrolls sideways.
+  Card grids use `minmax(0, 1fr)` tracks (not bare `1fr`) and `html` sets
+  `-webkit-text-size-adjust: 100%`, so iOS Safari cannot widen cards or
+  inflate text.
+- **Caching:** every local CSS/JS link (and the `/map` iframe) carries
+  `?v=<asset_v>`, a Jinja global set to the short `RENDER_GIT_COMMIT` SHA
+  (startup timestamp locally). HTML and `/static` responses send
+  `Cache-Control: no-cache`, so browsers revalidate instead of serving stale
+  CSS; static is not marked immutable because unversioned URLs still work.
+- **Stage badge:** screen readers hear only the `aria-label`
+  `Stage 0 (default)`; the visible text (`Stage 0 · default` on phones ≤480px,
+  kept on one line) is `aria-hidden`, so "default" is never read twice. The
+  hidden native `<select>` behind each stop combobox is pinned with
+  `right: 0; max-width: 100%` so it can't widen the search card.
   The live "in N min" hint sits on the `Direct · N min` line on phones so
   depart and arrive stop names share one left edge; truncated stop names carry
   the full name as both tooltip and accessible label.

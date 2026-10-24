@@ -122,3 +122,32 @@ def test_deployment_docs_mention_snapshot_and_uvicorn():
     readme = (REPO / "README.md").read_text()
     assert "data/snapshot" in readme
     assert "uvicorn fastapi_app.main:app" in readme
+
+
+def test_static_assets_are_versioned_and_no_cache(client):
+    """Local CSS/JS links carry ?v=<asset_v>; HTML and /static send no-cache."""
+    from fastapi_app.main import ASSET_V
+
+    resp = client.get("/")
+    html = resp.text
+    assert ASSET_V
+    for path in ("/static/css/tokens.css", "/static/css/base.css",
+                 "/static/css/components.css", "/static/js/search.js"):
+        assert f"{path}?v={ASSET_V}" in html
+    assert 'href="/static/css/base.css"' not in html
+    assert resp.headers["cache-control"] == "no-cache"
+    assert client.get(f"/static/css/base.css?v={ASSET_V}").headers["cache-control"] == "no-cache"
+    m = client.get("/map").text
+    assert f"/static/map/system_map.html?v={ASSET_V}" in m
+def test_stage_badge_accessible_name_not_duplicated(client):
+    """Badge name is exactly 'Stage 0 (default)'; visible text is aria-hidden."""
+    import re
+
+    html = client.get("/").text
+    m = re.search(r'<span class="ls-badge[^"]*"(.*?)</span>\s*</span>', html, re.S)
+    assert m, "badge not rendered"
+    badge = m.group(0)
+    assert 'aria-label="Stage 0 (default)"' in badge
+    assert 'title="Stage 0 (default)"' in badge
+    assert '<span class="ls-badge__text" aria-hidden="true">' in badge
+    assert "&middot; default" in badge or "· default" in badge
