@@ -1188,3 +1188,10 @@
 
   .trust-strip { overflow-wrap: anywhere; }
 }
+
+/* Relative "in N min": inline copy on the Direct line for phones only */
+.time-relative--inline { display: none; }
+@media (max-width: 480px) {
+  .journey-viz .journey-time .time-relative { display: none; }
+  .journey-viz .time-relative--inline { display: inline; margin-left: var(--sp-2); }
+}

@@ -50,6 +50,9 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   → arrive: times stay full size and never truncate, while long stop names
   shorten with an ellipsis (full name in the tooltip). Result tabs scroll
   inside their own pill; the page itself never scrolls sideways.
+  The live "in N min" hint sits on the `Direct · N min` line on phones so
+  depart and arrive stop names share one left edge; truncated stop names carry
+  the full name as both tooltip and accessible label.
 - **Interactive system map** — the full network on real Cape Town geography
   (Leaflet + OpenStreetMap tiles), with a toggle between:
   - *Schematic*: square-ish 45°/90° lines in the style of the official route map
