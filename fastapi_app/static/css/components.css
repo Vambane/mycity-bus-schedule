@@ -1141,7 +1141,7 @@
 }
 .journey-card-front {
   position: relative;
-  z-index: 0;
+  z-index: auto; /* no stacking context: controls (z-index 2) must sit above the hit overlay (1) */
   pointer-events: none;
 }
 .journey-card-control {
