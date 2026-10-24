@@ -51,6 +51,9 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   → arrive: times stay full size and never truncate, while long stop names
   shorten with an ellipsis (full name in the tooltip). Result tabs scroll
   inside their own pill; the page itself never scrolls sideways.
+  On the `/map` page, phones (≤480px) start with the route legend collapsed
+  behind a **Legend** toggle button (keyboard accessible, `aria-expanded`);
+  on desktop the legend is always shown.
 - **Interactive system map** — the full network on real Cape Town geography
   (Leaflet + OpenStreetMap tiles), with a toggle between:
   - *Schematic*: square-ish 45°/90° lines in the style of the official route map
