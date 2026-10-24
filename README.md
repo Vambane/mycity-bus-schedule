@@ -53,6 +53,10 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   The live "in N min" hint sits on the `Direct · N min` line on phones so
   depart and arrive stop names share one left edge; truncated stop names carry
   the full name as both tooltip and accessible label.
+  On the `/map` page, phones (≤480px) start with the route legend collapsed
+  behind a **Legend** toggle button (keyboard accessible, `aria-expanded`);
+  on desktop the legend is always shown; **Esc** closes
+  the open legend and returns focus to the toggle.
 - **Interactive system map** — the full network on real Cape Town geography
   (Leaflet + OpenStreetMap tiles), with a toggle between:
   - *Schematic*: square-ish 45°/90° lines in the style of the official route map
