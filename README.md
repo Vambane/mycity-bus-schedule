@@ -47,6 +47,10 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   e.g. `Stage 0 · default` (full source in its tooltip / screen-reader label).
   The gold active Search/Map pill is drawn on the active link itself, so it
   always sits behind its label at any width (checked at 390px and 360px).
+  On phones (≤480px) search result cards stack as depart → `Direct · N min`
+  → arrive: times stay full size and never truncate, while long stop names
+  shorten with an ellipsis (full name in the tooltip). Result tabs scroll
+  inside their own pill; the page itself never scrolls sideways.
 - **Interactive system map** — the full network on real Cape Town geography
   (Leaflet + OpenStreetMap tiles), with a toggle between:
   - *Schematic*: square-ish 45°/90° lines in the style of the official route map
@@ -68,6 +72,8 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   Back returns to the same search. No Leaflet on this page in v1.
   Trust strip and deliberate Preview (same gates as below) live on
   the page.
+  The page title line shows the day as `Weekday` / `Saturday` / `Sunday`, and
+  the **Search** header tab stays active while viewing a journey.
 - **Trip preview** — on eligible journey results, a deliberate
   **Preview this trip** control opens the system map with a single
   timetable-interpolated ghost marker on that trip’s path (street

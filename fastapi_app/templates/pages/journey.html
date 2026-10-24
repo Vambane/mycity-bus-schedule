@@ -19,7 +19,7 @@
   <section class="hero hero--journey">
     <h1 class="hero-title">{{ journey.from_stop }} → {{ journey.to_stop }}</h1>
     <p class="hero-subtitle">
-      {{ journey.day_type }} · {{ journey.dep }}–{{ journey.arr }}
+      {{ journey.day_type|capitalize }} · {{ journey.dep }}–{{ journey.arr }}
       {% if journey.duration %} · {{ journey.duration }}{% endif %}
     </p>
     <div class="route-chain" style="margin-top: var(--sp-3);">
