@@ -56,9 +56,11 @@
             role="status"
             title="{{ ls_full }}"
             aria-label="{{ ls_full }}">
-        Stage {{ ls_stage.level }}
+        {#- Visible text is aria-hidden: the accessible name is the aria-label only,
+            so screen readers never hear "default" twice. -#}
+        <span class="ls-badge__text" aria-hidden="true">Stage {{ ls_stage.level }}
         <span class="text-tertiary ls-badge__src ls-badge__src--long">({{ ls_stage.source }})</span>
-        <span class="text-tertiary ls-badge__src ls-badge__src--short">&middot; {{ ls_stage.source }}</span>
+        <span class="text-tertiary ls-badge__src ls-badge__src--short">&middot; {{ ls_stage.source }}</span></span>
       </span>
       {% endif %}
     </div>
