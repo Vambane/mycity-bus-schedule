@@ -46,6 +46,10 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
   e.g. `Stage 0 · default` (full source in its tooltip / screen-reader label).
   The gold active Search/Map pill is drawn on the active link itself, so it
   always sits behind its label at any width (checked at 390px and 360px).
+  On phones (≤480px) search result cards stack as depart → `Direct · N min`
+  → arrive: times stay full size and never truncate, while long stop names
+  shorten with an ellipsis (full name in the tooltip). Result tabs scroll
+  inside their own pill; the page itself never scrolls sideways.
   On the `/map` page, phones (≤480px) start with the route legend collapsed
   behind a **Legend** toggle button (keyboard accessible, `aria-expanded`);
   on desktop the legend is always shown.
