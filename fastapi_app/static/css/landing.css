@@ -1,37 +1,15 @@
 /* ============================================================
-   Halte landing — Neo-Brutalist (scoped under .landing)
-   App pages keep the lime theme; this file is landing-only.
+   Halte landing (Neo-Brutalist, scoped under .landing)
+   Fonts, palette and shadows come from tokens.css, shared with
+   the app pages; this file only holds landing-specific layout.
    ============================================================ */
 
-@font-face {
-  font-family: "Cabinet Grotesk";
-  src: url("/static/fonts/CabinetGrotesk-Extrabold.woff2") format("woff2");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Satoshi";
-  src: url("/static/fonts/Satoshi-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
 .landing {
-  --yl: #ffe17c;
-  --char: #171e19;
-  --sage: #b7c6c2;
-  --ink: #000000;
-  --paper: #ffffff;
-  --dark2: #272727;
-  --font-display: "Cabinet Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-body: "Satoshi", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --shadow-std: 4px 4px 0 #000;
-  --shadow-lg: 8px 8px 0 #000;
-  --shadow-hero: 12px 12px 0 #000;
-  --nav-h: 64px;
+  /* Short aliases for the shared brand tokens (tokens.css). */
+  --yl: var(--yellow);
+  --char: var(--charcoal);
+  --dark2: var(--charcoal-2);
+  --nav-h: var(--header-height);
 
   margin: 0;
   padding: 0;

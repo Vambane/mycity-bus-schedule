@@ -4,11 +4,11 @@
 
 {% block content %}
 <div class="stop-page">
-    <!-- Page header -->
-    <div class="page-header mb-3">
-        <h1>{{ stop_name }}</h1>
-        <p class="text-muted">Upcoming departures {% if current_time %}from {{ current_time }}{% endif %}</p>
-    </div>
+    <!-- Page header: yellow hero band, same as the other app pages -->
+    <section class="hero">
+        <h1 class="hero-title">{{ stop_name }}</h1>
+        <p class="hero-subtitle">Upcoming departures {% if current_time %}from {{ current_time }}{% endif %}</p>
+    </section>
 
     {% include 'components/trust_strip.html' %}
 
@@ -30,18 +30,18 @@
 
     <!-- Day type selector -->
     <div class="form-group">
-        <label class="form-label">Service Type</label>
-        <div class="tabs">
+        <span class="form-label">Service type</span>
+        <div class="tabs" role="group" aria-label="Service type">
             <a href="/stop/{{ stop_name }}?day_type=weekday&operator={{ operator }}"
-               class="tab {% if day_type == 'weekday' %}active{% endif %}">
+               class="tab {% if day_type == 'weekday' %}active{% endif %}"{% if day_type == 'weekday' %} aria-current="page"{% endif %}>
                 Weekday
             </a>
             <a href="/stop/{{ stop_name }}?day_type=saturday&operator={{ operator }}"
-               class="tab {% if day_type == 'saturday' %}active{% endif %}">
+               class="tab {% if day_type == 'saturday' %}active{% endif %}"{% if day_type == 'saturday' %} aria-current="page"{% endif %}>
                 Saturday
             </a>
             <a href="/stop/{{ stop_name }}?day_type=sunday&operator={{ operator }}"
-               class="tab {% if day_type == 'sunday' %}active{% endif %}">
+               class="tab {% if day_type == 'sunday' %}active{% endif %}"{% if day_type == 'sunday' %} aria-current="page"{% endif %}>
                 Sunday
             </a>
         </div>

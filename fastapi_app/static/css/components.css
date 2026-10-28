@@ -1,8 +1,10 @@
 /* ============================================================
-   MyCiTi Component Styles
+   Halte Component Styles
    ============================================================
    Cards, forms, buttons, tabs, badges, journey visuals,
    alerts, empty / loading / error states.
+   Neo-Brutalist, matching the landing page: 2px ink borders,
+   hard offset shadows, yellow fills under ink text.
    ============================================================ */
 
 /* ============================================================
@@ -10,34 +12,35 @@
    ============================================================ */
 .card {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-std);
   padding: var(--sp-6);
-  transition: transform var(--duration) var(--ease-out),
-              box-shadow var(--duration) var(--ease-out),
-              border-color var(--duration) var(--ease-out);
-}
-
-.card:hover {
-  border-color: var(--border-strong);
+  transition: transform var(--duration-fast) ease,
+              box-shadow var(--duration-fast) ease;
 }
 
 .card--elevated {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-std);
 }
 
 .card--interactive:hover {
-  transform: translateY(-2px);
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+
+/* The search form is the page's main object: the landing's large shadow */
+.card--search {
   box-shadow: var(--shadow-lg);
 }
 
-.card--search {
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
-}
-
+/* Load-shedding affected: yellow edge strip inside the ink border */
 .card--ls-affected {
-  border-left: 3px solid var(--ls-warn-fg);
+  border-left-width: 8px;
+  border-left-color: var(--ink);
+  background:
+    linear-gradient(var(--yellow), var(--yellow)) left / 6px 100% no-repeat,
+    var(--bg-card);
 }
 
 .card-header {
@@ -47,7 +50,12 @@
   flex-wrap: wrap;
   padding-bottom: var(--sp-4);
   margin-bottom: var(--sp-4);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--ink);
+}
+
+.card-title {
+  margin: 0;
+  font-size: var(--text-lg);
 }
 
 /* ============================================================
@@ -71,11 +79,11 @@
 }
 
 .form-label {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.02em;
 }
 
 /* --- Shared input base --- */
@@ -88,23 +96,24 @@
   font-weight: 500;
   color: var(--text-primary);
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-md);
-  transition: border-color var(--duration) var(--ease-out),
-              box-shadow var(--duration) var(--ease-out);
+  transition: box-shadow var(--duration-fast) ease,
+              background var(--duration-fast) ease;
   min-height: 48px;
 }
 
 .form-input:hover,
 .combobox-input:hover {
-  border-color: var(--border-strong);
+  background: var(--yellow-tint);
 }
 
+/* Focus: the field lifts onto a hard shadow, like a pressed-up button */
 .form-input:focus,
 .combobox-input:focus {
   outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px var(--gold-focus);
+  background: var(--paper);
+  box-shadow: var(--shadow-std);
 }
 
 .form-input::placeholder,
@@ -112,9 +121,9 @@
   color: var(--text-tertiary);
 }
 
-/* Date input colour fix for dark theme */
+/* Native date picker follows the light theme */
 .form-input[type="date"] {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .form-hint {
@@ -137,7 +146,7 @@
   right: var(--sp-4);
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-tertiary);
+  color: var(--ink);
   pointer-events: none;
   transition: transform var(--duration) var(--ease-out);
   font-size: var(--text-sm);
@@ -156,9 +165,9 @@
   max-height: 260px;
   overflow-y: auto;
   background: var(--bg-overlay);
-  border: 1px solid var(--border-strong);
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-std);
   list-style: none;
   display: none;
 }
@@ -178,14 +187,10 @@
 }
 
 .combobox-option:hover,
-.combobox-option[aria-selected="true"] {
-  background: var(--gold-muted);
-  color: var(--text-primary);
-}
-
+.combobox-option[aria-selected="true"],
 .combobox-option.highlighted {
-  background: var(--gold-muted);
-  color: var(--text-primary);
+  background: var(--yellow);
+  color: var(--ink);
 }
 
 .combobox-empty {
@@ -209,9 +214,12 @@
 /* --- Segmented control (day type) --- */
 .segmented {
   display: inline-flex;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 2px;
+  background: var(--paper);
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   padding: 3px;
   position: relative;
 }
@@ -231,9 +239,11 @@
 .segmented-label {
   display: block;
   padding: var(--sp-2) var(--sp-4);
+  font-family: var(--font-display);
   font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: color var(--duration) var(--ease-out),
@@ -242,71 +252,76 @@
   user-select: none;
 }
 
+.segmented-label:hover {
+  background: var(--yellow-tint);
+}
+
 .segmented-input:checked + .segmented-label {
   background: var(--ink);
-  color: var(--lime);
-  font-weight: 600;
+  color: var(--yellow);
 }
 
 .segmented-input:focus-visible + .segmented-label {
-  box-shadow: 0 0 0 2px var(--gold-focus);
-}
-
-.segmented-label:hover {
-  color: var(--text-primary);
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
 }
 
 /* ============================================================
    BUTTONS
    ============================================================ */
+/* Buttons press "into" their shadow on hover, exactly like the
+   landing CTAs (landing.css .landing-btn). */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-6);
-  font-family: var(--font);
-  font-size: var(--text-base);
-  font-weight: 600;
-  border: none;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-std);
   cursor: pointer;
-  transition: background var(--duration) var(--ease-out),
-              transform var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration) var(--ease-out);
+  transition: transform var(--duration-fast) ease,
+              box-shadow var(--duration-fast) ease,
+              background var(--duration-fast) ease;
   text-decoration: none;
   min-height: 48px;
 }
 
+.btn:hover {
+  transform: translate(2px, 2px);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+
 .btn:active {
-  transform: scale(0.97);
+  transform: translate(4px, 4px);
+  box-shadow: none;
 }
 
-.btn-primary {
-  background: var(--gold);
-  color: var(--text-inverse);
-  border-radius: var(--radius-full);
+.btn-primary,
+.btn-primary:hover,
+a.btn-primary {
+  background: var(--ink);
+  color: var(--yellow);
 }
 
-.btn-primary:hover {
-  background: var(--gold-hover);
-  box-shadow: 0 4px 16px rgba(10, 10, 10, 0.18);
+.btn-ghost,
+.btn-secondary {
+  background: var(--paper);
+  color: var(--ink);
 }
 
-.btn-primary:active {
-  background: var(--gold-press);
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-
-.btn-ghost:hover {
-  background: var(--bg-overlay);
-  border-color: var(--border-strong);
-  color: var(--text-primary);
+.btn-ghost:hover,
+.btn-secondary:hover {
+  background: var(--yellow);
+  color: var(--ink);
 }
 
 .btn-icon {
@@ -315,6 +330,10 @@
   padding: 0;
   border-radius: var(--radius-md);
   font-size: var(--text-lg);
+}
+
+.btn-icon:hover {
+  background: var(--yellow);
 }
 
 /* Swap button rotation */
@@ -349,9 +368,11 @@
 .tab-bar {
   display: inline-flex;
   position: relative;
-  background: var(--bg-overlay);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
+  gap: 2px;
+  background: var(--paper);
+  border: var(--border-width) solid var(--ink);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   padding: 3px;
   margin-bottom: var(--sp-6);
 }
@@ -360,37 +381,34 @@
   position: relative;
   z-index: 1;
   padding: var(--sp-2) var(--sp-6);
-  font-family: var(--font);
+  font-family: var(--font-display);
   font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
   background: transparent;
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: color var(--duration) var(--ease-out);
+  transition: background var(--duration-fast) ease,
+              color var(--duration-fast) ease;
   white-space: nowrap;
 }
 
 .tab-btn:hover {
-  color: var(--text-primary);
+  background: var(--yellow-tint);
 }
 
-.tab-btn.active {
-  color: var(--text-inverse);
-  font-weight: 600;
+/* Active tab paints its own box (no sliding indicator), same as
+   the checked segmented option and the active nav pill. */
+.tab-btn.active,
+.tab-btn.active:hover {
+  background: var(--ink);
+  color: var(--yellow);
 }
 
-/* Sliding tab indicator */
 .tab-indicator {
-  position: absolute;
-  top: 3px;
-  height: calc(100% - 6px);
-  background: var(--gold);
-  border-radius: var(--radius-full);
-  transition: left var(--duration-slow) var(--ease-out),
-              width var(--duration-slow) var(--ease-out);
-  z-index: 0;
+  display: none;
 }
 
 .tab-panel {
@@ -411,12 +429,14 @@
   justify-content: center;
   min-width: 48px;
   padding: var(--sp-1) var(--sp-3);
+  font-family: var(--font-display);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 800;
   color: #fff;
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-sm);
   white-space: nowrap;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
 
 .route-badge.trunk  { background: var(--route-trunk); }
@@ -429,21 +449,24 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
-  padding: var(--sp-1) var(--sp-3);
+  padding: 2px var(--sp-3);
+  font-family: var(--font-display);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-full);
   white-space: nowrap;
 }
 
 .badge-transfer {
-  background: var(--ls-warn-bg);
-  color: var(--ls-warn-fg);
+  background: var(--sage);
+  color: var(--ink);
 }
 
 .badge-ls-affected {
-  background: var(--ls-warn-bg);
-  color: var(--ls-warn-fg);
+  background: var(--yellow);
+  color: var(--ink);
 }
 
 /* ============================================================
@@ -460,15 +483,24 @@
 }
 
 /* --- Journey timeline visualisation --- */
+/* Charcoal departure strip: the same look as the landing mockup.
+   Times in paper (16.9:1), stop names and dashes in sage (10.4:1). */
 .journey-viz {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-4);
-  background: var(--bg-raised);
+  background: var(--charcoal);
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-md);
   margin-top: var(--sp-4);
 }
+
+.journey-viz .journey-time { color: var(--paper); }
+.journey-viz .journey-stop-name,
+.journey-viz .journey-duration,
+.journey-viz .time-relative { color: var(--sage); }
+.journey-viz .time-relative--soon { color: var(--yellow); }
 
 .journey-endpoint {
   flex-shrink: 0;
@@ -507,17 +539,17 @@
   flex-shrink: 0;
 }
 
-.journey-dot--origin      { background: var(--success); box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2); }
-.journey-dot--transfer    { background: var(--warning); box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2); }
-.journey-dot--destination { background: var(--danger);  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2); }
+.journey-dot--origin      { background: #34D399; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25); }
+.journey-dot--transfer    { background: var(--yellow); box-shadow: 0 0 0 3px rgba(255, 225, 124, 0.25); }
+.journey-dot--destination { background: #F87171; box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.25); }
 
 .journey-line {
   flex: 1;
   height: 2px;
   background: repeating-linear-gradient(
     to right,
-    var(--text-tertiary) 0,
-    var(--text-tertiary) 6px,
+    var(--sage) 0,
+    var(--sage) 6px,
     transparent 6px,
     transparent 12px
   );
@@ -530,8 +562,9 @@
 }
 
 .journey-duration {
+  font-family: var(--font-display);
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 800;
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -562,36 +595,30 @@
 /* ============================================================
    ALERTS
    ============================================================ */
+/* Alerts: bordered panels in brand fills, always ink-family text */
 .alert {
   padding: var(--sp-4) var(--sp-6);
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   margin-bottom: var(--sp-6);
-  border: 1px solid;
   font-size: var(--text-sm);
+  color: var(--ink);
 }
 
-.alert-title {
-  font-weight: 600;
+.alert-title,
+.alert strong {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-md);
+  letter-spacing: -0.02em;
   margin-bottom: var(--sp-1);
 }
 
-.alert-info {
-  background: rgba(96, 165, 250, 0.08);
-  border-color: rgba(96, 165, 250, 0.2);
-  color: var(--info);
-}
-
-.alert-warning {
-  background: var(--ls-warn-bg);
-  border-color: rgba(251, 191, 36, 0.2);
-  color: var(--ls-warn-fg);
-}
-
-.alert-danger {
-  background: var(--ls-crit-bg);
-  border-color: rgba(248, 113, 113, 0.2);
-  color: var(--ls-crit-fg);
-}
+.alert-info    { background: var(--sage); }
+.alert-warning { background: var(--yellow); }
+.alert-danger  { background: var(--ls-crit-bg); color: var(--ls-crit-fg); }
 
 /* ============================================================
    RESULTS HEADER
@@ -608,8 +635,9 @@
 }
 
 .results-arrow {
-  color: var(--gold);
-  font-weight: 600;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 800;
 }
 
 .results-meta {
@@ -634,8 +662,9 @@
 }
 
 .empty-state-title {
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: 600;
+  font-weight: 800;
   margin-bottom: var(--sp-2);
   color: var(--text-primary);
 }
@@ -653,9 +682,9 @@
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--bg-overlay) 25%,
-    var(--bg-card-hover) 50%,
-    var(--bg-overlay) 75%
+    var(--paper-2) 25%,
+    var(--yellow-tint) 50%,
+    var(--paper-2) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
@@ -804,16 +833,19 @@
 
 .stop-dot--origin {
   background: var(--success);
+  border: var(--border-width) solid var(--ink);
   box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2);
 }
 
 .stop-dot--destination {
   background: var(--danger);
+  border: var(--border-width) solid var(--ink);
   box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
 }
 
 .stop-dot--transfer {
-  background: var(--warning);
+  background: var(--yellow);
+  border: var(--border-width) solid var(--ink);
   box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
 }
 
@@ -849,7 +881,7 @@
 .stop-time--transfer {
   font-family: var(--font);
   font-weight: 500;
-  color: var(--warning);
+  color: var(--text-secondary);
   font-style: italic;
 }
 
@@ -865,11 +897,11 @@
 }
 
 .recent-label {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.01em;
   margin-right: var(--sp-1);
 }
 
@@ -879,10 +911,11 @@
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-3);
   font-size: var(--text-sm);
-  color: var(--text-secondary);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
   transition: background var(--duration) var(--ease-out),
               border-color var(--duration) var(--ease-out),
@@ -891,9 +924,9 @@
 }
 
 .recent-chip:hover {
-  background: var(--gold-muted);
-  border-color: var(--gold);
-  color: var(--text-primary);
+  background: var(--yellow);
+  color: var(--ink);
+  text-decoration: none;
 }
 
 .recent-chip-close {
@@ -932,8 +965,9 @@
 }
 
 .time-relative--soon {
-  color: var(--gold);
-  font-weight: 600;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 800;
 }
 
 /* ============================================================
@@ -947,10 +981,11 @@
   height: 32px;
   margin-left: auto;
   font-size: var(--text-lg);
-  color: var(--text-tertiary);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border-width) solid var(--ink);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
   text-decoration: none;
   cursor: pointer;
   transition: color var(--duration) var(--ease-out),
@@ -960,9 +995,9 @@
 }
 
 .btn-reverse:hover {
-  color: var(--gold);
-  border-color: var(--gold);
-  background: var(--gold-muted);
+  color: var(--ink);
+  background: var(--yellow);
+  text-decoration: none;
 }
 
 /* ============================================================
@@ -1005,8 +1040,10 @@
 .trust-strip {
   margin: var(--sp-4) 0 var(--sp-6);
   padding: var(--sp-3) var(--sp-4);
-  border-left: 2px solid var(--border-strong);
-  color: var(--text-secondary); /* muted, readable on dark — not a hero */
+  border-left: 4px solid var(--ink);
+  background: var(--paper-2);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--text-secondary); /* muted caption, never competes with times */
   font-size: var(--text-xs);
   line-height: 1.55;
   max-width: 52rem;
@@ -1028,7 +1065,7 @@
 }
 
 .trust-strip a:hover {
-  color: var(--gold);
+  color: var(--ink);
 }
 
 .trust-strip--shedding,
@@ -1044,9 +1081,9 @@
 
 /* Honest wake banner — never a blank first paint */
 .wake-banner {
-  background: var(--bg-overlay);
-  border-bottom: 1px solid var(--border);
-  color: var(--text-secondary);
+  background: var(--yellow);
+  border-bottom: var(--border-width) solid var(--ink);
+  color: var(--ink);
   font-size: var(--text-sm);
   text-align: center;
   padding: var(--sp-3) var(--sp-4);
@@ -1063,7 +1100,7 @@
 
 .footer-sources {
   margin: 0 0 var(--sp-2);
-  color: var(--text-tertiary);
+  color: var(--sage);
   font-size: var(--text-xs);
 }
 
@@ -1087,44 +1124,39 @@
 }
 .btn-trip-preview {
   font-size: var(--text-sm);
-  /* gold primary action — matches Search CTA */
-  background: var(--gold);
-  color: var(--text-inverse);
-  border: none;
+  min-height: 40px;
+  padding: var(--sp-2) var(--sp-4);
+  /* primary action: ink with yellow, same as Search Journeys */
+  background: var(--ink);
+  color: var(--yellow);
 }
 .btn-trip-preview:hover {
-  background: var(--gold-hover);
-  box-shadow: 0 4px 16px rgba(10, 10, 10, 0.18);
-  color: var(--text-inverse);
-}
-.btn-trip-preview:active {
-  background: var(--gold-press);
+  background: var(--ink);
+  color: var(--yellow);
 }
 
 /* Header fit at 390px — keep source meaning, short form ("Stage 0 · default") */
 .ls-badge__src--short { display: none; }
 @media (max-width: 480px) {
   .header-inner { gap: var(--sp-2); padding-inline: var(--sp-3); }
-  .logo { font-size: var(--text-base); gap: var(--sp-1); }
-  .nav-pills { gap: 4px; }
-  .nav-pill { padding: 6px 12px; }
-  .ls-badge { white-space: nowrap; padding: var(--sp-1) var(--sp-2); font-size: 11px; flex-shrink: 0; }
+  .logo { font-size: var(--text-md); gap: var(--sp-2); }
+  .logo-mark { width: 30px; height: 30px; }
+  .logo-mark svg { width: 16px; height: 16px; }
+  .nav-pills { gap: 2px; }
+  .nav-pill { padding: 0 10px; min-height: 36px; font-size: var(--text-base); }
+  .ls-badge { padding: 0 var(--sp-2); min-height: 28px; font-size: 11px; box-shadow: none; }
   .ls-badge__src--long { display: none; }
   .ls-badge__src--short { display: inline; }
 }
 
-/* Active nav pill painted from the active link's own box (not a JS translate,
-   which mis-measured before fonts/media rules applied). */
-.nav-indicator { display: none !important; }
-.nav-pill.active { background: var(--ink); color: var(--lime); }
 @media (max-width: 479px) {
   .nav-pills { flex-shrink: 1; min-width: 0; }
   .logo { flex-shrink: 1; min-width: 0; }
   .ls-badge { flex-shrink: 0; }
 }
 @media (max-width: 374px) {
-  .logo { font-size: var(--text-sm); }
-  .nav-pill { font-size: 12px; }
+  .logo-word { display: none; }  /* the bolt mark stays; aria-label names it */
+  .nav-pill { font-size: var(--text-sm); }
   .ls-badge { font-size: 10px; }
 }
 
@@ -1159,12 +1191,19 @@
   flex-wrap: wrap;
 }
 .journey-card-hint {
+  font-family: var(--font-display);
   font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  font-weight: 600;
+  font-weight: 800;
+  color: var(--ink);
 }
 .journey-card:hover .journey-card-hint {
-  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* The whole card is a link: it lifts on hover like the landing cards */
+.journey-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--ink);
 }
 
 /* Journey schematic page — Design dot sizes */
@@ -1198,7 +1237,7 @@
   height: 10px;
   margin: 0 2px;
   background: var(--route-color, var(--text-tertiary));
-  border: 2px solid #1a1a1a;
+  border: 2px solid var(--ink);
   box-sizing: border-box;
 }
 .stop-name--page {
@@ -1288,18 +1327,167 @@
   .journey-viz .time-relative--inline { display: inline; margin-left: var(--sp-2); }
 }
 
-/* Halte lime theme: hero headline on a lime card (ink text, 17:1). Paint only. */
-.hero-title {
-  background: var(--lime);
-  color: var(--ink);
-  border-radius: var(--radius-xl);
-  padding: var(--sp-2) var(--sp-4);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  overflow-wrap: anywhere;
-}
-
 /* Footer disclaimer sits a little apart from the links line. */
 .footer-disclaimer { margin-top: 8px; }
-/* AA on the tinted badge: "· default" uses secondary grey (7:1+), not tertiary. */
-.ls-badge .ls-badge__src.text-tertiary { color: var(--text-secondary); }
+/* The stage source ("default", "manual") inherits the badge's own colour,
+   which is chosen for AA on that badge's fill. */
+.ls-badge .ls-badge__src.text-tertiary { color: inherit; }
+
+/* ============================================================
+   STOP PAGE (/stop/<name>)
+   The template predates the component set and uses its own
+   class names; these give them the shared Halte look.
+   ============================================================ */
+
+/* Day-type links: same control as the search page's segmented */
+.tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  background: var(--paper);
+  border: var(--border-width) solid var(--ink);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab {
+  display: block;
+  padding: var(--sp-2) var(--sp-4);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background: var(--yellow-tint);
+  text-decoration: none;
+}
+
+.tab.active,
+.tab.active:hover {
+  background: var(--ink);
+  color: var(--yellow);
+}
+
+.stop-page > .form-group {
+  margin-bottom: var(--sp-6);
+}
+
+/* Route names are long: badges wrap instead of widening the page */
+.route-filter-bar .route-badge,
+.departure-card .route-badge {
+  white-space: normal;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.departure-card .card-header > div {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Next departure: charcoal strip, same as the journey card times */
+.metric-card {
+  display: grid;
+  gap: 2px;
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  background: var(--charcoal);
+  border: var(--border-width) solid var(--ink);
+  border-radius: var(--radius-md);
+}
+
+.metric-label {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  color: var(--yellow);
+}
+
+.metric-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: var(--text-2xl);
+  line-height: 1.1;
+  color: var(--paper);
+}
+
+.metric-subtitle {
+  font-size: var(--text-sm);
+  color: var(--sage);
+}
+
+.departure-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: var(--sp-2);
+}
+
+.departure-item {
+  padding: var(--sp-2) var(--sp-3);
+  border: var(--border-width) solid var(--ink);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.departure-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.departure-direction:empty {
+  display: none;
+}
+
+.empty-state-message {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-lg);
+  color: var(--ink);
+  margin-bottom: var(--sp-2);
+}
+
+/* ============================================================
+   NETWORK MAP PAGE (/map)
+   ============================================================ */
+.map-frame {
+  width: 100%;
+  height: 75vh;
+  min-height: 420px;
+  border: var(--border-width) solid var(--ink);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-std);
+  overflow: hidden;
+  background: var(--charcoal);
+}
+
+.map-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Back link sits inside the yellow hero band on the journey page */
+.journey-back a {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* Segmented controls hug their options instead of stretching across
+   the form column (a stretched box read as an empty input). */
+.form-group > .segmented,
+.form-group > .tabs {
+  align-self: flex-start;
+  max-width: 100%;
+}
