@@ -35,7 +35,8 @@ def test_health_fast_no_etl(client):
 
 
 def test_homepage_paints_search_chrome(client):
-    resp = client.get("/")
+    """Search chrome lives at /search; landing is at /."""
+    resp = client.get("/search")
     assert resp.status_code == 200
     html = resp.text
     assert 'id="search-form"' in html or 'role="search"' in html
@@ -50,7 +51,7 @@ def test_homepage_paints_search_chrome(client):
 
 def test_trust_strip_on_search_results(client):
     resp = client.get(
-        "/",
+        "/search",
         params={
             "from_stop": "Civic Centre",
             "to_stop": "Camps Bay",
@@ -128,7 +129,7 @@ def test_static_assets_are_versioned_and_no_cache(client):
     """Local CSS/JS links carry ?v=<asset_v>; HTML and /static send no-cache."""
     from fastapi_app.main import ASSET_V
 
-    resp = client.get("/")
+    resp = client.get("/search")
     html = resp.text
     assert ASSET_V
     for path in ("/static/css/tokens.css", "/static/css/base.css",
@@ -143,7 +144,7 @@ def test_stage_badge_accessible_name_not_duplicated(client):
     """Badge name is exactly 'Stage 0 (default)'; visible text is aria-hidden."""
     import re
 
-    html = client.get("/").text
+    html = client.get("/search").text
     m = re.search(r'<span class="ls-badge[^"]*"(.*?)</span>\s*</span>', html, re.S)
     assert m, "badge not rendered"
     badge = m.group(0)

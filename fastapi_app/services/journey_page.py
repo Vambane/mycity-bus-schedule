@@ -128,7 +128,7 @@ def search_back_href(
 ) -> str:
     """Relative search URL only — never an open redirect."""
     op = operator if operator in ("both", "myciti", "uct") else "both"
-    return "/?" + urlencode({
+    return "/search?" + urlencode({
         "from_stop": from_stop,
         "to_stop": to_stop,
         "day_type": day_type,

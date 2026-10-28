@@ -16,7 +16,7 @@
 
   <!-- ====== SEARCH CARD ====== -->
   <div class="card card--search" style="margin-bottom: var(--sp-8);">
-    <form action="/" method="get" id="search-form" role="search" aria-label="Journey search">
+    <form action="/search" method="get" id="search-form" role="search" aria-label="Journey search">
 
       <!-- Row 1: From / To -->
       <div class="form-grid form-grid--2col">
@@ -158,7 +158,7 @@
         </button>
 
         {% if from_stop and to_stop %}
-        <a href="/?from_stop={{ to_stop }}&to_stop={{ from_stop }}&day_type={{ day_type }}&operator={{ operator }}{% if search_date %}&search_date={{ search_date }}{% endif %}"
+        <a href="/search?from_stop={{ to_stop }}&to_stop={{ from_stop }}&day_type={{ day_type }}&operator={{ operator }}{% if search_date %}&search_date={{ search_date }}{% endif %}"
            class="btn btn-ghost btn-icon btn-swap"
            id="swap-btn"
            title="Swap origin and destination"
