@@ -1,6 +1,6 @@
 # 🚌 Halte
 
-> Halte is an independent app, not affiliated with the City of Cape Town or MyCiTi.
+> Halte is an independent app, not affiliated with the City of Cape Town, MyCiTi or the University of Cape Town.
 
 A custom, responsive website for exploring Cape Town's MyCiTi bus network and
 the UCT shuttle service: plan a journey, browse upcoming departures, and
