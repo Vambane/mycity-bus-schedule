@@ -243,8 +243,8 @@
 }
 
 .segmented-input:checked + .segmented-label {
-  background: var(--gold);
-  color: var(--text-inverse);
+  background: var(--ink);
+  color: var(--lime);
   font-weight: 600;
 }
 
@@ -289,7 +289,7 @@
 
 .btn-primary:hover {
   background: var(--gold-hover);
-  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.25);
+  box-shadow: 0 4px 16px rgba(10, 10, 10, 0.18);
 }
 
 .btn-primary:active {
@@ -1093,7 +1093,7 @@
 }
 .btn-trip-preview:hover {
   background: var(--gold-hover);
-  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.25);
+  box-shadow: 0 4px 16px rgba(10, 10, 10, 0.18);
   color: var(--text-inverse);
 }
 .btn-trip-preview:active {
@@ -1115,7 +1115,7 @@
 /* Active nav pill painted from the active link's own box (not a JS translate,
    which mis-measured before fonts/media rules applied). */
 .nav-indicator { display: none !important; }
-.nav-pill.active { background: var(--gold); color: var(--text-inverse); }
+.nav-pill.active { background: var(--ink); color: var(--lime); }
 @media (max-width: 479px) {
   .nav-pills { flex-shrink: 1; min-width: 0; }
   .logo { flex-shrink: 1; min-width: 0; }
@@ -1286,3 +1286,19 @@
   .journey-viz .journey-time .time-relative { display: none; }
   .journey-viz .time-relative--inline { display: inline; margin-left: var(--sp-2); }
 }
+
+/* Halte lime theme: hero headline on a lime card (ink text, 17:1). Paint only. */
+.hero-title {
+  background: var(--lime);
+  color: var(--ink);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-2) var(--sp-4);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+/* Footer disclaimer sits a little apart from the links line. */
+.footer-disclaimer { margin-top: 8px; }
+/* AA on the tinted badge: "· default" uses secondary grey (7:1+), not tertiary. */
+.ls-badge .ls-badge__src.text-tertiary { color: var(--text-secondary); }
