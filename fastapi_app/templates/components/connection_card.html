@@ -15,7 +15,7 @@
       {{ conn.ls_chip[0] }}
     </span>
     {% endif %}
-    <a href="/?from_stop={{ results.to_stop|urlencode }}&to_stop={{ results.from_stop|urlencode }}&day_type={{ results.day_type }}&operator={{ operator }}"
+    <a href="/search?from_stop={{ results.to_stop|urlencode }}&to_stop={{ results.from_stop|urlencode }}&day_type={{ results.day_type }}&operator={{ operator }}"
        class="btn-reverse journey-card-control"
        title="Search return trip" aria-label="Search return trip">&#8693;</a>
   </div>

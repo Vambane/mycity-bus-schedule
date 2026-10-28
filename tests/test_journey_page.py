@@ -94,7 +94,7 @@ def test_back_href_is_relative_search_only():
         day_type="saturday",
         operator="both",
     )
-    assert href.startswith("/?")
+    assert href.startswith("/search?")
     assert "://" not in href
     qs = parse_qs(urlparse(href).query)
     assert qs["from_stop"] == ["Civic Centre"]
@@ -146,7 +146,7 @@ def test_rebuild_direct_lists_every_stop():
         assert len(view["stops"]) >= 2
         assert view["stops"][0] == sample["from_stop"]
         assert view["stops"][-1] == sample["to_stop"]
-        assert view["back_href"].startswith("/?")
+        assert view["back_href"].startswith("/search?")
     finally:
         con.close()
 

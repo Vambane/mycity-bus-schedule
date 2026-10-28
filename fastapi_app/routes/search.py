@@ -55,7 +55,7 @@ def get_current_day_type(dt: Optional[datetime] = None) -> str:
         return "weekday"
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/search", response_class=HTMLResponse)
 async def search_page(
     request: Request,
     from_stop: Optional[str] = None,

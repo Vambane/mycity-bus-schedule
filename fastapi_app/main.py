@@ -84,9 +84,10 @@ async def cache_control_headers(request, call_next):
 app.state.templates = templates
 
 # Import and register routes
-from .routes import api, search, stop, system_map, journey
+from .routes import api, landing, search, stop, system_map, journey
 
 app.include_router(api.router, prefix="/api", tags=["API"])
+app.include_router(landing.router, tags=["Landing"])
 app.include_router(search.router, tags=["Search"])
 app.include_router(stop.router, tags=["Stop"])
 app.include_router(system_map.router, tags=["Map"])
