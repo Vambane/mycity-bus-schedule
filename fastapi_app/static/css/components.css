@@ -285,6 +285,7 @@
 .btn-primary {
   background: var(--gold);
   color: var(--text-inverse);
+  border-radius: var(--radius-full);
 }
 
 .btn-primary:hover {
