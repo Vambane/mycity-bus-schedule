@@ -18,6 +18,7 @@ import duckdb
 
 # Import core business logic
 from journey import find_connections, find_transfer_connections
+from fastapi_app.services.uct_validity import drop_expired, uct_expiry_state
 from disruption import assess_connection
 import ls_ui
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
@@ -114,23 +115,11 @@ async def search_page(
     if operator not in ("both", "myciti", "uct"):
         operator = "both"
 
-    # Check for stale UCT timetable data
+    # Per-route UCT validity: expired routes are hidden and the banner shown
+    expired_uct: set[str] = set()
     uct_stale_warning = None
     if operator in ("uct", "both"):
-        try:
-            row = conn.execute(
-                "SELECT MAX(valid_until) FROM timetables WHERE operator = 'uct'"
-            ).fetchone()
-            if row and row[0]:
-                from datetime import date
-                expiry = row[0] if isinstance(row[0], date) else date.fromisoformat(str(row[0]))
-                if expiry < date.today():
-                    uct_stale_warning = (
-                        f"UCT shuttle timetable expired on {expiry.strftime('%d %b %Y')}. "
-                        "Data may be outdated."
-                    )
-        except Exception:
-            pass
+        expired_uct, uct_stale_warning = uct_expiry_state(conn)
 
     # If no search yet, show empty form
     if not from_stop:
@@ -195,6 +184,8 @@ async def search_page(
 
         # Search for direct connections (scoped to selected operator)
         direct_df = find_connections(conn, from_stop, to_stop, day_type, operator)
+        if expired_uct and not direct_df.empty:
+            direct_df = direct_df[~direct_df["route_id"].isin(expired_uct)].reset_index(drop=True)
 
         # Filter for upcoming departures only
         showing_next_day = False
@@ -215,6 +206,9 @@ async def search_page(
             logger.info("No direct connections, searching for transfers...")
             transfer_df = find_transfer_connections(
                 conn, from_stop, to_stop, day_type, operator=operator)
+            if expired_uct and transfer_df is not None and not transfer_df.empty:
+                keep = transfer_df["route_ids"].apply(lambda ids: drop_expired(list(ids), expired_uct))
+                transfer_df = transfer_df[keep].reset_index(drop=True)
 
             # Filter for upcoming departures
             if transfer_df is not None and not transfer_df.empty:

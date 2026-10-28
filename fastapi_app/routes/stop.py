@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from fastapi_app.dependencies import get_connection
 from fastapi_app.config import settings
 from fastapi_app.services.trust import trust_context
+from fastapi_app.services.uct_validity import uct_expiry_state
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
 from disruption import _windows_min, _fmt_window
 import ls_ui
@@ -91,24 +92,11 @@ async def stop_view(
             op_filter = "AND d.operator = ?"
             op_params = [operator]
 
-        # Check for stale UCT timetable data
+        # Per-route UCT validity: expired routes are hidden and the banner shown
+        expired_uct: set[str] = set()
         uct_stale_warning = None
         if operator in ("uct", "both"):
-            try:
-                row = conn.execute(
-                    "SELECT MAX(valid_until) FROM timetables WHERE operator = 'uct'"
-                ).fetchone()
-                if row and row[0]:
-                    from datetime import date
-                    expiry = (row[0] if isinstance(row[0], date)
-                              else date.fromisoformat(str(row[0])))
-                    if expiry < date.today():
-                        uct_stale_warning = (
-                            f"UCT shuttle timetable expired on "
-                            f"{expiry.strftime('%d %b %Y')}. Data may be outdated."
-                        )
-            except Exception:
-                pass
+            expired_uct, uct_stale_warning = uct_expiry_state(conn)
 
         # Get current time for filtering upcoming departures
         now = get_cape_town_time()
@@ -161,6 +149,8 @@ async def stop_view(
             routes_query,
             [stop_name, day_type] + op_params
         ).fetchall()
+        if expired_uct:
+            routes_result = [r for r in routes_result if r[0] not in expired_uct]
 
         if not routes_result:
             # No routes found for this stop

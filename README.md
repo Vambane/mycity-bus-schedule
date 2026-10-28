@@ -150,8 +150,10 @@ Streamlit app (app.py)    ── Leaflet custom component (map_component/)
 
 - `etl/scrape_myciti.py` downloads every MyCiTi route's timetable PDF and
   parses the tables (one row per stop; day type and direction from page headers).
-- `etl/scrape_uct.py` scrapes the UCT shuttle index page and parses its PDFs
-  (2-row format: stop names as columns, times as newline-delimited cells).
+- `etl/scrape_uct.py` scrapes the UCT shuttle index page, picks the
+  timetable set that covers today (currently "Consolidation & Exam",
+  26 Oct – 20 Nov 2026) and parses its PDFs row by row (stop names from the
+  table header, one row per trip). Each route keeps its own validity dates.
 - `etl/load_db.py` loads routes, stops and ~172k departure times into DuckDB.
   Each operator's data is loaded independently — a full-refresh for one
   operator leaves the other's rows untouched.
@@ -228,7 +230,7 @@ erDiagram
     }
 ```
 
-`departures` is the core fact table (~172k rows: ~171k MyCiTi + ~1.3k UCT) the
+`departures` is the core fact table (~168k rows: ~167k MyCiTi + ~1.5k UCT) the
 app queries; `stops` ↔ `departures` join on `stop_name` rather than a foreign
 key because the PDFs identify stops only by name. Every table carries an
 `operator` column (`myciti` or `uct`) for per-network filtering and independent
@@ -427,8 +429,14 @@ check official sources before travelling.
   open-data layers: 4 routes fall back to straight dashed lines in street
   mode, and ~23 stops are not shown on the map (they still appear in search)
 - UCT shuttle stops have no coordinates yet — they appear in search and
-  departure boards but not on the map. UCT timetables have validity dates;
-  the app shows a warning banner when they expire
+  departure boards but not on the map. UCT timetables have per-route validity
+  dates. The current set is Consolidation & Exam: routes 1–7, 9–11, 13–16 and
+  the Overnight library loop (Mon–Fri) run 26 Oct – 20 Nov 2026; Route 5 runs
+  to 26 Nov. Once a route's end date has passed its times are hidden from
+  search and departure boards and the "Timetable expired" banner names it.
+  Route 20 (Educare) is not in this set and has been dropped. Some PDF
+  footnotes (e.g. "via Kramer after 13:25") are not modelled — check the
+  official PDF
 - Load shedding flags always use today's date (the day-type selector
   carries no day of month) and check each journey end as a point in
   time; the delay buffer is a fixed heuristic, not a prediction
