@@ -7,14 +7,14 @@ from __future__ import annotations
 
 import logging
 import math
+import zoneinfo
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
 import duckdb
-import zoneinfo
 
 from fastapi_app.config import settings
-from fastapi_app.services.trust import UNKNOWN_SCRAPED_AT, get_scraped_at_raw
+from fastapi_app.services.trust import get_scraped_at_raw
 from journey_map import (
     _load_route_paths,
     _load_stop_coords,
@@ -143,6 +143,8 @@ def _find_trip_index(board_times: list[str], dep: str) -> int | None:
     return None
 
 
+# Keyword-only trip description; each early return is one hide reason.
+# pylint: disable-next=too-many-arguments,too-many-return-statements
 def eligibility(
     *,
     con: duckdb.DuckDBPyConnection,
@@ -195,6 +197,8 @@ def eligibility(
     return True, None
 
 
+# Keyword-only trip description; one pass from timetable to ghost marker.
+# pylint: disable-next=too-many-arguments,too-many-locals,too-many-statements
 def build_trip_preview(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -327,6 +331,7 @@ def build_trip_preview(
     }
 
 
+# pylint: disable-next=too-many-arguments
 def preview_ok_for_card(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -338,6 +343,7 @@ def preview_ok_for_card(
     dep: str,
     arr: Optional[str] = None,
 ) -> bool:
+    """True when a result card may show the "Preview this trip" control."""
     ok, _ = eligibility(
         con=con,
         day_type=day_type,

@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 # pylint: disable=wrong-import-position
-from etl.load_db import load, inspect, DB_PATH
+from etl.load_db import DB_PATH, inspect, load
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,7 +33,9 @@ log = logging.getLogger(__name__)
 
 def _run_myciti(db_path: Path) -> None:
     """Scrape and load MyCiTi timetables."""
-    from etl.scrape_myciti import scrape_all as scrape_myciti  # pylint: disable=import-outside-toplevel
+    from etl.scrape_myciti import (  # pylint: disable=import-outside-toplevel
+        scrape_all as scrape_myciti,
+    )
 
     log.info("=== MyCiTi ETL ===")
     data = scrape_myciti()
@@ -128,7 +130,7 @@ def main() -> None:
 
     # Optional: map stops to load shedding blocks — needs the CCT
     # polygon layer, which is downloaded separately; skip cleanly otherwise.
-    from etl.build_stop_blocks import build, AREAS_PATH  # pylint: disable=import-outside-toplevel
+    from etl.build_stop_blocks import AREAS_PATH, build  # pylint: disable=import-outside-toplevel
     if AREAS_PATH.exists():
         build(db_path)
     else:

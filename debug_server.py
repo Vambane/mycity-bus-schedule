@@ -2,12 +2,16 @@
 """Debug FastAPI server to see actual errors."""
 import sys
 import traceback
-from fastapi_app.main import app
+
 from fastapi.responses import JSONResponse
+
+from fastapi_app.main import app
+
 
 # Add error handler to see what's going wrong
 @app.exception_handler(Exception)
 async def debug_exception_handler(request, exc):
+    """Print the full traceback for any unhandled error, then return a 500."""
     print(f"\n=== ERROR in {request.url.path} ===", file=sys.stderr)
     print(f"Exception type: {type(exc).__name__}", file=sys.stderr)
     print(f"Exception: {exc}", file=sys.stderr)

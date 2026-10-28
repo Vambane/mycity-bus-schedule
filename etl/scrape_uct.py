@@ -1,3 +1,5 @@
+# One module per data source keeps the UCT parsing rules in one place.
+# pylint: disable=too-many-lines
 """
 etl/scrape_uct.py — UCT Shuttle Timetable Scraper
 ===================================================
@@ -29,6 +31,7 @@ import io
 import logging
 import re
 import time
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -199,7 +202,9 @@ def _parse_set_heading(text: str) -> tuple[Optional[str], Optional[str]]:
     return f"{year}-{a:02d}-{int(d1):02d}", f"{year}-{b:02d}-{int(d2):02d}"
 
 
-def _parse_validity_with_year(text: str, year: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+def _parse_validity_with_year(
+    text: str, year: Optional[str]
+) -> tuple[Optional[str], Optional[str]]:
     """Like _parse_validity_dates, but accepts a heading without a year."""
     vf, vu = _parse_validity_dates(text)
     if vf or not year:
@@ -234,7 +239,8 @@ def select_timetable_set(html: str, today: Optional[str] = None) -> Optional[str
     return (current or sorted(sets))[-1][2]
 
 
-def discover_routes(
+# Walks the source layout step by step; splitting it would scatter the parsing rules.
+def discover_routes(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     html: str,
     inconsistencies: list[dict],
     timetable_set: Optional[str] = None,
@@ -351,7 +357,7 @@ def discover_routes(
                 # Check for date range mismatch between heading and img alt
                 img_dates = _parse_validity_dates(img_alt)
                 heading_dates = (valid_from, valid_until)
-                if img_dates != (None, None) and img_dates != heading_dates:
+                if img_dates not in ((None, None), heading_dates):
                     inconsistencies.append({
                         "type": "date_range_mismatch",
                         "route": route_nums_raw,
@@ -538,8 +544,8 @@ def _reconstruct_trips(
 
         # Only accept trips that visit all stops
         if valid and len(trip) == len(stop_order):
-            for stop, time in trip.items():
-                used[stop].add(time)
+            for stop, t in trip.items():
+                used[stop].add(t)
             trips.append(trip)
 
     return trips
@@ -551,7 +557,8 @@ def _to_minutes(hms: str) -> int:
     return int(h) * 60 + int(m)
 
 
-def _parse_uct_table(
+# Walks the source layout step by step; splitting it would scatter the parsing rules.
+def _parse_uct_table(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches,unused-argument
     table: list[list[str | None]],
     route_id: str,
     day_type: str,
@@ -619,13 +626,13 @@ def _parse_uct_table(
     # Build departures from reconstructed trips
     departures: list[dict] = []
     for trip in trips:
-        for stop_name, time in trip.items():
+        for stop_name, dep_time in trip.items():
             departures.append({
                 "route_id": route_id,
                 "stop_name": stop_name,
                 "direction": direction,
                 "day_type": day_type,
-                "departure_time": time,
+                "departure_time": dep_time,
                 "operator": "uct",
                 "scraped_at": now,
             })
@@ -651,8 +658,11 @@ def _parse_uct_table(
 # Day-type phrases in PDF text → the app's day types. "Weekend" sections run
 # on both Saturday and Sunday, so they are loaded for both.
 DAY_PHRASES = [
-    (re.compile(r"Saturday\s*(?:&|and)\s*Sunday|Weekends?(?:\s*(?:&|and)\s*Public\s*Holidays)?", re.I),
-     ("saturday", "sunday")),
+    (re.compile(
+        r"Saturday\s*(?:&|and)\s*Sunday"
+        r"|Weekends?(?:\s*(?:&|and)\s*Public\s*Holidays)?",
+        re.I,
+    ), ("saturday", "sunday")),
     (re.compile(r"\bSaturdays?\b", re.I), ("saturday",)),
     (re.compile(r"\bSundays?\b", re.I), ("sunday",)),
     (re.compile(r"Monday\s*(?:[-–]|to)\s*Friday", re.I), ("weekday",)),
@@ -690,9 +700,6 @@ def _section_markers(page) -> tuple[list[tuple], list[tuple]]:
             spans.append((len(text), len(text) + len(w["text"]), w))
             text += w["text"]
 
-        def xr(a, b):
-            ws = [w for (s0, s1, w) in spans if s1 > a and s0 < b]
-            return ws[0]["x0"], ws[-1]["x1"]
 
         taken: list[tuple[int, int]] = []
         for pat, dts in DAY_PHRASES:
@@ -700,25 +707,32 @@ def _section_markers(page) -> tuple[list[tuple], list[tuple]]:
                 if any(m.start() < b and m.end() > a for a, b in taken):
                     continue
                 taken.append((m.start(), m.end()))
-                x0, x1 = xr(m.start(), m.end())
+                x0, x1 = _span_x(spans, m.start(), m.end())
                 day.append((line[0]["top"], x0, x1, dts))
         for m in re.finditer(r"Route\s+(\d+)\s*:", text, re.I):
-            x0, x1 = xr(m.start(), m.end())
+            x0, x1 = _span_x(spans, m.start(), m.end())
             route.append((line[0]["top"], x0, x1, m.group(1)))
     return day, route
 
 
+def _span_x(spans: list[tuple], a: int, b: int) -> tuple[float, float]:
+    """x0/x1 of the words covering characters [a, b) of a joined text line."""
+    ws = [w for (s0, s1, w) in spans if s1 > a and s0 < b]
+    return ws[0]["x0"], ws[-1]["x1"]
+
+
 def _nearest_above(markers: list[tuple], top: float, x0: float, x1: float):
-    """Closest marker above *top* whose x range overlaps [x0, x1]."""
-    best = None
-    for m in markers:
-        if m[0] <= top + 1 and m[1] <= x1 and m[2] >= x0 - 40:
-            if best is None or m[0] >= best[0]:
-                best = m
-    return best
+    """Closest marker above *top* whose x range overlaps [x0, x1].
+
+    On a tie in height the later marker wins (reversed() keeps that rule,
+    since max() returns the first maximum it meets).
+    """
+    candidates = [m for m in markers if m[0] <= top + 1 and m[1] <= x1 and m[2] >= x0 - 40]
+    return max(reversed(candidates), key=lambda m: m[0], default=None)
 
 
-def _table_trips(page, ptable) -> list[tuple[list[str], list[list[Optional[str]]]]]:
+# Walks the source layout step by step; splitting it would scatter the parsing rules.
+def _table_trips(page, ptable) -> list[tuple[list[str], list[list[Optional[str]]]]]:  # pylint: disable=too-many-branches
     """Read one pdfplumber table as [(stop_names, rows_of_times)].
 
     Rows are taken from word positions, so each printed row is one trip,
@@ -821,7 +835,8 @@ def crosses_midnight(row) -> bool:
     return any(b < a for a, b in zip(times, times[1:]))
 
 
-def parse_uct_pdf(
+# Walks the source layout step by step; splitting it would scatter the parsing rules.
+def parse_uct_pdf(  # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks,unused-argument
     route_id: str,
     route_num: str,
     pdf_bytes: bytes,
@@ -925,7 +940,8 @@ def parse_uct_pdf(
 # Orchestration
 # ---------------------------------------------------------------------------
 
-def scrape_all(offline: bool = False) -> dict[str, list[dict]]:
+# Walks the source layout step by step; splitting it would scatter the parsing rules.
+def scrape_all(offline: bool = False) -> dict[str, list[dict]]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """Full UCT shuttle scrape.
 
     Args:
@@ -1068,7 +1084,6 @@ def scrape_all(offline: bool = False) -> dict[str, list[dict]]:
 
     # Regenerate stop_id to ensure uniqueness after dedup
     # (prevents duplicate IDs when shared PDFs produce overlapping sequences)
-    from collections import defaultdict
     seq_counters: dict[tuple[str, str], int] = defaultdict(int)
     for stop in deduped_stops:
         route_dir_key = (stop["route_id"], stop["direction"])
@@ -1133,7 +1148,6 @@ def _demo(offline: bool = False) -> None:
     print(f"Total departures: {len(result['departures'])}")
 
     # Per-route departure counts
-    from collections import Counter
     route_counts = Counter(d["route_id"] for d in result["departures"])
     print("\nDepartures per route:")
     for rid, cnt in sorted(route_counts.items()):

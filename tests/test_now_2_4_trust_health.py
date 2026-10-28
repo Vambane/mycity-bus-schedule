@@ -42,7 +42,6 @@ def test_homepage_paints_search_chrome(client):
     assert 'id="search-form"' in html or 'role="search"' in html
     assert "From" in html and "To" in html
     assert "Starting up" in html  # wake banner markup present (may be hidden)
-    assert "blank" not in html.lower() or True  # never assert on absence of word
     # Footer sources (Compliance line 5)
     assert "Sources: MyCiTi route PDFs" in html
     assert "City of Cape Town Open Data" in html

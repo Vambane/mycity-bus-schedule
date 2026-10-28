@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Test script for Phases 4-6 implementation."""
-import uvicorn
-from fastapi_app.main import app
 import threading
 import time
+
 import requests
+import uvicorn
+
+from fastapi_app.main import app
+
 
 # Start server
 def run_server():
+    """Serve the app on a background thread for the smoke checks below."""
     uvicorn.run(app, host='127.0.0.1', port=8003, log_level='info')
 
 thread = threading.Thread(target=run_server, daemon=True)
@@ -20,11 +24,11 @@ print("=" * 60)
 
 try:
     # Test 1: Health check
-    resp = requests.get('http://127.0.0.1:8003/health')
+    resp = requests.get('http://127.0.0.1:8003/health', timeout=10)
     print(f"\n✓ Health: {resp.json()}")
 
     # Test 2: Homepage with load shedding
-    resp = requests.get('http://127.0.0.1:8003/')
+    resp = requests.get('http://127.0.0.1:8003/', timeout=10)
     assert "ls_stage" in resp.text or "Stage" in resp.text or resp.status_code == 200
     print(f"✓ Homepage: {resp.status_code} ({len(resp.text)} chars)")
 
@@ -33,7 +37,7 @@ try:
         'from_stop': 'Civic Centre',
         'to_stop': 'Camps Bay',
         'day_type': 'weekday'
-    })
+    }, timeout=10)
     print(f"✓ Journey search: {resp.status_code}")
     if "connection-card" in resp.text or "card" in resp.text:
         print("  - Connection cards rendered")
@@ -43,18 +47,19 @@ try:
     # Test 4: Stop view (should show LS warning if applicable)
     resp = requests.get('http://127.0.0.1:8003/stop/Civic%20Centre', params={
         'day_type': 'weekday'
-    })
+    }, timeout=10)
     print(f"✓ Stop view: {resp.status_code}")
 
     # Test 5: System map
-    resp = requests.get('http://127.0.0.1:8003/map')
+    resp = requests.get('http://127.0.0.1:8003/map', timeout=10)
     print(f"✓ System map: {resp.status_code}")
 
     # Test 6: Network API
-    resp = requests.get('http://127.0.0.1:8003/api/map/network')
+    resp = requests.get('http://127.0.0.1:8003/api/map/network', timeout=10)
     if resp.status_code == 200:
         data = resp.json()
-        print(f"✓ Network API: {len(data.get('nodes', []))} nodes, {len(data.get('routes', []))} routes")
+        n_nodes, n_routes = len(data.get('nodes', [])), len(data.get('routes', []))
+        print(f"✓ Network API: {n_nodes} nodes, {n_routes} routes")
 
     print("\n" + "=" * 60)
     print("✅ ALL TESTS PASSED!")

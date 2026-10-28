@@ -1,34 +1,26 @@
 """Journey search route handler."""
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
-from typing import Optional
 import logging
-import sys
-from pathlib import Path
-from datetime import datetime
 import zoneinfo
+from datetime import datetime
+from typing import Optional
 
-# Add parent directory to path to import core modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from fastapi_app.dependencies import get_connection
-from fastapi_app.config import settings
-from fastapi_app.services.trust import trust_context
 import duckdb
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 
+import ls_ui
+from disruption import assess_connection
+from fastapi_app.config import settings
+from fastapi_app.dependencies import get_connection
+from fastapi_app.services.journey_page import journey_href_direct, journey_href_transfer
+from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
+from fastapi_app.services.trip_preview import preview_ok_for_card
+from fastapi_app.services.trust import trust_context
+from fastapi_app.services.uct_validity import drop_expired, uct_expiry_state
 # Import core business logic
 from journey import find_connections, find_transfer_connections
-from fastapi_app.services.uct_validity import drop_expired, uct_expiry_state
-from disruption import assess_connection
-import ls_ui
-from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
-from journey_map import build_journey_map_data, _journey_map_html, leg_stop_sequence
-from system_map import build_network, get_route_colors
-from fastapi_app.services.trip_preview import preview_ok_for_card
-from fastapi_app.services.journey_page import (
-    journey_href_direct,
-    journey_href_transfer,
-)
+from journey_map import leg_stop_sequence
+from system_map import get_route_colors
 
 logger = logging.getLogger(__name__)
 
@@ -49,13 +41,15 @@ def get_current_day_type(dt: Optional[datetime] = None) -> str:
     weekday = dt.weekday()  # 0=Monday, 6=Sunday
     if weekday == 5:
         return "saturday"
-    elif weekday == 6:
+    if weekday == 6:
         return "sunday"
-    else:
-        return "weekday"
+    return "weekday"
 
 
 @router.get("/search", response_class=HTMLResponse)
+# FastAPI maps query parameters to arguments, and this handler builds the
+# whole results page in one pass. Splitting it is tracked as a refactor.
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches,too-many-statements
 async def search_page(
     request: Request,
     from_stop: Optional[str] = None,
@@ -95,11 +89,12 @@ async def search_page(
     search_date_parsed = None
     if search_date:
         try:
-            from datetime import datetime as dt
-            search_date_parsed = dt.strptime(search_date, "%Y-%m-%d").date()
+            search_date_parsed = datetime.strptime(search_date, "%Y-%m-%d").date()
             # Auto-determine day_type from date if not explicitly set
             if day_type is None:
-                day_type = get_current_day_type(datetime.combine(search_date_parsed, datetime.min.time()))
+                day_type = get_current_day_type(
+                    datetime.combine(search_date_parsed, datetime.min.time())
+                )
         except ValueError:
             search_date = None  # Invalid date, ignore it
 
@@ -143,7 +138,6 @@ async def search_page(
 
     # If only from_stop is selected, redirect to single-stop view
     if not to_stop or to_stop == from_stop:
-        from fastapi.responses import RedirectResponse
         return RedirectResponse(
             url=f"/stop/{from_stop}?day_type={day_type}&operator={operator}")
 
@@ -170,7 +164,9 @@ async def search_page(
             from_block_result = conn.execute(
                 "SELECT ls_block FROM stops WHERE stop_name = ? LIMIT 1", [from_stop]
             ).fetchone()
-            from_block = from_block_result[0] if from_block_result and from_block_result[0] else None
+            from_block = (
+                from_block_result[0] if from_block_result and from_block_result[0] else None
+            )
 
             to_block_result = conn.execute(
                 "SELECT ls_block FROM stops WHERE stop_name = ? LIMIT 1", [to_stop]
@@ -194,7 +190,7 @@ async def search_page(
 
             # If no upcoming buses today, show tomorrow's first departures
             if upcoming.empty and len(direct_df) > 0:
-                logger.info(f"No upcoming buses today, showing tomorrow's departures")
+                logger.info("No upcoming buses today, showing tomorrow's departures")
                 direct_df = direct_df.head(10)  # Show first 10 departures of next day
                 showing_next_day = True
             else:
@@ -207,7 +203,9 @@ async def search_page(
             transfer_df = find_transfer_connections(
                 conn, from_stop, to_stop, day_type, operator=operator)
             if expired_uct and transfer_df is not None and not transfer_df.empty:
-                keep = transfer_df["route_ids"].apply(lambda ids: drop_expired(list(ids), expired_uct))
+                keep = transfer_df["route_ids"].apply(
+                    lambda ids: drop_expired(list(ids), expired_uct)
+                )
                 transfer_df = transfer_df[keep].reset_index(drop=True)
 
             # Filter for upcoming departures
@@ -389,7 +387,9 @@ async def search_page(
             # For transfers, add to tabs too
             if not direct_connections:
                 results["tabs"]["best"] = transfer_connections[:8]
-                results["tabs"]["fastest"] = sorted(transfer_connections, key=lambda x: x["duration_min"])[:8]
+                results["tabs"]["fastest"] = sorted(
+                    transfer_connections, key=lambda x: x["duration_min"]
+                )[:8]
                 results["tabs"]["all_day"] = transfer_connections
 
         return templates.TemplateResponse(

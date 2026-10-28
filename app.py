@@ -16,9 +16,9 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import altair as alt
-import streamlit as st
 import duckdb
 import pandas as pd
+import streamlit as st
 
 import ls_ui
 from disruption import (

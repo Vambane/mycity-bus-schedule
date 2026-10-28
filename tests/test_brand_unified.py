@@ -113,9 +113,10 @@ def test_brand_pairs_meet_wcag_aa(fg, bg, minimum):
 def test_contrast_comments_in_tokens_are_honest():
     """Ratios written next to text tokens must match the real maths."""
     tokens = (CSS / "tokens.css").read_text()
-    for name, hex_, ratio in re.findall(
-        r"--(text-secondary|text-tertiary|ls-ok-fg|ls-crit-fg):\s*(#[0-9A-Fa-f]{6});\s*/\*\s*([\d.]+):1",
-        tokens,
-    ):
+    pattern = (
+        r"--(text-secondary|text-tertiary|ls-ok-fg|ls-crit-fg):"
+        r"\s*(#[0-9A-Fa-f]{6});\s*/\*\s*([\d.]+):1"
+    )
+    for name, hex_, ratio in re.findall(pattern, tokens):
         bg = {"ls-ok-fg": "#D7F0E2", "ls-crit-fg": "#FFD9D6"}.get(name, "#FFFFFF")
         assert abs(contrast(hex_, bg) - float(ratio)) < 0.15, name

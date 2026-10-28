@@ -14,11 +14,7 @@ import duckdb
 import pytest
 
 import system_map
-from journey_map import (
-    _journey_map_html,
-    build_journey_map_data,
-    leg_stop_sequence,
-)
+from journey_map import _journey_map_html, build_journey_map_data, leg_stop_sequence
 
 COLORS = {"R1": "#111111", "R2": "#222222"}
 
@@ -225,7 +221,8 @@ def test_html_embeds_data_and_leaflet(db: duckdb.DuckDBPyConnection) -> None:
     data = build_journey_map_data(db, LEGS, "weekday", COLORS)
     html = _journey_map_html(data)
     assert "leaflet@1.9.4" in html
-    assert "basemaps.cartocdn.com" in html
+    # OpenStreetMap tiles need no API key (CARTO was dropped in hotfix/basemap-no-key)
+    assert "tile.openstreetmap.org" in html
     assert json.dumps(data) in html
     assert "__DATA__" not in html and "__KIND_COLORS__" not in html
     # Schematic / Street toggle, with schematic elbows built client-side

@@ -10,30 +10,20 @@ Covers:
   - Stale timetable detection
 """
 
-import duckdb
-import pytest
 from datetime import date
 
-from journey import find_connections, find_transfer_connections
-from system_map import (
-    _route_category,
-    _route_color,
-    get_route_colors,
-    UCT_COLORS,
-)
+import duckdb
+import pytest
 
-# Import scraper helpers — reach into etl package
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from etl.load_db import DDL, MIGRATIONS
 from etl.scrape_uct import (
-    _normalise_time,
-    _clean_stop_name,
     _classify_day_type,
+    _clean_stop_name,
+    _normalise_time,
     _parse_validity_dates,
 )
-from etl.load_db import DDL, MIGRATIONS
-
+from journey import find_connections, find_transfer_connections
+from system_map import UCT_COLORS, _route_category, _route_color, get_route_colors
 
 # ---------------------------------------------------------------------------
 # Fixtures: in-memory DuckDB with operator column

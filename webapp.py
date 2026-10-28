@@ -1,10 +1,10 @@
 """Flask API and static website for the MyCiTi timetable."""
 
-from functools import lru_cache
 import json
 import logging
 import os
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -13,7 +13,6 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from journey import find_connections, find_transfer_connections
 from system_map import build_network
-
 
 ROOT = Path(__file__).parent
 DATA_DIR = ROOT / "data"

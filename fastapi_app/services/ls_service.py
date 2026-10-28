@@ -7,9 +7,9 @@ uses standard caching and environment variables.
 import logging
 import os
 from typing import Optional, Tuple
+
 import requests
 from cachetools import TTLCache, cached
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 

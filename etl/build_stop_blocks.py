@@ -37,10 +37,11 @@ from shapely.prepared import prep
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # pylint: disable=wrong-import-position
+from etl.load_db import DB_PATH
+
 # _load_stop_coords/_match_coords are deliberately shared internals: the
 # block mapping must key on the same matched stop names as the system map.
-from system_map import _load_stop_coords, _match_coords
-from etl.load_db import DB_PATH
+from system_map import _load_stop_coords, _match_coords  # isort: skip
 
 log = logging.getLogger(__name__)
 

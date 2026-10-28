@@ -16,14 +16,14 @@ Run standalone to test:
 """
 
 import io
+import logging
 import re
 import time
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-import requests
 import pdfplumber
+import requests
 from bs4 import BeautifulSoup
 
 # ---------------------------------------------------------------------------
