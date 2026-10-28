@@ -35,12 +35,15 @@
   <header class="header" role="banner">
     <div class="header-inner">
       <a href="/" class="logo" aria-label="Halte home">
-        <span class="logo-icon" aria-hidden="true">&#x1F68D;</span>
-        Halte
+        <span class="logo-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M13 3L4 14h7l-1 7 9-11h-7l1-7z" fill="#FFE17C" stroke="#FFE17C"/>
+          </svg>
+        </span>
+        <span class="logo-word">Halte</span>
       </a>
 
       <nav class="nav-pills" role="navigation" aria-label="Main navigation">
-        <span class="nav-indicator" id="nav-indicator"></span>
         <a href="/search"
            class="nav-pill {% if page in ('search', 'journey') %}active{% endif %}"
            data-nav="search"
@@ -100,15 +103,9 @@
     </div>
   </footer>
 
-  <!-- Nav indicator + honest wake -->
+  <!-- Honest wake -->
   <script>
   (function() {
-    var active = document.querySelector('.nav-pill.active');
-    var indicator = document.getElementById('nav-indicator');
-    if (active && indicator) {
-      indicator.style.width = active.offsetWidth + 'px';
-      indicator.style.transform = 'translateX(' + active.offsetLeft + 'px)';
-    }
     var wake = document.getElementById('wake-banner');
     if (wake && document.body.getAttribute('data-db-ready') === 'true') {
       wake.hidden = true;

@@ -1,8 +1,9 @@
 /* ============================================================
-   MyCiTi Base Styles
+   Halte Base Styles
    ============================================================
-   Reset, typography, layout shell, header, footer.
-   Imports tokens.css for all custom properties.
+   Reset, typography, layout shell, header, hero band, footer.
+   All values come from tokens.css; the look matches the
+   Neo-Brutalist landing page (landing.css).
    ============================================================ */
 
 /* --- Reset --- */
@@ -23,6 +24,7 @@ html {
 
 body {
   font-family: var(--font);
+  font-weight: 500;
   font-size: var(--text-base);
   line-height: 1.6;
   color: var(--text-primary);
@@ -30,11 +32,21 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  /* Satoshi ships one weight (500). Never fake-bold it: emphasis
+     switches to the display face instead (see strong, labels). */
+  font-synthesis-weight: none;
 }
 
-/* --- Focus ring (gold, accessible) --- */
+strong,
+b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* --- Focus ring (ink, matches landing buttons) --- */
 :focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 3px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -45,13 +57,14 @@ body {
 
 /* --- Links --- */
 a {
-  color: var(--gold);
+  color: var(--ink);
   text-decoration: none;
   transition: color var(--duration) var(--ease-out);
 }
 
 a:hover {
-  color: var(--gold-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* --- Container --- */
@@ -62,23 +75,19 @@ a:hover {
   padding-inline: var(--sp-4);
 }
 
-@media (min-width: 768px) {
-  .container {
-    padding-inline: var(--sp-6);
-  }
-}
-
 /* --- Typography --- */
-h1, h2, h3 {
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
   color: var(--text-primary);
 }
 
 h1 { font-size: var(--text-2xl); margin-bottom: var(--sp-2); }
 h2 { font-size: var(--text-xl);  margin-bottom: var(--sp-2); }
-h3 { font-size: var(--text-lg);  margin-bottom: var(--sp-2); }
+h3 { font-size: var(--text-lg);  margin-bottom: var(--sp-2); letter-spacing: -0.02em; }
+h4 { font-size: var(--text-md);  margin-bottom: var(--sp-2); letter-spacing: -0.02em; }
 
 @media (min-width: 768px) {
   h1 { font-size: var(--text-3xl); }
@@ -86,7 +95,13 @@ h3 { font-size: var(--text-lg);  margin-bottom: var(--sp-2); }
 
 .text-secondary { color: var(--text-secondary); }
 .text-tertiary  { color: var(--text-tertiary); }
+.text-muted     { color: var(--text-tertiary); }
 .text-sm        { font-size: var(--text-sm); }
+
+/* Spacing helpers used by the stop page */
+.mb-2 { margin-bottom: var(--sp-4); }
+.mb-3 { margin-bottom: var(--sp-6); }
+.mt-3 { margin-top: var(--sp-6); }
 
 /* Time values always mono, tabular for alignment */
 .time-display {
@@ -97,7 +112,8 @@ h3 { font-size: var(--text-lg);  margin-bottom: var(--sp-2); }
 
 /* ============================================================
    HEADER
-   Sticky, blurred glass background, logo left, pill nav right.
+   Yellow bar with a 2px ink rule, same as the landing nav.
+   Logo left, nav pills and load-shedding badge right.
    ============================================================ */
 .header {
   position: sticky;
@@ -105,9 +121,7 @@ h3 { font-size: var(--text-lg);  margin-bottom: var(--sp-2); }
   z-index: 100;
   height: var(--header-height);
   background: var(--bg-header);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
+  border-bottom: var(--border-width) solid var(--ink);
   display: flex;
   align-items: center;
 }
@@ -115,99 +129,113 @@ h3 { font-size: var(--text-lg);  margin-bottom: var(--sp-2); }
 .header-inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--sp-4);
   width: 100%;
   max-width: var(--container-max);
   margin-inline: auto;
   padding-inline: var(--sp-4);
 }
 
-@media (min-width: 768px) {
-  .header-inner {
-    padding-inline: var(--sp-6);
-  }
-}
-
-/* Logo */
+/* Logo: black square with the yellow bolt + wordmark */
 .logo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--text-primary);
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  color: var(--ink);
   text-decoration: none;
-  transition: color var(--duration) var(--ease-out);
+  margin-right: auto;
 }
 
 .logo:hover {
-  color: var(--gold);
+  color: var(--ink);
+  text-decoration: none;
 }
 
-.logo-icon {
-  font-size: 1.4em;
+.logo-mark {
+  width: 36px;
+  height: 36px;
+  background: var(--ink);
+  border: var(--border-width) solid var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-/* Pill navigation */
+/* Nav: display-face links; the active page is an ink pill */
 .nav-pills {
   display: flex;
-  position: relative;
-  background: var(--bg-overlay);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  padding: 3px;
-  gap: 2px;
+  align-items: center;
+  gap: var(--sp-1);
 }
 
 .nav-pill {
-  position: relative;
-  z-index: 1;
-  padding: var(--sp-2) var(--sp-6);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--sp-4);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-md);
+  letter-spacing: -0.02em;
+  color: var(--ink);
   text-decoration: none;
-  border-radius: var(--radius-full);
-  transition: color var(--duration) var(--ease-out);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
   white-space: nowrap;
+  transition: background var(--duration-fast) ease,
+              border-color var(--duration-fast) ease;
 }
 
 .nav-pill:hover {
-  color: var(--text-primary);
+  color: var(--ink);
+  text-decoration: none;
+  border-color: var(--ink);
+  background: var(--paper);
 }
 
-.nav-pill.active {
-  color: var(--text-inverse);
+.nav-pill.active,
+.nav-pill.active:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--yellow);
 }
 
-/* Animated active indicator (positioned with JS) */
+/* The sliding indicator from the old theme is no longer drawn. */
 .nav-indicator {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  height: calc(100% - 6px);
-  background: var(--gold);
-  border-radius: var(--radius-full);
-  transition: transform var(--duration-slow) var(--ease-out),
-              width var(--duration-slow) var(--ease-out);
-  z-index: 0;
+  display: none !important;
 }
 
-/* Load shedding badge in header */
+/* Load-shedding badge: bordered pill, stage colour in the fill */
 .ls-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
-  padding: var(--sp-1) var(--sp-3);
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  font-family: var(--font-display);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  border: var(--border-width) solid var(--ink);
   border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ls-badge--ok   { background: var(--ls-ok-bg);   color: var(--ls-ok-fg); }
-.ls-badge--warn { background: var(--ls-warn-bg); color: var(--ls-warn-fg); }
+.ls-badge--warn { background: var(--paper);      color: var(--ls-warn-fg); }
 .ls-badge--crit { background: var(--ls-crit-bg); color: var(--ls-crit-fg); }
+
+.ls-badge__src {
+  font-family: var(--font-body);
+  font-weight: 500;
+}
 
 /* ============================================================
    MAIN
@@ -219,10 +247,56 @@ h3 { font-size: var(--text-lg);  margin-bottom: var(--sp-2); }
 }
 
 /* ============================================================
+   HERO BAND
+   A full-bleed yellow band under the header, like the landing
+   hero. The band is painted with border-image outset so it
+   reaches both viewport edges without widening the page
+   (outset paint is ink overflow, never scrollable overflow).
+   The bottom 2px of the gradient is the ink rule.
+   ============================================================ */
+.hero {
+  position: relative;
+  margin-top: calc(-1 * var(--sp-8));
+  margin-bottom: var(--sp-8);
+  padding: var(--sp-8) 0 var(--sp-8);
+  border-image:
+    linear-gradient(
+      to bottom,
+      var(--yellow) calc(100% - var(--border-width)),
+      var(--ink) calc(100% - var(--border-width))
+    ) fill 0 / 0 / 0 100vmax;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2rem, 7vw, 3.5rem);
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin-bottom: var(--sp-3);
+  overflow-wrap: anywhere;
+}
+
+.hero-subtitle {
+  font-size: var(--text-md);
+  color: var(--charcoal);
+  max-width: 36rem;
+}
+
+.hero-subtitle a {
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+/* ============================================================
    FOOTER
+   Charcoal band, same as the landing footer.
    ============================================================ */
 .footer {
-  border-top: 1px solid var(--border);
+  background: var(--charcoal);
+  color: var(--sage);
+  border-top: var(--border-width) solid var(--ink);
   padding: var(--sp-8) 0;
   margin-top: auto;
 }
@@ -230,42 +304,16 @@ h3 { font-size: var(--text-lg);  margin-bottom: var(--sp-2); }
 .footer-inner {
   text-align: center;
   font-size: var(--text-sm);
-  color: var(--text-tertiary);
   line-height: 1.8;
 }
 
 .footer-inner a {
-  color: var(--text-secondary);
-  transition: color var(--duration) var(--ease-out);
+  color: var(--yellow);
 }
 
 .footer-inner a:hover {
-  color: var(--gold);
-}
-
-/* ============================================================
-   HERO
-   ============================================================ */
-.hero {
-  margin-bottom: var(--sp-8);
-}
-
-.hero-title {
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  margin-bottom: var(--sp-2);
-}
-
-@media (min-width: 768px) {
-  .hero-title {
-    font-size: var(--text-3xl);
-  }
-}
-
-.hero-subtitle {
-  font-size: var(--text-md);
-  color: var(--text-secondary);
-  max-width: 480px;
+  color: var(--yellow);
+  text-decoration: underline;
 }
 
 /* ============================================================

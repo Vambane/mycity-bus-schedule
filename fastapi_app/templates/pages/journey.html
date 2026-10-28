@@ -12,11 +12,10 @@
   {% include 'components/trust_strip.html' %}
   <div class="alert alert-warning" role="alert">{{ error }}</div>
   {% else %}
-  <p class="journey-back">
-    <a href="{{ journey.back_href }}">← Search results</a>
-  </p>
-
   <section class="hero hero--journey">
+    <p class="journey-back">
+      <a href="{{ journey.back_href }}">← Search results</a>
+    </p>
     <h1 class="hero-title">{{ journey.from_stop }} → {{ journey.to_stop }}</h1>
     <p class="hero-subtitle">
       {{ journey.day_type|capitalize }} · {{ journey.dep }}–{{ journey.arr }}

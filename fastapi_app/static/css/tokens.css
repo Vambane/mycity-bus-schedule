@@ -1,50 +1,80 @@
 /* ============================================================
    Halte Design Tokens
    ============================================================
-   Single source of truth for the design system.
-   Light lime/ink theme (map stays dark), Inter font.
-   Lime #C8FF00 is only ever a fill under ink text, or used on dark.
-   --gold-* names are kept for compatibility; they now carry ink.
-   All spacing follows a 4px grid: 4/8/12/16/24/32/48.
+   Single source of truth for the whole product: the landing
+   page (/) and the app pages (/search, /journey, /stop, /map).
+
+   Brand: Neo-Brutalist. Butter yellow, black ink, charcoal and
+   sage; 2px black borders; hard offset shadows; Cabinet Grotesk
+   for display, Satoshi for body (both self-hosted, see
+   FONTSHARE_LICENCE.md).
+
+   Yellow is only ever a fill under ink text, or text on
+   ink/charcoal. Contrast ratios are listed next to the text
+   colours below (all WCAG AA or better).
+
+   Legacy names (--gold-*, --text-*, --bg-*) are kept because the
+   components reference them; they now carry the brand values.
+   Spacing follows a 4px grid: 4/8/12/16/20/24/32/48.
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* --- Self-hosted brand fonts (no third-party font CDN) --- */
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/static/fonts/CabinetGrotesk-Extrabold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/static/fonts/Satoshi-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
-  /* --- brand --- */
-  --lime:            #C8FF00;
-  --lime-hover:      #D4FF33;
-  --lime-press:      #B4E600;
-  --ink:             #0A0A0A;
-  --ink-2:           #111111;
-  --ink-hover:       #262626;
+  /* --- brand palette --- */
+  --yellow:          #FFE17C;
+  --yellow-tint:     #FFF3C9;   /* hover / highlighted rows under ink text */
+  --charcoal:        #171E19;
+  --charcoal-2:      #272727;
+  --sage:            #B7C6C2;
+  --ink:             #000000;
+  --paper:           #FFFFFF;
+  --paper-2:         #F4F4F4;   /* muted surface ("before" panels, skeletons) */
+
+  /* --- legacy accent names (components use these) --- */
   --gold:            var(--ink);
-  --gold-hover:      var(--ink-hover);
-  --gold-press:      var(--ink-2);
-  --gold-muted:      rgba(200, 255, 0, 0.25);
-  --gold-focus:      rgba(10, 10, 10, 0.35);
+  --gold-hover:      #1F1F1F;
+  --gold-press:      var(--ink);
+  --gold-muted:      var(--yellow-tint);
+  --gold-focus:      rgba(0, 0, 0, 0.35);
 
   /* --- surfaces --- */
-  --bg:              #F2F2F0;
-  --bg-raised:       #FFFFFF;
-  --bg-overlay:      #FFFFFF;
-  --bg-card:         #FFFFFF;
-  --bg-card-hover:   #F7F7F5;
-  --bg-input:        #F2F2F0;
-  --bg-header:       rgba(242, 242, 240, 0.85);
+  --bg:              var(--paper);
+  --bg-raised:       var(--paper);
+  --bg-overlay:      var(--paper);
+  --bg-card:         var(--paper);
+  --bg-card-hover:   var(--paper-2);
+  --bg-input:        var(--paper);
+  --bg-header:       var(--yellow);
 
   /* --- borders --- */
-  --border:          rgba(10, 10, 10, 0.08);
-  --border-subtle:   rgba(10, 10, 10, 0.05);
-  --border-strong:   rgba(10, 10, 10, 0.16);
+  --border-width:    2px;
+  --border:          var(--ink);
+  --border-subtle:   rgba(0, 0, 0, 0.12);
+  --border-strong:   var(--ink);
 
-  /* --- text --- */
-  --text-primary:    #0A0A0A;
-  --text-secondary:  #4A4A48;
-  --text-tertiary:   #6E6E6A;
-  --text-inverse:    #FFFFFF;
+  /* --- text (ratios on paper #FFF) --- */
+  --text-primary:    var(--ink);   /* 21:1 */
+  --text-secondary:  #2E3530;      /* 12.6:1 */
+  --text-tertiary:   #555C57;      /* 6.9:1 */
+  --text-inverse:    var(--paper);
 
-  /* --- route badge colours (from system map) --- */
+  /* --- route badge colours (route identity, unchanged) --- */
   --route-trunk:     #E4003A;
   --route-direct:    #0072BC;
   --route-area:      #00843D;
@@ -53,44 +83,49 @@
   --route-orange:    #F2994A;
 
   /* --- semantic --- */
-  --success:         #065F46;
-  --warning:         #92400E;
-  --danger:          #B91C1C;
-  --info:            #1D4ED8;
+  --success:         #00843D;
+  --warning:         #B45309;
+  --danger:          #C81E1E;
+  --info:            var(--ink);
 
-  /* --- load shedding stages --- */
-  --ls-ok-bg:        rgba(4, 120, 87, 0.10);
-  --ls-ok-fg:        #065F46;
-  --ls-warn-bg:      rgba(180, 83, 9, 0.12);
-  --ls-warn-fg:      #92400E;
-  --ls-crit-bg:      rgba(185, 28, 28, 0.12);
-  --ls-crit-fg:      #B91C1C;
+  /* --- load shedding stages (tinted fill + ink border) --- */
+  --ls-ok-bg:        #D7F0E2;
+  --ls-ok-fg:        #064E30;      /* 8.2:1 on its fill */
+  --ls-warn-bg:      var(--yellow);
+  --ls-warn-fg:      var(--ink);   /* 16.3:1 on yellow */
+  --ls-crit-bg:      #FFD9D6;
+  --ls-crit-fg:      #8A1010;      /* 7.5:1 on its fill */
 
   /* --- spacing (4px grid) --- */
   --sp-1:            4px;
   --sp-2:            8px;
   --sp-3:            12px;
   --sp-4:            16px;
+  --sp-5:            20px;
   --sp-6:            24px;
   --sp-8:            32px;
   --sp-12:           48px;
 
-  /* --- radii --- */
-  --radius-xs:       6px;
-  --radius-sm:       8px;
-  --radius-md:       12px;
-  --radius-lg:       16px;
-  --radius-xl:       24px;
+  /* --- radii (brutalist: small and consistent) --- */
+  --radius-xs:       4px;
+  --radius-sm:       6px;
+  --radius-md:       10px;
+  --radius-lg:       10px;
+  --radius-xl:       12px;
   --radius-full:     9999px;
 
-  /* --- shadows --- */
-  --shadow-sm:       0 1px 3px rgba(10, 10, 10, 0.08);
-  --shadow-md:       0 4px 12px rgba(10, 10, 10, 0.10);
-  --shadow-lg:       0 8px 32px rgba(10, 10, 10, 0.14);
+  /* --- hard offset shadows --- */
+  --shadow-sm:       2px 2px 0 var(--ink);
+  --shadow-std:      4px 4px 0 var(--ink);
+  --shadow-md:       var(--shadow-std);
+  --shadow-lg:       8px 8px 0 var(--ink);
+  --shadow-hero:     12px 12px 0 var(--ink);
   --shadow-glow:     none;
 
   /* --- typography --- */
-  --font:            'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display:    "Cabinet Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body:       "Satoshi", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font:            var(--font-body);
   --font-mono:       'SF Mono', 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
 
   --text-xs:         0.75rem;    /* 12px */
@@ -100,7 +135,7 @@
   --text-lg:         1.125rem;   /* 18px */
   --text-xl:         1.5rem;     /* 24px */
   --text-2xl:        2rem;       /* 32px */
-  --text-3xl:        2.5rem;     /* 40px */
+  --text-3xl:        2.75rem;    /* 44px */
 
   /* --- transitions --- */
   --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
@@ -110,7 +145,7 @@
   --duration-slow:   350ms;
 
   /* --- layout --- */
-  --container-max:   1200px;
+  --container-max:   1152px;     /* 1120px content + 16px gutters, matches landing */
   --header-height:   64px;
 }
 

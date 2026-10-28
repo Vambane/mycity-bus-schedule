@@ -44,10 +44,10 @@ def test_landing_renders_at_root(client):
     assert "Plan a trip" in html
     assert 'href="/search"' in html
     assert "landing.css" in html
+    # Brand fonts live in the shared tokens file, loaded before landing.css.
+    assert html.index("tokens.css") < html.index("landing.css")
     assert "CabinetGrotesk-Extrabold.woff2" in open(
-        "fastapi_app/static/css/landing.css"
-    ).read() or "CabinetGrotesk" in open(
-        "fastapi_app/static/css/landing.css"
+        "fastapi_app/static/css/tokens.css"
     ).read()
 
 
