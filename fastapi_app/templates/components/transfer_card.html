@@ -24,6 +24,10 @@
        title="Search return trip" aria-label="Search return trip">&#8693;</a>
   </div>
 
+  {% for note in uct_notes(conn.route_ids, results.day_type) %}
+  <p class="journey-via journey-card-front route-note">{{ note }}</p>
+  {% endfor %}
+
   {% if conn.via %}
   <div class="journey-via journey-card-front">Via {{ conn.via|join(', ') }}</div>
   {% endif %}

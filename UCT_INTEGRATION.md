@@ -5,7 +5,8 @@ project information, see [README.md](README.md).
 
 ## Overview
 
-The UCT shuttle service operates 15 routes across the University of Cape Town
+The UCT shuttle service operates 15 routes in the current Consolidation & Exam set
+(26 Oct – 20 Nov 2026) across the University of Cape Town
 campuses. Timetable data is scraped from the university website and loaded
 alongside MyCiTi data into the shared DuckDB database. Both operators coexist
 in the same tables, distinguished by the `operator` column (`'myciti'` or
@@ -15,25 +16,32 @@ in the same tables, distinguished by the `operator` column (`'myciti'` or
 
 ## Routes parsed
 
-| Route ID | Name | Day types |
-|----------|------|-----------|
-| UCT1 | Claremont | weekday, sunday |
-| UCT2 | Forest Hill | weekday, sunday |
-| UCT3 | Mowbray | weekday, sunday |
-| UCT4 | Liesbeeck via Mowbray | weekday |
-| UCT5 | Great Westerford | weekday, sunday |
-| UCT6 | Carinus | weekday, sunday |
-| UCT7 | Sandown | weekday, sunday |
-| UCT9 | Obz Square via PNP Rondebosch | weekday, sunday |
-| UCT10 | Hiddingh Hall | weekday |
-| UCT11 | Obz Square via Faculty of Health Sciences & Tugwell | weekday |
-| UCT13 | Residence loops | weekday, sunday |
-| UCT14 | Residence loops | weekday, sunday |
-| UCT15 | Residence loops | saturday |
-| UCT16 | Residence loops | saturday |
-| UCT20 | Educare | weekday |
+| Route ID | Name | Day types | Valid |
+|----------|------|-----------|-------|
+| UCT1 | Claremont | weekday, saturday, sunday | 26 Oct – 20 Nov 2026 |
+| UCT2 | Forest Hill | weekday | 26 Oct – 20 Nov 2026 |
+| UCT3 | Mowbray | weekday | 26 Oct – 20 Nov 2026 |
+| UCT4 | Liesbeeck via Mowbray | weekday | 26 Oct – 20 Nov 2026 |
+| UCT5 | Forest Hill / Great Westerford | weekday | 26 Oct – 20 Nov 2026 (page says 26 Nov; see below) |
+| UCT6 | Carinus | weekday | 26 Oct – 20 Nov 2026 |
+| UCT7 | Rochester | weekday | 26 Oct – 20 Nov 2026 |
+| UCT9 | Obz Square via PNP Rondebosch | weekday | 26 Oct – 20 Nov 2026 |
+| UCT10 | Hiddingh Hall | weekday, saturday, sunday | 26 Oct – 20 Nov 2026 |
+| UCT11 | Obz Square via FHS & Tugwell | weekday | 26 Oct – 20 Nov 2026 |
+| UCT13 | Residence loop | weekday, saturday, sunday | 26 Oct – 20 Nov 2026 |
+| UCT14 | Residence loop | weekday, saturday, sunday | 26 Oct – 20 Nov 2026 |
+| UCT15 | Residence half loop | saturday, sunday | 26 Oct – 20 Nov 2026 |
+| UCT16 | Residence half loop | saturday, sunday | 26 Oct – 20 Nov 2026 |
+| UCTOVN | Overnight library loop | weekday (Mon–Fri) | 26 Oct – 20 Nov 2026 |
 
-Routes 8, 11, 12 do not appear on the current index page.
+Routes 8, 12 and 20 are not in this set. Route 20 (Educare) was dropped:
+the loader replaces all UCT rows, so no stale Route 20 times remain.
+"Weekend" sections are loaded for both Saturday and Sunday.
+
+The index page lists several timetable sets under `<h2>` headings;
+`select_timetable_set()` picks the one covering today (else the newest) and
+only routes under that heading are scraped.
+
 
 ## Row counts
 
@@ -41,7 +49,7 @@ Routes 8, 11, 12 do not appear on the current index page.
 |-------|--------|-----|-------|
 | routes | 47 | 15 | 62 |
 | stops | ~520 | 23 | ~543 |
-| departures | ~171k | ~1,335 | ~172k |
+| departures | ~167k | ~1,510 | ~168k |
 
 UCT departures break down as: weekday=1,091, sunday=233, saturday=11.
 
@@ -66,14 +74,16 @@ Row 1:  08:00     | 08:10     | 08:20     | ...
         ...       | ...       | ...       |
 ```
 
-Times are newline-delimited within each cell. Some cells contain "No service"
-or "Break in service" markers, which are skipped.
+Stop names come from the table header; times are read row by row from word
+positions, so each printed row is one trip. Blank or "No service" cells are
+kept as gaps, so partial trips survive. A repeated header starts a new block,
+and side-by-side copies of the same stop list are split into separate tables.
 
 ### Combined PDFs
 
-Routes 13 & 14 share a single PDF, as do routes 15 & 16. The parser uses
-"Route N:" text position markers in the PDF to assign tables to the correct
-route by vertical position.
+Routes 13 & 14 share a single PDF, as do routes 15 & 16. The parser assigns
+each table to the nearest "Route N" and day-type marker above it that
+overlaps it horizontally, and skips tables belonging to the other route.
 
 ### Day-type assignment
 
@@ -110,8 +120,22 @@ system map but are fully functional in journey search and departure boards.
 
 UCT timetables include validity date ranges (e.g., "14 Sept - 25 Oct 2026"),
 stored in the `valid_from` and `valid_until` columns of the `timetables`
-table. The app shows a warning banner when `MAX(valid_until)` for the UCT
-operator is in the past.
+table. Validity is checked per route (`fastapi_app/services/uct_validity.py`,
+dates in Africa/Johannesburg): once a route's `valid_until` has passed its
+times are removed from search results (direct and transfer) and departure
+boards, and the "Timetable expired" banner names the expired routes. The
+index-page heading dates are used, except that where page and PDF disagree
+the earlier date wins: Route 5's page says 26 Nov, its PDF 20 Nov, so it
+ends 20 Nov (`VALID_UNTIL_OVERRIDES`); extend if UCT confirms 26 Nov.
+
+### Known parsing limits
+
+- Footnotes are shown as static notes (`fastapi_app/services/uct_notes.py`)
+  in search results and departure boards, not applied to the times.
+- Trips on Routes 13/14 that cross midnight are left out (known gap; times
+  are stored within one day). Post-midnight-only trips (Overnight loop) are
+  kept as 00:xx weekday times.
+- One-direction PDFs (Routes 4, 5, 6, 7, 9, 11) are kept as printed.
 
 ## App integration
 
@@ -151,7 +175,7 @@ EXISTS` for idempotent upgrades of existing databases.
 
 ## Testing
 
-43 tests in `tests/test_uct_integration.py` cover:
+Tests in `tests/test_uct_integration.py` and `tests/test_uct_validity.py` cover:
 
 - Scraper helpers (time normalisation, stop name cleaning, day-type
   classification, validity date parsing)
@@ -159,3 +183,6 @@ EXISTS` for idempotent upgrades of existing databases.
 - UCT route category and color palette assignment
 - Schema migration (DDL + ALTER statements)
 - Stale timetable detection (expired/future/missing)
+- Per-route validity: Route 5 ends 20 Nov with the rest, route notes,
+  cross-midnight trips absent, banner and hidden times after 20 Nov,
+  timetable-set selection and Overnight loop heading parsing

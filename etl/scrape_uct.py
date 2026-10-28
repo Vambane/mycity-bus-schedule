@@ -80,6 +80,21 @@ VALIDITY_RE = re.compile(
     r"(\d{1,2})\s+(\w+)\s*[-–]\s*(\d{1,2})\s+(\w+)\s+(\d{4})",
 )
 
+# Same, without a year (e.g. "Overnight ... (26 Oct - 20 Nov)"); the year is
+# taken from the set heading ("Routes valid from 26 October to 20 November 2026").
+VALIDITY_NOYEAR_RE = re.compile(
+    r"(\d{1,2})\s+([A-Za-z]+)\.?\s*[-–]\s*(\d{1,2})\s+([A-Za-z]+)\.?\s*\)",
+)
+
+# Set heading, e.g. "Routes valid from 26 October to 20 November 2026"
+SET_RE = re.compile(
+    r"valid from\s+(\d{1,2})\s+([A-Za-z]+)\s+to\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})",
+    re.I,
+)
+
+# Route id used for UCT's Overnight library loop (no route number on the page)
+OVERNIGHT_ROUTE_NUM = "OVN"
+
 # Month name → number lookup (abbreviated and full)
 MONTH_MAP = {
     "jan": 1, "january": 1, "feb": 2, "february": 2,
@@ -172,9 +187,57 @@ def _parse_validity_dates(text: str) -> tuple[Optional[str], Optional[str]]:
     )
 
 
+def _parse_set_heading(text: str) -> tuple[Optional[str], Optional[str]]:
+    """'Routes valid from 26 October to 20 November 2026' → ISO dates."""
+    m = SET_RE.search(text)
+    if not m:
+        return None, None
+    d1, m1, d2, m2, year = m.groups()
+    a, b = MONTH_MAP.get(m1.lower()), MONTH_MAP.get(m2.lower())
+    if not a or not b:
+        return None, None
+    return f"{year}-{a:02d}-{int(d1):02d}", f"{year}-{b:02d}-{int(d2):02d}"
+
+
+def _parse_validity_with_year(text: str, year: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """Like _parse_validity_dates, but accepts a heading without a year."""
+    vf, vu = _parse_validity_dates(text)
+    if vf or not year:
+        return vf, vu
+    m = VALIDITY_NOYEAR_RE.search(text)
+    if not m:
+        return None, None
+    d1, m1, d2, m2 = m.groups()
+    a, b = MONTH_MAP.get(m1.lower()), MONTH_MAP.get(m2.lower())
+    if not a or not b:
+        return None, None
+    return f"{year}-{a:02d}-{int(d1):02d}", f"{year}-{b:02d}-{int(d2):02d}"
+
+
+def select_timetable_set(html: str, today: Optional[str] = None) -> Optional[str]:
+    """Pick the set heading to load: the one covering *today*, else the newest.
+
+    Returns the h2 text (e.g. "Routes valid from 26 October to 20 November
+    2026"), or None if the page has no dated sets.
+    """
+    soup = BeautifulSoup(html, "lxml")
+    today = today or datetime.now(timezone.utc).date().isoformat()
+    sets = []
+    for h2 in soup.find_all("h2"):
+        t = h2.get_text(" ", strip=True)
+        vf, vu = _parse_set_heading(t)
+        if vf:
+            sets.append((vf, vu, t))
+    if not sets:
+        return None
+    current = [s for s in sets if s[0] <= today <= s[1]]
+    return (current or sorted(sets))[-1][2]
+
+
 def discover_routes(
     html: str,
     inconsistencies: list[dict],
+    timetable_set: Optional[str] = None,
 ) -> list[dict]:
     """Parse the UCT shuttle index page and return route metadata.
 
@@ -191,20 +254,34 @@ def discover_routes(
     # Find all h3 links that point to /media/ (timetable PDFs)
     h3_links = soup.select("h3 a[href*='/media/']")
 
+    set_year: Optional[str] = None
+    if timetable_set:
+        _sf, _su = _parse_set_heading(timetable_set)
+        set_year = _su[:4] if _su else None
+
     for h3_a in h3_links:
         heading_text = h3_a.get_text(strip=True)
         href = h3_a["href"]
+
+        # Only load routes from the chosen dated set (the page lists the
+        # previous set too).
+        if timetable_set:
+            h2 = h3_a.find_previous("h2")
+            if not h2 or h2.get_text(" ", strip=True) != timetable_set:
+                continue
 
         # Resolve relative URLs
         pdf_url = urljoin(BASE_URL, href)
 
         # Extract route number(s) from heading
         num_match = ROUTE_NUM_RE.search(heading_text)
-        if not num_match:
+        if not num_match and "overnight" in heading_text.lower():
+            route_nums_raw = OVERNIGHT_ROUTE_NUM
+        elif not num_match:
             log.warning(f"  Could not extract route number from: {heading_text}")
             continue
-
-        route_nums_raw = num_match.group(1)
+        else:
+            route_nums_raw = num_match.group(1)
         # Handle "13 and 14" → ["13", "14"]
         route_nums = re.split(r"\s*(?:and|&)\s*", route_nums_raw)
 
@@ -212,9 +289,11 @@ def discover_routes(
         desc_match = re.search(r"Route[s]?\s+[\d\s]+(?:and\s+\d+)?:\s*(.+?)(?:\(|$)",
                                heading_text)
         description = desc_match.group(1).strip() if desc_match else heading_text
+        if route_nums_raw == OVERNIGHT_ROUTE_NUM:
+            description = "Overnight library loop"
 
-        # Extract validity dates from the heading
-        valid_from, valid_until = _parse_validity_dates(heading_text)
+        # Extract validity dates from the heading (year from the set if absent)
+        valid_from, valid_until = _parse_validity_with_year(heading_text, set_year)
 
         # Collect ALL PDF links for this route group — look at sibling
         # divs after the h3 for additional timetable links.
@@ -569,6 +648,179 @@ def _parse_uct_table(
     return stops, departures
 
 
+# Day-type phrases in PDF text → the app's day types. "Weekend" sections run
+# on both Saturday and Sunday, so they are loaded for both.
+DAY_PHRASES = [
+    (re.compile(r"Saturday\s*(?:&|and)\s*Sunday|Weekends?(?:\s*(?:&|and)\s*Public\s*Holidays)?", re.I),
+     ("saturday", "sunday")),
+    (re.compile(r"\bSaturdays?\b", re.I), ("saturday",)),
+    (re.compile(r"\bSundays?\b", re.I), ("sunday",)),
+    (re.compile(r"Monday\s*(?:[-–]|to)\s*Friday", re.I), ("weekday",)),
+]
+
+# Row labels that are not stops (Overnight loop: "Anticlock" / "Clockwise")
+LABEL_CELLS = {"clockwise", "anticlock", "anticlockwise", "anti-clockwise",
+               "anti clockwise"}
+
+
+def _lines(words: list[dict], tol: float = 3.0) -> list[list[dict]]:
+    """Group pdfplumber words into lines (sorted top→bottom, left→right)."""
+    out: list[list[dict]] = []
+    for w in sorted(words, key=lambda w: (round(w["top"]), w["x0"])):
+        if out and abs(out[-1][0]["top"] - w["top"]) < tol:
+            out[-1].append(w)
+        else:
+            out.append([w])
+    return [sorted(l, key=lambda w: w["x0"]) for l in out]
+
+
+def _section_markers(page) -> tuple[list[tuple], list[tuple]]:
+    """Day-type and route markers with positions.
+
+    Returns (day_markers, route_markers) where each day marker is
+    (top, x0, x1, day_types) and each route marker is (top, x0, x1, num).
+    Side-by-side sections on one line keep their own x ranges.
+    """
+    day, route = [], []
+    for line in _lines(page.extract_words()):
+        text, spans = "", []
+        for w in line:
+            if text:
+                text += " "
+            spans.append((len(text), len(text) + len(w["text"]), w))
+            text += w["text"]
+
+        def xr(a, b):
+            ws = [w for (s0, s1, w) in spans if s1 > a and s0 < b]
+            return ws[0]["x0"], ws[-1]["x1"]
+
+        taken: list[tuple[int, int]] = []
+        for pat, dts in DAY_PHRASES:
+            for m in pat.finditer(text):
+                if any(m.start() < b and m.end() > a for a, b in taken):
+                    continue
+                taken.append((m.start(), m.end()))
+                x0, x1 = xr(m.start(), m.end())
+                day.append((line[0]["top"], x0, x1, dts))
+        for m in re.finditer(r"Route\s+(\d+)\s*:", text, re.I):
+            x0, x1 = xr(m.start(), m.end())
+            route.append((line[0]["top"], x0, x1, m.group(1)))
+    return day, route
+
+
+def _nearest_above(markers: list[tuple], top: float, x0: float, x1: float):
+    """Closest marker above *top* whose x range overlaps [x0, x1]."""
+    best = None
+    for m in markers:
+        if m[0] <= top + 1 and m[1] <= x1 and m[2] >= x0 - 40:
+            if best is None or m[0] >= best[0]:
+                best = m
+    return best
+
+
+def _table_trips(page, ptable) -> list[tuple[list[str], list[list[Optional[str]]]]]:
+    """Read one pdfplumber table as [(stop_names, rows_of_times)].
+
+    Rows are taken from word positions, so each printed row is one trip,
+    blanks and "No service" cells stay in their own column, and a header
+    row that repeats inside the table (Overnight loop) starts a new block.
+    """
+    raw = ptable.extract()
+    if not raw or len(raw) < 2:
+        return []
+    cells = ptable.rows[0].cells
+    cols = [(c[0], c[2]) if c else None for c in cells]
+    blocks: list[tuple[list[str], list[list[Optional[str]]]]] = []
+
+    def col_of(xc):
+        for i, c in enumerate(cols):
+            if c and c[0] - 1 <= xc <= c[1] + 1:
+                return i
+        return None
+
+    # Header rows come from the table grid itself (reliable, handles wrapped
+    # names); word positions are only used for the time rows. A table may
+    # repeat its header (Overnight loop), which starts a new block.
+    def is_header(r):
+        cells_ = [str(c).strip() for c in r if c and str(c).strip()]
+        return len(cells_) >= 2 and not any(
+            _normalise_time(x.split("\n")[0]) for x in cells_)
+    headers = [[(str(c) if c else None) for c in r] for r in raw if is_header(r)]
+    if not headers:
+        return []
+    known = [{" ".join(str(c).split()).lower() for c in h if c} for h in headers]
+
+    hi = 0
+    names = headers[0]
+    rows: list[list[Optional[str]]] = []
+    body = page.crop(ptable.bbox)
+    for line in _lines(body.extract_words()):
+        times: dict[int, str] = {}
+        labels: dict[int, list[str]] = {}
+        for w in line:
+            ci = col_of((w["x0"] + w["x1"]) / 2)
+            if ci is None:
+                continue
+            t = _normalise_time(w["text"])
+            if t:
+                times[ci] = t
+            else:
+                labels.setdefault(ci, []).append(w["text"])
+        if times:
+            rows.append([times.get(i) for i in range(len(cols))])
+            continue
+        # A repeated header line (not notes such as "Break in service")
+        if rows and hi + 1 < len(headers):
+            nxt = known[hi + 1]
+            hits = sum(1 for ws in labels.values()
+                       if any(k.startswith(" ".join(ws).lower()) for k in nxt))
+            if hits >= 2:
+                blocks.append((names, rows))
+                rows = []
+                hi += 1
+                names = headers[hi]
+    if rows:
+        blocks.append((names, rows))
+
+    out = []
+    for names, rows in blocks:
+        clean = [_clean_stop_name(n) if n else None for n in names]
+        clean = [None if (c and c.lower() in LABEL_CELLS) else c for c in clean]
+        keep = [i for i, c in enumerate(clean) if c]
+        if len(keep) < 2:
+            continue
+        out.append(([clean[i] for i in keep], [[r[i] for i in keep] for r in rows]))
+    return out
+
+
+def _split_repeats(stops: list[str], rows: list[list[Optional[str]]]):
+    """Split side-by-side copies of the same stop list into separate tables."""
+    if len(stops) < 4 or stops[0] not in stops[1:]:
+        return [(stops, rows)]
+    k = stops.index(stops[0], 1)
+    if stops[:k] != stops[k:2 * k]:
+        return [(stops, rows)]
+    left = (stops[:k], [r[:k] for r in rows])
+    return [left] + _split_repeats(stops[k:], [r[k:] for r in rows])
+
+
+# Compliance: where the index page and the PDF disagree we use the earlier
+# date. UCT's page says Route 5 runs to 26 Nov 2026; its PDF says 20 Nov.
+# Extend this if UCT confirms 26 Nov.
+VALID_UNTIL_OVERRIDES = {"UCT5": "2026-11-20"}
+
+# Trips on these routes that run past midnight are left out for now: times
+# are stored as HH:MM within one day, so their post-midnight stops would be
+# shown out of order. Known gap, documented in README.md.
+MIDNIGHT_EXCLUDED_ROUTES = {"UCT13", "UCT14"}
+
+
+def crosses_midnight(row) -> bool:
+    """True if a trip's times go backwards (e.g. 23:50 then 00:05)."""
+    times = [t for t in row if t]
+    return any(b < a for a, b in zip(times, times[1:]))
+
+
 def parse_uct_pdf(
     route_id: str,
     route_num: str,
@@ -578,14 +830,11 @@ def parse_uct_pdf(
 ) -> tuple[list[dict], list[dict], Optional[str], Optional[str]]:
     """Parse a UCT shuttle timetable PDF.
 
-    Args:
-        route_id:       e.g. 'UCT1'
-        route_num:      e.g. '1' — used to match the right sub-table in
-                        combined PDFs (Routes 13&14).
-        pdf_bytes:      Raw PDF content.
-        day_type_hint:  If the index page labelled this PDF as 'weekday'
-                        or 'weekend', use that as the default day type.
-        inconsistencies: Mutable list to append data-quality issues to.
+    Each printed row is one trip. Tables are assigned to a route and day
+    type by the nearest "Route N:" / day heading above them that overlaps
+    them horizontally (several tables can sit side by side). "Weekend"
+    sections are loaded for both Saturday and Sunday. Trips may skip stops
+    ("No service" or blank cells).
 
     Returns:
         (stops, departures, valid_from, valid_until)
@@ -597,9 +846,8 @@ def parse_uct_pdf(
     seen_departures: set[tuple] = set()
     valid_from: Optional[str] = None
     valid_until: Optional[str] = None
-
-    # The day type may be set by the PDF text or by the index-page hint
-    current_day_type = day_type_hint or "weekday"
+    hint_days = (("saturday", "sunday") if day_type_hint == "weekend"
+                 else (day_type_hint,) if day_type_hint else ("weekday",))
     direction_counter = 0
 
     try:
@@ -607,112 +855,62 @@ def parse_uct_pdf(
             for page in pdf.pages:
                 try:
                     page_text = page.extract_text() or ""
-
-                    # Extract validity dates from page title
                     vf, vu = _extract_validity_from_pdf(page_text)
                     if vf and vu:
-                        valid_from = vf
-                        valid_until = vu
+                        valid_from, valid_until = vf, vu
+                    day_markers, route_markers = _section_markers(page)
 
-                    # Build a y-position map of day-type and route
-                    # headers. This lets us assign the correct day type
-                    # to each table based on vertical position, handling
-                    # pages with both weekday and weekend sections.
-                    day_markers: list[tuple[float, str]] = []  # (y, day_type)
-                    route_markers: list[tuple[float, str]] = []  # (y, num)
+                    for ptable in page.find_tables() or []:
+                        x0, top, x1, _ = ptable.bbox
+                        dm = _nearest_above(day_markers, top, x0, x1)
+                        days = dm[3] if dm else hint_days
+                        rm = _nearest_above(route_markers, top, 0, page.width)
+                        target_id = f"UCT{rm[3]}" if rm else route_id
+                        if target_id != route_id:
+                            continue  # combined PDF: another route's table
 
-                    for word in page.extract_words():
-                        text = word["text"]
-                        y = word["top"]
-                        # Check for day-type keywords in the word context
-                        # We look at individual words, so construct small
-                        # phrases by checking nearby words
-                        pass
-
-                    # Use chars-based approach: extract text lines with
-                    # their y-positions from the page for day-type detection.
-                    _day_markers, _route_markers = _extract_text_markers(page)
-                    day_markers = _day_markers
-                    route_markers = _route_markers
-
-                    # Default day type from hint or first marker
-                    default_day = day_type_hint or "weekday"
-                    if day_markers:
-                        default_day = day_markers[0][1]
-
-                    # Extract tables (with bounding box info)
-                    raw_tables = page.find_tables()
-                    if not raw_tables:
-                        raw_tables = page.find_tables({
-                            "vertical_strategy": "text",
-                            "horizontal_strategy": "text",
-                        })
-
-                    for ptable in (raw_tables or []):
-                        table = ptable.extract()
-                        if not table or len(table) < 2:
-                            continue
-
-                        # Peek: is this a real data table?
-                        headers = [str(c).strip() if c else "" for c in table[0]]
-                        valid_names = [h for h in headers
-                                       if _clean_stop_name(h) is not None]
-                        if len(valid_names) < 2:
-                            continue
-
-                        # Find the day type for this table based on
-                        # its vertical position (top of bounding box)
-                        table_top = ptable.bbox[1]  # y0
-                        table_day = default_day
-                        for marker_y, marker_day in day_markers:
-                            if marker_y <= table_top:
-                                table_day = marker_day
-                            else:
-                                break
-
-                        # Find the route for this table
-                        target_route = route_num
-                        for marker_y, marker_route in route_markers:
-                            if marker_y <= table_top:
-                                target_route = marker_route
-                            else:
-                                break
-                        target_id = f"UCT{target_route}"
-
-                        direction_counter += 1
-                        direction = f"direction_{direction_counter}"
-
-                        page_stops, page_deps = _parse_uct_table(
-                            table, target_id, table_day,
-                            direction, now, inconsistencies,
-                        )
-
-                        if not page_deps:
-                            direction_counter -= 1
-                            continue
-
-                        for s in page_stops:
-                            key = f"{s['route_id']}_{s['stop_name']}_{s['direction']}"
-                            if key not in seen_stops:
-                                seen_stops.add(key)
-                                all_stops.append(s)
-
-                        for d in page_deps:
-                            key = (
-                                d["route_id"], d["stop_name"],
-                                d["direction"], d["day_type"],
-                                d["departure_time"],
-                            )
-                            if key not in seen_departures:
-                                seen_departures.add(key)
-                                all_departures.append(d)
-
+                        for stops, rows in (
+                            part for blk in _table_trips(page, ptable)
+                            for part in _split_repeats(*blk)
+                        ):
+                            direction_counter += 1
+                            direction = f"direction_{direction_counter}"
+                            for seq, name in enumerate(stops):
+                                key = f"{route_id}_{name}_{direction}"
+                                if key not in seen_stops:
+                                    seen_stops.add(key)
+                                    all_stops.append({
+                                        "stop_id": f"{route_id}_{direction}_{seq:03d}",
+                                        "stop_name": name, "route_id": route_id,
+                                        "stop_sequence": seq, "direction": direction,
+                                        "stop_lat": None, "stop_lon": None,
+                                        "operator": "uct", "scraped_at": now,
+                                    })
+                            for row in rows:
+                                if (route_id in MIDNIGHT_EXCLUDED_ROUTES
+                                        and crosses_midnight(row)):
+                                    log.info(f"  {route_id}: skipping trip "
+                                             f"crossing midnight {row}")
+                                    continue
+                                for name, t in zip(stops, row):
+                                    if not t:
+                                        continue
+                                    for day in days:
+                                        k = (route_id, name, direction, day, t)
+                                        if k in seen_departures:
+                                            continue
+                                        seen_departures.add(k)
+                                        all_departures.append({
+                                            "route_id": route_id, "stop_name": name,
+                                            "direction": direction, "day_type": day,
+                                            "departure_time": t, "operator": "uct",
+                                            "scraped_at": now,
+                                        })
                 except Exception as exc:
                     log.warning(
                         f"  PDF page {page.page_number} parse error "
                         f"for {route_id}: {exc}"
                     )
-
     except Exception as exc:
         log.warning(f"  Failed to open PDF for {route_id}: {exc}")
 
@@ -771,7 +969,9 @@ def scrape_all(offline: bool = False) -> dict[str, list[dict]]:
         index_cache.write_text(index_html, encoding="utf-8")
 
     # --- Step 2: discover routes ---
-    routes = discover_routes(index_html, inconsistencies)
+    timetable_set = select_timetable_set(index_html)
+    log.info(f"Timetable set: {timetable_set}")
+    routes = discover_routes(index_html, inconsistencies, timetable_set)
     if not routes:
         log.error("No routes discovered from index page.")
         return _empty_result(inconsistencies)
@@ -835,8 +1035,12 @@ def scrape_all(offline: bool = False) -> dict[str, list[dict]]:
                 "route_name": route["route_name"],
                 "day_type": day_type_hint or "all",
                 "timetable_url": pdf_url,
-                "valid_from": vf or route.get("valid_from"),
-                "valid_until": vu or route.get("valid_until"),
+                # The index-page heading is authoritative (it carries
+                # per-route exceptions such as Route 5 → 26 Nov); fall back
+                # to dates printed in the PDF.
+                "valid_from": route.get("valid_from") or vf,
+                "valid_until": VALID_UNTIL_OVERRIDES.get(
+                    route_id, route.get("valid_until") or vu),
                 "operator": "uct",
                 "scraped_at": route["scraped_at"],
             })

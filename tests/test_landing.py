@@ -149,6 +149,8 @@ def test_hero_mockup_image_exists(client):
     html = client.get("/").text
     assert "landing-search.webp" in html
     assert 'alt="Halte journey search showing departures"' in html
+    # Hero crop must show the phone short-form badge exactly as the app renders it.
+    assert 'data-stage-badge="Stage 0 · default"' in html
     img = client.get("/static/img/landing-search.webp")
     assert img.status_code == 200
     assert img.content[:4] == b"RIFF" or img.headers["content-type"].startswith("image/")

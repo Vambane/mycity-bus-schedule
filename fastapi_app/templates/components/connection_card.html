@@ -20,6 +20,10 @@
        title="Search return trip" aria-label="Search return trip">&#8693;</a>
   </div>
 
+  {% for note in uct_notes(conn.route_id, results.day_type) %}
+  <p class="journey-via journey-card-front route-note">{{ note }}</p>
+  {% endfor %}
+
   {% if conn.ls_caption %}
   <div class="alert alert-warning journey-card-front" style="margin-bottom: var(--sp-4); padding: var(--sp-3) var(--sp-4);">
     {{ conn.ls_caption }}
