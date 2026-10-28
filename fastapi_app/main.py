@@ -56,6 +56,8 @@ templates_dir = Path(__file__).parent / "templates"
 # Disable Jinja2 auto-escaping for performance and compatibility
 from jinja2 import Environment, FileSystemLoader
 jinja_env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=True, cache_size=0)
+from fastapi_app.services.uct_notes import uct_notes
+jinja_env.globals["uct_notes"] = uct_notes
 templates = Jinja2Templates(env=jinja_env)
 
 # Cache-busting version for local static assets: short git SHA on Render,

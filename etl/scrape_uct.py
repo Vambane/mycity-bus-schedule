@@ -804,6 +804,23 @@ def _split_repeats(stops: list[str], rows: list[list[Optional[str]]]):
     return [left] + _split_repeats(stops[k:], [r[k:] for r in rows])
 
 
+# Compliance: where the index page and the PDF disagree we use the earlier
+# date. UCT's page says Route 5 runs to 26 Nov 2026; its PDF says 20 Nov.
+# Extend this if UCT confirms 26 Nov.
+VALID_UNTIL_OVERRIDES = {"UCT5": "2026-11-20"}
+
+# Trips on these routes that run past midnight are left out for now: times
+# are stored as HH:MM within one day, so their post-midnight stops would be
+# shown out of order. Known gap, documented in README.md.
+MIDNIGHT_EXCLUDED_ROUTES = {"UCT13", "UCT14"}
+
+
+def crosses_midnight(row) -> bool:
+    """True if a trip's times go backwards (e.g. 23:50 then 00:05)."""
+    times = [t for t in row if t]
+    return any(b < a for a, b in zip(times, times[1:]))
+
+
 def parse_uct_pdf(
     route_id: str,
     route_num: str,
@@ -870,6 +887,11 @@ def parse_uct_pdf(
                                         "operator": "uct", "scraped_at": now,
                                     })
                             for row in rows:
+                                if (route_id in MIDNIGHT_EXCLUDED_ROUTES
+                                        and crosses_midnight(row)):
+                                    log.info(f"  {route_id}: skipping trip "
+                                             f"crossing midnight {row}")
+                                    continue
                                 for name, t in zip(stops, row):
                                     if not t:
                                         continue
@@ -1017,7 +1039,8 @@ def scrape_all(offline: bool = False) -> dict[str, list[dict]]:
                 # per-route exceptions such as Route 5 → 26 Nov); fall back
                 # to dates printed in the PDF.
                 "valid_from": route.get("valid_from") or vf,
-                "valid_until": route.get("valid_until") or vu,
+                "valid_until": VALID_UNTIL_OVERRIDES.get(
+                    route_id, route.get("valid_until") or vu),
                 "operator": "uct",
                 "scraped_at": route["scraped_at"],
             })

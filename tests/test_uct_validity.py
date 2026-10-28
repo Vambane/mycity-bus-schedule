@@ -1,6 +1,7 @@
 """Per-route UCT timetable validity (Consolidation & Exam set, 26 Oct - 20 Nov 2026).
 
-Route 5 runs to 26 Nov; every other route ends 20 Nov. After a route's end
+UCT's page says Route 5 runs to 26 Nov but its PDF says 20 Nov; we use the
+earlier date (compliance), so every route ends 20 Nov. After a route's end
 date its times are hidden and the "Timetable expired" banner is shown.
 """
 from datetime import date
@@ -104,8 +105,7 @@ def test_loaded_consolidation_exam_set():
     v = uct_route_validity(c)
     expected = {f"UCT{n}" for n in (1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 14, 15, 16)} | {"UCTOVN"}
     assert set(v) == expected  # Route 20 dropped: not in this set
-    assert v["UCT5"] == (date(2026, 10, 26), date(2026, 11, 26))
-    for rid in expected - {"UCT5"}:
+    for rid in expected:  # incl. Route 5: earlier (PDF) date wins
         assert v[rid] == (date(2026, 10, 26), date(2026, 11, 20)), rid
     n = c.execute("SELECT COUNT(*) FROM departures WHERE route_id = 'UCTOVN' "
                   "AND day_type = 'weekday'").fetchone()[0]
@@ -130,3 +130,85 @@ def test_search_hides_expired_routes_and_shows_banner(monkeypatch):
     assert "Timetable expired" in after
     assert "expired on 20 Nov 2026" in after
     assert "UCT 13" not in after and "UCT 14" not in after
+
+
+def test_route5_override_is_earlier_date():
+    from etl.scrape_uct import VALID_UNTIL_OVERRIDES
+    assert VALID_UNTIL_OVERRIDES["UCT5"] == "2026-11-20"
+
+
+@pytest.mark.skipif(not DB.exists(), reason="myciti.duckdb missing")
+def test_loaded_route5_expires_with_others_after_20_nov():
+    c = duckdb.connect(str(DB), read_only=True)
+    expired, banner = uct_expiry_state(c, date(2026, 11, 21))
+    assert "UCT5" in expired and "Route 5" in banner
+    assert uct_expiry_state(c, date(2026, 11, 20)) == (set(), None)
+
+
+# --- Cross-midnight trips (Routes 13/14) are left out: known gap -----------
+
+def test_crosses_midnight_detection():
+    from etl.scrape_uct import crosses_midnight
+    assert crosses_midnight(["23:50:00", None, "23:55:00", "00:05:00"])
+    assert not crosses_midnight(["00:05:00", None, "00:15:00"])
+    assert not crosses_midnight(["22:00:00", "22:10:00"])
+
+
+@pytest.mark.skipif(not DB.exists(), reason="myciti.duckdb missing")
+def test_cross_midnight_trips_absent_for_13_14():
+    c = duckdb.connect(str(DB), read_only=True)
+    for rid in ("UCT13", "UCT14"):
+        late = c.execute("SELECT COUNT(*) FROM departures WHERE route_id = ? "
+                         "AND departure_time >= '23:15:00'", [rid]).fetchone()[0]
+        assert late == 0, rid  # the 23:15 trip that ran into 00:xx is out
+        n = c.execute("SELECT COUNT(*) FROM departures WHERE route_id = ? "
+                      "AND day_type = 'weekday'", [rid]).fetchone()[0]
+        assert n == {"UCT13": 47, "UCT14": 49}[rid]
+
+
+# --- Static route footnotes ------------------------------------------------
+
+def test_uct_notes_by_route_and_day():
+    from fastapi_app.services.uct_notes import UCT_ROUTE_NOTES, uct_notes
+    assert "Roscommon House" in uct_notes("UCT1", "weekday")[0]
+    assert uct_notes("UCT1", "saturday") == []
+    assert uct_notes(["UCT13", "UCT14"], "sunday") == [
+        "Routes 13/14 at weekends: Roscommon riders should use Claremont."]
+    assert uct_notes("UCT13", "weekday") == []
+    assert "access card" in uct_notes("UCTOVN", "weekday")[0]
+    assert uct_notes("101", "weekday") == []
+    for notes in UCT_ROUTE_NOTES.values():
+        for _, text in notes:
+            assert "live" not in text.lower() and "gps" not in text.lower()
+
+
+def test_notes_are_escaped_not_safe(monkeypatch):
+    from jinja2 import Environment
+    import fastapi_app.services.uct_notes as un
+    from fastapi_app.main import jinja_env
+    src = Path(__file__).resolve().parents[1] / "fastapi_app" / "templates"
+    for f in ("components/connection_card.html", "components/transfer_card.html",
+              "pages/stop.html"):
+        t = (src / f).read_text()
+        assert "uct_notes(" in t
+        assert "note|safe" not in t.replace(" ", "")
+    monkeypatch.setitem(un.UCT_ROUTE_NOTES, "UCTX", [(None, "<b>x</b>")])
+    out = jinja_env.from_string(
+        "{% for note in uct_notes('UCTX') %}{{ note }}{% endfor %}").render()
+    assert out == "&lt;b&gt;x&lt;/b&gt;"
+
+
+@pytest.mark.skipif(not DB.exists(), reason="myciti.duckdb missing")
+def test_notes_shown_in_search_and_stop_board(monkeypatch):
+    from fastapi.testclient import TestClient
+    import fastapi_app.services.uct_validity as uv
+    from fastapi_app.main import app
+    monkeypatch.setattr(uv, "today_cape_town", lambda: date(2026, 11, 1))
+    with TestClient(app) as client:
+        search = client.get("/", params={"from_stop": "UC North", "to_stop": "Kramer",
+                                         "day_type": "saturday", "operator": "uct"}).text
+        board = client.get("/stop/UC North", params={"day_type": "weekday",
+                                                     "operator": "uct"}).text
+    assert "UCT 13" in search
+    assert "Roscommon riders should use Claremont" in search
+    assert "leave from Roscommon House" in board  # Route 1 serves UC North

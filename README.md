@@ -431,12 +431,21 @@ check official sources before travelling.
 - UCT shuttle stops have no coordinates yet — they appear in search and
   departure boards but not on the map. UCT timetables have per-route validity
   dates. The current set is Consolidation & Exam: routes 1–7, 9–11, 13–16 and
-  the Overnight library loop (Mon–Fri) run 26 Oct – 20 Nov 2026; Route 5 runs
-  to 26 Nov. Once a route's end date has passed its times are hidden from
-  search and departure boards and the "Timetable expired" banner names it.
-  Route 20 (Educare) is not in this set and has been dropped. Some PDF
-  footnotes (e.g. "via Kramer after 13:25") are not modelled — check the
-  official PDF
+  the Overnight library loop (Mon–Fri) run 26 Oct – 20 Nov 2026. Once a
+  route's end date has passed its times are hidden from search and departure
+  boards and the "Timetable expired" banner names it. Route 20 (Educare) is
+  not in this set and has been dropped
+- Route 5 end date: UCT's timetable page says Route 5 runs to 26 Nov 2026,
+  but its PDF says 20 Nov. We use the earlier date (20 Nov) and can extend it
+  (`VALID_UNTIL_OVERRIDES` in `etl/scrape_uct.py`) if UCT confirms 26 Nov
+- UCT PDF footnotes are shown as short static notes next to the affected
+  routes in search results and departure boards (Route 1 Roscommon House
+  after 18:55, Route 2 via Kramer, Route 6 via Mowbray, Route 11 South Stop,
+  Routes 13/14 weekend Roscommon, Overnight loop access card)
+- Known gap: Routes 13/14 trips that run past midnight (the 23:15 weekday
+  trip on each route) are left out, because times are stored within a single
+  day and their after-midnight stops would show out of order. They will be
+  added back once cross-midnight times are supported
 - Load shedding flags always use today's date (the day-type selector
   carries no day of month) and check each journey end as a point in
   time; the delay buffer is a fixed heuristic, not a prediction

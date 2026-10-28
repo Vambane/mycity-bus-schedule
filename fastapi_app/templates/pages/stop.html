@@ -97,6 +97,10 @@
                 </div>
             </div>
 
+            {% for note in uct_notes(data.route.route_id, day_type) %}
+            <p class="metric-subtitle route-note">{{ note }}</p>
+            {% endfor %}
+
             <!-- Next departure metric -->
             {% if data.next_departure %}
             <div class="metric-card">

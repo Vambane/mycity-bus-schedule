@@ -6,7 +6,7 @@ project information, see [README.md](README.md).
 ## Overview
 
 The UCT shuttle service operates 15 routes in the current Consolidation & Exam set
-(26 Oct – 20 Nov 2026; Route 5 to 26 Nov) across the University of Cape Town
+(26 Oct – 20 Nov 2026) across the University of Cape Town
 campuses. Timetable data is scraped from the university website and loaded
 alongside MyCiTi data into the shared DuckDB database. Both operators coexist
 in the same tables, distinguished by the `operator` column (`'myciti'` or
@@ -22,7 +22,7 @@ in the same tables, distinguished by the `operator` column (`'myciti'` or
 | UCT2 | Forest Hill | weekday | 26 Oct – 20 Nov 2026 |
 | UCT3 | Mowbray | weekday | 26 Oct – 20 Nov 2026 |
 | UCT4 | Liesbeeck via Mowbray | weekday | 26 Oct – 20 Nov 2026 |
-| UCT5 | Forest Hill / Great Westerford | weekday | 26 Oct – **26 Nov** 2026 |
+| UCT5 | Forest Hill / Great Westerford | weekday | 26 Oct – 20 Nov 2026 (page says 26 Nov; see below) |
 | UCT6 | Carinus | weekday | 26 Oct – 20 Nov 2026 |
 | UCT7 | Rochester | weekday | 26 Oct – 20 Nov 2026 |
 | UCT9 | Obz Square via PNP Rondebosch | weekday | 26 Oct – 20 Nov 2026 |
@@ -124,17 +124,17 @@ table. Validity is checked per route (`fastapi_app/services/uct_validity.py`,
 dates in Africa/Johannesburg): once a route's `valid_until` has passed its
 times are removed from search results (direct and transfer) and departure
 boards, and the "Timetable expired" banner names the expired routes. The
-index-page heading dates take precedence over dates printed in the PDF
-(Route 5's PDF says 20 Nov; the page says 26 Nov).
+index-page heading dates are used, except that where page and PDF disagree
+the earlier date wins: Route 5's page says 26 Nov, its PDF 20 Nov, so it
+ends 20 Nov (`VALID_UNTIL_OVERRIDES`); extend if UCT confirms 26 Nov.
 
 ### Known parsing limits
 
-- Footnotes are not modelled (Route 1 Claremont from 18:55 departs
-  Roscommon House; Route 2 via Kramer after 13:25; Route 6 via Mowbray at
-  06:40 & 07:07; Route 11 via South Stop 12:25–17:40 only; Overnight loop
-  needs an access card).
-- After-midnight trips (Routes 13/14, Overnight loop) are stored as 00:xx
-  under the weekday day type.
+- Footnotes are shown as static notes (`fastapi_app/services/uct_notes.py`)
+  in search results and departure boards, not applied to the times.
+- Trips on Routes 13/14 that cross midnight are left out (known gap; times
+  are stored within one day). Post-midnight-only trips (Overnight loop) are
+  kept as 00:xx weekday times.
 - One-direction PDFs (Routes 4, 5, 6, 7, 9, 11) are kept as printed.
 
 ## App integration
@@ -183,5 +183,6 @@ Tests in `tests/test_uct_integration.py` and `tests/test_uct_validity.py` cover:
 - UCT route category and color palette assignment
 - Schema migration (DDL + ALTER statements)
 - Stale timetable detection (expired/future/missing)
-- Per-route validity: Route 5 to 26 Nov, banner and hidden times after 20 Nov,
+- Per-route validity: Route 5 ends 20 Nov with the rest, route notes,
+  cross-midnight trips absent, banner and hidden times after 20 Nov,
   timetable-set selection and Overnight loop heading parsing
