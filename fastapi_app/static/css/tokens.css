@@ -1,8 +1,10 @@
 /* ============================================================
-   MyCiTi Design Tokens
+   Halte Design Tokens
    ============================================================
    Single source of truth for the design system.
-   Dark theme with gold #D4AF37 accent, Inter font.
+   Light lime/ink theme (map stays dark), Inter font.
+   Lime #C8FF00 is only ever a fill under ink text, or used on dark.
+   --gold-* names are kept for compatibility; they now carry ink.
    All spacing follows a 4px grid: 4/8/12/16/24/32/48.
    ============================================================ */
 
@@ -10,31 +12,37 @@
 
 :root {
   /* --- brand --- */
-  --gold:            #D4AF37;
-  --gold-hover:      #E0C060;
-  --gold-press:      #BF9C2E;
-  --gold-muted:      rgba(212, 175, 55, 0.15);
-  --gold-focus:      rgba(212, 175, 55, 0.35);
+  --lime:            #C8FF00;
+  --lime-hover:      #D4FF33;
+  --lime-press:      #B4E600;
+  --ink:             #0A0A0A;
+  --ink-2:           #111111;
+  --ink-hover:       #262626;
+  --gold:            var(--ink);
+  --gold-hover:      var(--ink-hover);
+  --gold-press:      var(--ink-2);
+  --gold-muted:      rgba(200, 255, 0, 0.25);
+  --gold-focus:      rgba(10, 10, 10, 0.35);
 
   /* --- surfaces --- */
-  --bg:              #0E0E10;
-  --bg-raised:       #16161A;
-  --bg-overlay:      #1C1C22;
-  --bg-card:         #1A1A1F;
-  --bg-card-hover:   #1E1E24;
-  --bg-input:        #131316;
-  --bg-header:       rgba(14, 14, 16, 0.80);
+  --bg:              #F2F2F0;
+  --bg-raised:       #FFFFFF;
+  --bg-overlay:      #FFFFFF;
+  --bg-card:         #FFFFFF;
+  --bg-card-hover:   #F7F7F5;
+  --bg-input:        #F2F2F0;
+  --bg-header:       rgba(242, 242, 240, 0.85);
 
   /* --- borders --- */
-  --border:          rgba(255, 255, 255, 0.08);
-  --border-subtle:   rgba(255, 255, 255, 0.05);
-  --border-strong:   rgba(255, 255, 255, 0.14);
+  --border:          rgba(10, 10, 10, 0.08);
+  --border-subtle:   rgba(10, 10, 10, 0.05);
+  --border-strong:   rgba(10, 10, 10, 0.16);
 
   /* --- text --- */
-  --text-primary:    #F0F0F0;
-  --text-secondary:  #A0A0A8;
-  --text-tertiary:   #6C6C74;
-  --text-inverse:    #0E0E10;
+  --text-primary:    #0A0A0A;
+  --text-secondary:  #4A4A48;
+  --text-tertiary:   #6E6E6A;
+  --text-inverse:    #FFFFFF;
 
   /* --- route badge colours (from system map) --- */
   --route-trunk:     #E4003A;
@@ -45,18 +53,18 @@
   --route-orange:    #F2994A;
 
   /* --- semantic --- */
-  --success:         #34D399;
-  --warning:         #FBBF24;
-  --danger:          #F87171;
-  --info:            #60A5FA;
+  --success:         #065F46;
+  --warning:         #92400E;
+  --danger:          #B91C1C;
+  --info:            #1D4ED8;
 
   /* --- load shedding stages --- */
-  --ls-ok-bg:        rgba(52, 211, 153, 0.12);
-  --ls-ok-fg:        #34D399;
-  --ls-warn-bg:      rgba(251, 191, 36, 0.12);
-  --ls-warn-fg:      #FBBF24;
-  --ls-crit-bg:      rgba(248, 113, 113, 0.12);
-  --ls-crit-fg:      #F87171;
+  --ls-ok-bg:        rgba(4, 120, 87, 0.10);
+  --ls-ok-fg:        #065F46;
+  --ls-warn-bg:      rgba(180, 83, 9, 0.12);
+  --ls-warn-fg:      #92400E;
+  --ls-crit-bg:      rgba(185, 28, 28, 0.12);
+  --ls-crit-fg:      #B91C1C;
 
   /* --- spacing (4px grid) --- */
   --sp-1:            4px;
@@ -76,10 +84,10 @@
   --radius-full:     9999px;
 
   /* --- shadows --- */
-  --shadow-sm:       0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md:       0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg:       0 8px 32px rgba(0, 0, 0, 0.6);
-  --shadow-glow:     0 0 24px rgba(212, 175, 55, 0.12);
+  --shadow-sm:       0 1px 3px rgba(10, 10, 10, 0.08);
+  --shadow-md:       0 4px 12px rgba(10, 10, 10, 0.10);
+  --shadow-lg:       0 8px 32px rgba(10, 10, 10, 0.14);
+  --shadow-glow:     none;
 
   /* --- typography --- */
   --font:            'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

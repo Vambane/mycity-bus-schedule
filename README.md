@@ -39,15 +39,19 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
 - **Departure map** — a timeline chart of every departure of the day per
   route/direction, with a marker at the current time, so frequency, peak
   bunching and the last bus are visible at a glance
-- **Dark map-centric theme** — floating map chrome (legend, style toggle,
-  reset, preview bar) uses dark glass (`#1A1A1F` / `#F0F0F0`) with gold
-  active states; search and **Preview this trip** use gold primary actions.
+- **Lime/ink theme** — light app surfaces (`#F2F2F0` page, white cards, ink
+  `#0A0A0A` text) with lime `#C8FF00` used only as a fill under ink text (hero
+  headline, active pill/toggle) or on dark; never lime text on a light
+  background. Primary actions (Search, **Preview this trip**) are ink pills
+  with white text. The map stays dark: its floating chrome (legend, style
+  toggle, reset, preview bar) uses dark panels (`#111111` / `#F0F0F0`) with
+  lime active states and focus rings; route colours are unchanged.
   Trip preview remains **estimated from timetable — not live GPS**.
   Map tiles are standard OpenStreetMap (no API key), darkened with a CSS
   filter on the tile layer only so route lines and stops keep their colours.
   On phones (<480px) the header compacts and the load-shedding badge reads
   e.g. `Stage 0 · default` (full source in its tooltip / screen-reader label).
-  The gold active Search/Map pill is drawn on the active link itself, so it
+  The active (ink/lime) Search/Map pill is drawn on the active link itself, so it
   always sits behind its label at any width (checked at 390px and 360px).
   On phones (≤480px) search result cards stack as depart → `Direct · N min`
   → arrive: times stay full size and never truncate, while long stop names
