@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Halte: MyCiTi and UCT Jammie shuttle timetables and journey planning for Cape Town">
+  <meta property="og:site_name" content="Halte">
+  <meta property="og:title" content="Halte">
+  <meta property="og:description" content="Halte: MyCiTi and UCT Jammie shuttle timetables and journey planning for Cape Town">
+  <title>Halte</title>
+  <link rel="stylesheet" href="/static/css/landing.css?v={{ asset_v }}">
+</head>
+<body class="landing">
+  {# Fixed yellow nav #}
+  <header class="landing-nav" role="banner">
+    <div class="landing-nav__inner">
+      <a href="/" class="landing-logo" aria-label="Halte home">
+        <span class="landing-logo__mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M13 3L4 14h7l-1 7 9-11h-7l1-7z" fill="#FFE17C" stroke="#FFE17C"/>
+          </svg>
+        </span>
+        <span class="landing-logo__word">Halte</span>
+      </a>
+      <nav class="landing-nav__links" aria-label="Landing">
+        <a href="#how">How it works</a>
+        <a href="/map">Map</a>
+        <a href="/search">Search</a>
+      </nav>
+      <a href="/search" class="landing-btn landing-btn--ink">Plan a trip</a>
+    </div>
+  </header>
+
+  <main>
+    {# HERO #}
+    <section class="landing-hero landing-dots" aria-labelledby="hero-heading">
+      <div class="landing-hero__grid">
+        <div class="landing-hero__copy">
+          <p class="landing-pill">Cape Town · MyCiTi + UCT Jammie</p>
+          <h1 id="hero-heading" class="landing-h1">Your bus, <span class="landing-outline">sorted</span>.</h1>
+          <p class="landing-lead">
+            Search MyCiTi and UCT shuttle timetables in one place. Find a route, see the next departures and plan your trip — built from the published timetables.
+          </p>
+          <div class="landing-hero__ctas">
+            <a href="/search" class="landing-btn landing-btn--ink">Plan a trip</a>
+            <a href="/map" class="landing-btn landing-btn--paper">Open the map</a>
+          </div>
+          <p class="landing-hero__fine">Free · No sign-up · Planning aid only — not live GPS</p>
+        </div>
+        <div class="landing-mockup" aria-hidden="false">
+          <div class="landing-mockup__chrome">
+            <span class="landing-mockup__dot" aria-hidden="true"></span>
+            <span class="landing-mockup__dot" aria-hidden="true"></span>
+            <span class="landing-mockup__dot" aria-hidden="true"></span>
+            <span class="landing-mockup__url">halte</span>
+          </div>
+          <img
+            class="landing-mockup__img"
+            src="/static/img/landing-search.webp?v={{ asset_v }}"
+            width="720"
+            height="520"
+            alt="Halte journey search showing departures"
+            loading="eager"
+            decoding="async">
+        </div>
+      </div>
+    </section>
+
+    {# MARQUEE — aria-hidden track + sr-only list; names from DB, Jinja-escaped #}
+    <section class="landing-marquee" aria-label="Routes covered">
+      <div class="landing-marquee__track" aria-hidden="true">
+        <div class="landing-marquee__inner">
+          {% for name in marquee_routes %}
+          <span class="landing-marquee__item">{{ name }}</span>
+          <span class="landing-marquee__sep" aria-hidden="true">✦</span>
+          {% endfor %}
+          {% for name in marquee_routes %}
+          <span class="landing-marquee__item">{{ name }}</span>
+          <span class="landing-marquee__sep" aria-hidden="true">✦</span>
+          {% endfor %}
+        </div>
+      </div>
+      <ul class="landing-sr-only">
+        {% for name in marquee_routes %}
+        <li>{{ name }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    {# PROBLEM vs SOLUTION #}
+    <section class="landing-section landing-section--paper" id="problem">
+      <div class="landing-wrap">
+        <h2 class="landing-h2">Timetables shouldn't need a PDF reader.</h2>
+        <div class="landing-compare">
+          <div class="landing-compare__before">
+            <h3 class="landing-h3">Before</h3>
+            <ul>
+              <li>Separate PDFs per route</li>
+              <li>MyCiTi and Jammie on different sites</li>
+              <li>Working out transfers yourself</li>
+            </ul>
+          </div>
+          <div class="landing-compare__after">
+            <h3 class="landing-h3">With Halte</h3>
+            <ul>
+              <li>Search any stop by name</li>
+              <li>Both networks in one search</li>
+              <li>Changes between routes at shared stops, worked out for you</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# FEATURES #}
+    <section class="landing-section landing-dots landing-section--yellow" id="features">
+      <div class="landing-wrap">
+        <h2 class="landing-h2">What Halte does</h2>
+        <div class="landing-features">
+          <article class="landing-feature">
+            <div class="landing-feature__icon" aria-hidden="true">1</div>
+            <h3 class="landing-h3">Stop search</h3>
+            <p>Type part of a stop name; we match across both networks.</p>
+          </article>
+          <article class="landing-feature">
+            <div class="landing-feature__icon" aria-hidden="true">2</div>
+            <h3 class="landing-h3">Journey planner</h3>
+            <p>Direct trips and one-change connections, with times.</p>
+          </article>
+          <article class="landing-feature">
+            <div class="landing-feature__icon" aria-hidden="true">3</div>
+            <h3 class="landing-h3">Network map</h3>
+            <p>Every stop and route on one map. Tap a stop for its timetable.</p>
+          </article>
+          <article class="landing-feature">
+            <div class="landing-feature__icon" aria-hidden="true">4</div>
+            <h3 class="landing-h3">Load-shedding stage</h3>
+            <p>Shows the load-shedding stage we're assuming: Stage 0 by default, not a live Eskom feed. Check before you travel.</p>
+          </article>
+          <article class="landing-feature">
+            <div class="landing-feature__icon" aria-hidden="true">5</div>
+            <h3 class="landing-h3">Timetable dates</h3>
+            <p>We show when each timetable expires and warn you when it's out of date.</p>
+          </article>
+          <article class="landing-feature">
+            <div class="landing-feature__icon" aria-hidden="true">6</div>
+            <h3 class="landing-h3">Mobile-first</h3>
+            <p>Built for your phone on the go. Free, no account.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    {# HOW IT WORKS #}
+    <section class="landing-section landing-section--char" id="how">
+      <div class="landing-wrap">
+        <h2 class="landing-h2 landing-h2--on-dark">Three steps.</h2>
+        <ol class="landing-steps">
+          <li class="landing-step">
+            <span class="landing-step__num" aria-hidden="true">1</span>
+            <div>
+              <h3 class="landing-h3 landing-h3--on-dark">Pick where you are</h3>
+              <p>Type a stop name from MyCiTi or Jammie.</p>
+            </div>
+          </li>
+          <li class="landing-step">
+            <span class="landing-step__num" aria-hidden="true">2</span>
+            <div>
+              <h3 class="landing-h3 landing-h3--on-dark">Pick where you're going</h3>
+              <p>Choose your destination the same way.</p>
+            </div>
+          </li>
+          <li class="landing-step">
+            <span class="landing-step__num" aria-hidden="true">3</span>
+            <div>
+              <h3 class="landing-h3 landing-h3--on-dark">See your options</h3>
+              <p>Departures and times from the published timetables.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    {# WHO IT'S FOR #}
+    <section class="landing-section landing-section--paper" id="who">
+      <div class="landing-wrap">
+        <h2 class="landing-h2">Made for how Cape Town moves</h2>
+        <div class="landing-bento">
+          <article class="landing-bento__card landing-bento__card--sage landing-bento__card--wide">
+            <h3 class="landing-h3">Daily MyCiTi rider</h3>
+            <p>Check the next trunk and feeder departures before you leave.</p>
+          </article>
+          <article class="landing-bento__card landing-bento__card--yellow">
+            <h3 class="landing-h3">Jammie to campus</h3>
+            <p>Shuttle times next to MyCiTi, so the trip to Upper Campus is one search.</p>
+          </article>
+          <article class="landing-bento__card landing-bento__card--dark">
+            <h3 class="landing-h3 landing-h3--on-dark">New in town</h3>
+            <p>Search by place name, not route number. See it on the map.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    {# FINAL CTA #}
+    <section class="landing-section landing-dots landing-section--yellow" id="cta">
+      <div class="landing-wrap">
+        <div class="landing-final">
+          <h2 class="landing-h2">Where are you headed?</h2>
+          <a href="/search" class="landing-btn landing-btn--ink">Plan a trip</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {# FOOTER #}
+  <footer class="landing-footer" role="contentinfo">
+    <div class="landing-wrap landing-footer__grid">
+      <div>
+        <p class="landing-footer__brand">Halte</p>
+        <p>Cape Town bus timetables in one place.</p>
+      </div>
+      <div>
+        <p class="landing-footer__head">Product</p>
+        <ul>
+          <li><a href="/search">Search</a></li>
+          <li><a href="/map">Map</a></li>
+          <li><a href="#how">How it works</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="landing-footer__head">Sources</p>
+        <ul>
+          <li>MyCiTi route PDFs</li>
+          <li>UCT shuttle timetables</li>
+          <li>City of Cape Town Open Data</li>
+          <li>OpenStreetMap</li>
+        </ul>
+      </div>
+      <div>
+        <p class="landing-footer__head">Honest use</p>
+        <p>Planning aid only. Confirm on MyCiTi / UCT before you travel.</p>
+        <p>Estimated from timetable — not live GPS.</p>
+      </div>
+    </div>
+    <div class="landing-footer__bottom">
+      <div class="landing-wrap">
+        <p class="landing-footer__disclaimer">{{ app_disclaimer }}</p>
+        <p class="landing-footer__osm">© OpenStreetMap contributors</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

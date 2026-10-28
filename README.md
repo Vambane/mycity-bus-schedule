@@ -16,7 +16,13 @@ filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
 
 ## Features
 
-- **Journey search** — pick a From and To stop (flight-search style, with a
+- **Landing page** (`/`) — Neo-Brutalist marketing page (yellow `#FFE17C`,
+  charcoal, sage) scoped under `.landing` so the lime app theme is unchanged.
+  Headings use self-hosted Cabinet Grotesk ExtraBold; body uses Satoshi Medium
+  (Fontshare free licence — see `FONTSHARE_LICENCE.md`). No Fontshare CDN.
+  Journey search lives at **`/search`**; any `/?…` query is **301**-redirected
+  to `/search?…`. The hero CTA is **Plan a trip** → `/search`.
+- **Journey search** (`/search`) — pick a From and To stop (flight-search style, with a
   ⇄ swap button) and get every direct service between them as result cards:
   departure time, arrival time, duration, with Best / Fastest / All-day tabs
   and per-route filters in the sidebar
@@ -289,12 +295,15 @@ files so deployments pick up the new timetables.
 ├── fastapi_app/              # FastAPI web application
 │   ├── main.py               # Application entry point
 │   ├── routes/
-│   │   └── search.py         # Journey search route handler
+│   │   ├── landing.py        # Neo-Brutalist landing page at /
+│   │   └── search.py         # Journey search at /search
 │   ├── templates/
 │   │   ├── pages/            # Full page templates (index, stop view)
 │   │   └── components/       # Reusable card components (connection, transfer)
 │   └── static/
-│       ├── css/              # Design tokens, layout, component styles
+│       ├── css/              # Lime app tokens + landing.css
+│       ├── fonts/            # Self-hosted Cabinet Grotesk + Satoshi WOFF2
+│       ├── img/              # Landing hero screenshot (landing-search.webp)
 │       └── js/               # Combobox, tabs, search behaviour
 ├── app.py                    # Streamlit app (search, timetables, map tabs)
 ├── journey.py                # Connection finder (direct + transfer)
