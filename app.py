@@ -416,12 +416,12 @@ def main() -> None:
     """MyCiTi Bus Timetable — Streamlit entry point."""
 
     st.set_page_config(
-        page_title="MyCiTi Bus Timetable",
+        page_title="Halte",
         page_icon="🚌",
         layout="centered",
     )
 
-    st.title("🚌 MyCiTi Bus Timetable")
+    st.title("🚌 Halte")
     st.caption("Western Cape · Data sourced from myciti.org.za")
 
     # --- Connection check ---
