@@ -3,8 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="MyCiTi bus timetables and journey planning for Cape Town">
-  <title>{% block title %}MyCiTi Bus Timetable{% endblock %}</title>
+  {%- set app_name = "Halte" -%}
+  {%- set app_disclaimer = "Halte is an independent app, not affiliated with the City of Cape Town or MyCiTi." -%}
+  <meta name="description" content="Halte: MyCiTi and UCT Jammie shuttle timetables and journey planning for Cape Town">
+  <meta property="og:site_name" content="{{ app_name }}">
+  <meta property="og:title" content="{{ app_name }}">
+  <meta property="og:description" content="Halte: MyCiTi and UCT Jammie shuttle timetables and journey planning for Cape Town">
+  <title>{% block title %}Halte{% endblock %}</title>
 
   <!-- Design system -->
   <link rel="stylesheet" href="/static/css/tokens.css?v={{ asset_v }}">
@@ -29,9 +34,9 @@
   <!-- ====== HEADER ====== -->
   <header class="header" role="banner">
     <div class="header-inner">
-      <a href="/" class="logo" aria-label="MyCiTi home">
+      <a href="/" class="logo" aria-label="Halte home">
         <span class="logo-icon" aria-hidden="true">&#x1F68D;</span>
-        MyCiTi
+        Halte
       </a>
 
       <nav class="nav-pills" role="navigation" aria-label="Main navigation">
@@ -90,6 +95,7 @@
           &middot;
           Unofficial community timetable
         </p>
+        <p class="footer-sources footer-disclaimer">{{ app_disclaimer }}</p>
       </div>
     </div>
   </footer>

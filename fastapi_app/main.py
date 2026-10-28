@@ -31,7 +31,7 @@ APP_VERSION = "2.0.0"
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    logger.info("Starting MyCiTi Bus Timetable application...")
+    logger.info("Starting Halte application...")
     init_connection_pool()
     yield
     # Shutdown
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="MyCiTi Bus Timetable",
+    title="Halte",
     description="Journey planning and timetable system for MyCiTi buses in Cape Town",
     version=APP_VERSION,
     lifespan=lifespan,
