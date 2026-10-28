@@ -13,9 +13,9 @@ UCT_ROUTE_NOTES: dict[str, list[tuple[Optional[tuple[str, ...]], str]]] = {
     "UCT2": [(None, "Route 2: runs via Kramer after 13:25.")],
     "UCT6": [(None, "Route 6: runs via Mowbray at 06:40 and 07:07.")],
     "UCT11": [(None, "Route 11: only goes via South Stop from 12:25 to 17:40.")],
-    "UCT13": [(WEEKEND, "Routes 13/14 at weekends: Roscommon riders should use Claremont.")],
-    "UCT14": [(WEEKEND, "Routes 13/14 at weekends: Roscommon riders should use Claremont.")],
-    "UCTOVN": [(None, "Overnight library loop: an access card is needed.")],
+    "UCT13": [(WEEKEND, "Routes 13/14 at weekends, 15:35–21:50: board and alight at Roscommon House.")],
+    "UCT14": [(WEEKEND, "Routes 13/14 at weekends, 15:35–21:50: board and alight at Roscommon House.")],
+    "UCTOVN": [(None, "Overnight library loop: UCT student or staff card, or a visitor's pass, needed.")],
 }
 
 

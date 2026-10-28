@@ -441,7 +441,7 @@ check official sources before travelling.
 - UCT PDF footnotes are shown as short static notes next to the affected
   routes in search results and departure boards (Route 1 Roscommon House
   after 18:55, Route 2 via Kramer, Route 6 via Mowbray, Route 11 South Stop,
-  Routes 13/14 weekend Roscommon, Overnight loop access card)
+  Routes 13/14 weekend 15:35–21:50 Roscommon House boarding, Overnight loop card or visitor's pass)
 - Known gap: Routes 13/14 trips that run past midnight (the 23:15 weekday
   trip on each route) are left out, because times are stored within a single
   day and their after-midnight stops would show out of order. They will be

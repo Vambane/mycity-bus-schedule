@@ -173,9 +173,9 @@ def test_uct_notes_by_route_and_day():
     assert "Roscommon House" in uct_notes("UCT1", "weekday")[0]
     assert uct_notes("UCT1", "saturday") == []
     assert uct_notes(["UCT13", "UCT14"], "sunday") == [
-        "Routes 13/14 at weekends: Roscommon riders should use Claremont."]
+        "Routes 13/14 at weekends, 15:35–21:50: board and alight at Roscommon House."]
     assert uct_notes("UCT13", "weekday") == []
-    assert "access card" in uct_notes("UCTOVN", "weekday")[0]
+    assert "visitor's pass" in uct_notes("UCTOVN", "weekday")[0]
     assert uct_notes("101", "weekday") == []
     for notes in UCT_ROUTE_NOTES.values():
         for _, text in notes:
@@ -210,5 +210,5 @@ def test_notes_shown_in_search_and_stop_board(monkeypatch):
         board = client.get("/stop/UC North", params={"day_type": "weekday",
                                                      "operator": "uct"}).text
     assert "UCT 13" in search
-    assert "Roscommon riders should use Claremont" in search
+    assert "board and alight at Roscommon House" in search
     assert "leave from Roscommon House" in board  # Route 1 serves UC North
