@@ -23,7 +23,7 @@ from fastapi_app.services.service_day import (
     next_service_day,
     overnight_carryover,
 )
-from fastapi_app.services.trip_preview import preview_ok_for_card
+from fastapi_app.services.trip_preview import cached_leg_stop_sequence, preview_ok_for_card
 from fastapi_app.services.trip_window import (
     ARRIVE,
     DEPART,
@@ -36,7 +36,6 @@ from fastapi_app.services.trust import trust_context
 from fastapi_app.services.uct_validity import drop_expired, uct_expiry_state
 # Import core business logic
 from journey import _to_minutes, clock_time, find_connections, find_transfer_connections
-from journey_map import leg_stop_sequence
 from system_map import get_route_colors
 
 logger = logging.getLogger(__name__)
@@ -360,6 +359,9 @@ async def search_page(
         # Route colors for schematic display
         route_colors = get_route_colors(conn)
 
+        # Cards share a few route/direction pairs; look each up once per request
+        memo: dict = {}
+
         # Initialize connections lists
         direct_connections = []
 
@@ -385,8 +387,8 @@ async def search_page(
                 adjusted_duration = ls_ui.adjusted_duration_text(row["duration_min"], buffer)
 
                 # Recover intermediate stop names for the schematic
-                stops = leg_stop_sequence(
-                    conn, row["route_id"], row.get("direction", ""),
+                stops = cached_leg_stop_sequence(
+                    memo, conn, row["route_id"], row.get("direction", ""),
                     from_stop, to_stop, row_day_type,
                 )
 
@@ -399,6 +401,7 @@ async def search_page(
                     alight=to_stop,
                     dep=row["dep"][:5],
                     arr=row["arr"][:5],
+                    memo=memo,
                 )
                 direct_connections.append({
                     "route_id": row["route_id"],
@@ -454,8 +457,8 @@ async def search_page(
                 leg_stops = []
                 leg_colors = []
                 for leg in legs_data:
-                    stops = leg_stop_sequence(
-                        conn, leg["route_id"], leg.get("direction", ""),
+                    stops = cached_leg_stop_sequence(
+                        memo, conn, leg["route_id"], leg.get("direction", ""),
                         leg["board"], leg["alight"], results_day_type,
                     )
                     leg_stops.append(stops)
@@ -475,6 +478,7 @@ async def search_page(
                         alight=first["alight"],
                         dep=str(first.get("dep", ""))[:5],
                         arr=str(first.get("arr", ""))[:5] or None,
+                        memo=memo,
                     )
                     preview_meta = {
                         "preview_route_id": first["route_id"],
