@@ -13,6 +13,13 @@ from disruption import _fmt_window, _windows_min
 from fastapi_app.config import settings
 from fastapi_app.dependencies import get_connection
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
+from fastapi_app.services.service_day import (
+    DAY_LABELS,
+    day_type_for,
+    holiday_name,
+    is_live_board,
+    next_service_day,
+)
 from fastapi_app.services.trust import trust_context
 from fastapi_app.services.uct_validity import uct_expiry_state
 
@@ -28,24 +35,79 @@ def get_cape_town_time():
 
 
 def get_current_day_type(dt: Optional[datetime] = None) -> str:
-    """
-    Determine day type (weekday/saturday/sunday) from datetime.
+    """Timetable that runs on *dt* (default: now): weekday, saturday or sunday.
 
-    Args:
-        dt: Datetime to check (defaults to now)
-
-    Returns:
-        "weekday", "saturday", or "sunday"
+    Public holidays run the Sunday timetable (see services/service_day.py).
     """
     if dt is None:
         dt = get_cape_town_time()
+    return day_type_for(dt.date())
 
-    weekday = dt.weekday()  # 0=Monday, 6=Sunday
-    if weekday == 5:  # Saturday
-        return "saturday"
-    if weekday == 6:  # Sunday
-        return "sunday"
-    return "weekday"
+
+def _load_board(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    conn: duckdb.DuckDBPyConnection,
+    stop_name: str,
+    day_type: str,
+    from_time: str,
+    operator: str,
+    expired_uct: set[str],
+) -> tuple[list[dict], dict]:
+    """Routes serving *stop_name* on *day_type*, and each one's next 10 departures.
+
+    Departures before *from_time* (HH:MM:SS) are left out. Routes with no
+    departures left are kept in the route list but have no board entry.
+    """
+    op_filter = "AND d.operator = ?" if operator != "both" else ""
+    op_params: list = [operator] if operator != "both" else []
+
+    # The DB has no GTFS trips/calendar: day_type filtering is direct.
+    routes_result = conn.execute(
+        f"""
+        SELECT DISTINCT d.route_id, r.route_name, d.direction
+        FROM departures d
+        JOIN routes r ON d.route_id = r.route_id
+        WHERE d.stop_name = ? AND d.day_type = ? {op_filter}
+        ORDER BY r.route_name, d.direction
+        """,
+        [stop_name, day_type] + op_params,
+    ).fetchall()
+    routes = [
+        {"route_id": row[0], "route_name": row[1], "direction": row[2]}
+        for row in routes_result
+        if row[0] not in expired_uct
+    ]
+
+    departures: dict = {}
+    for route in routes:
+        dep_result = conn.execute(
+            f"""
+            SELECT d.departure_time, d.direction, r.route_name
+            FROM departures d
+            JOIN routes r ON d.route_id = r.route_id
+            WHERE d.stop_name = ? AND d.route_id = ? AND d.direction = ?
+                AND d.day_type = ? AND d.departure_time >= ? {op_filter}
+            ORDER BY d.departure_time
+            LIMIT 10
+            """,
+            [stop_name, route["route_id"], route["direction"], day_type, from_time]
+            + op_params,
+        ).fetchall()
+        route_departures = [
+            {
+                "time": row[0][:5] if row[0] else "",  # HH:MM
+                "headsign": row[1] or "",
+                "route_name": row[2],
+            }
+            for row in dep_result
+        ]
+        if route_departures:
+            # Key by route_id + direction so multiple directions are separate
+            departures[f"{route['route_id']}_{route['direction']}"] = {
+                "route": route,
+                "next_departure": route_departures[0],
+                "upcoming": route_departures,
+            }
+    return routes, departures
 
 
 @router.get("/stop/{stop_name}", response_class=HTMLResponse)
@@ -81,13 +143,6 @@ async def stop_view(
         # Validate operator filter (default: show both networks)
         if operator not in ("both", "myciti", "uct"):
             operator = "both"
-
-        # Build operator SQL fragment used by queries below
-        op_filter = ""
-        op_params: list = []
-        if operator != "both":
-            op_filter = "AND d.operator = ?"
-            op_params = [operator]
 
         # Per-route UCT validity: expired routes are hidden and the banner shown
         expired_uct: set[str] = set()
@@ -126,30 +181,15 @@ async def stop_view(
                 windows_str = [_fmt_window(start, end) for start, end in windows_min[:3]]
                 ls_warning = ls_ui.stop_banner_text(stop_name, stop_block, windows_str)
 
-        # Query routes serving this stop via the departures table.
-        # The DB has no GTFS trips/calendar — day_type filtering is direct.
-        # Optional operator filter narrows to one network.
-        routes_query = f"""
-        SELECT DISTINCT
-            d.route_id,
-            r.route_name,
-            d.direction
-        FROM departures d
-        JOIN routes r ON d.route_id = r.route_id
-        WHERE d.stop_name = ?
-            AND d.day_type = ?
-            {op_filter}
-        ORDER BY r.route_name, d.direction
-        """
+        # Live board: today's own timetable hides buses that have left.
+        # Any other day type shows the whole day from the first bus.
+        live = is_live_board(day_type, now)
+        routes, departures = _load_board(
+            conn, stop_name, day_type, current_time if live else "00:00:00",
+            operator, expired_uct,
+        )
 
-        routes_result = conn.execute(
-            routes_query,
-            [stop_name, day_type] + op_params
-        ).fetchall()
-        if expired_uct:
-            routes_result = [r for r in routes_result if r[0] not in expired_uct]
-
-        if not routes_result:
+        if not routes:
             # No routes found for this stop
             templates = request.app.state.templates
             return templates.TemplateResponse(
@@ -169,58 +209,22 @@ async def stop_view(
                 }
             )
 
-        routes = [
-            {
-                "route_id": row[0],
-                "route_name": row[1],
-                "direction": row[2],
-            }
-            for row in routes_result
-        ]
-
-        # Query upcoming departures for each route+direction
-        departures = {}
-        for route in routes:
-            departures_query = f"""
-            SELECT
-                d.departure_time,
-                d.direction,
-                r.route_name
-            FROM departures d
-            JOIN routes r ON d.route_id = r.route_id
-            WHERE d.stop_name = ?
-                AND d.route_id = ?
-                AND d.direction = ?
-                AND d.day_type = ?
-                AND d.departure_time >= ?
-                {op_filter}
-            ORDER BY d.departure_time
-            LIMIT 10
-            """
-
-            dep_result = conn.execute(
-                departures_query,
-                [stop_name, route["route_id"], route["direction"],
-                 day_type, current_time] + op_params
-            ).fetchall()
-
-            route_departures = [
-                {
-                    "time": row[0][:5] if row[0] else "",  # HH:MM format
-                    "headsign": row[1] or "",
-                    "route_name": row[2],
-                }
-                for row in dep_result
-            ]
-
-            # Key by route_id + direction so multiple directions are separate
-            dep_key = f"{route['route_id']}_{route['direction']}"
-
-            if route_departures:
-                departures[dep_key] = {
-                    "route": route,
-                    "next_departure": route_departures[0],
-                    "upcoming": route_departures,
+        # After the last bus, show tomorrow's first departures on
+        # tomorrow's own timetable (Friday night shows Saturday's).
+        board_day_type = day_type
+        next_day = None
+        if live and not departures:
+            tomorrow, tomorrow_type = next_service_day(now)
+            t_routes, t_departures = _load_board(
+                conn, stop_name, tomorrow_type, "00:00:00", operator, expired_uct
+            )
+            if t_departures:
+                routes, departures = t_routes, t_departures
+                board_day_type = tomorrow_type
+                next_day = {
+                    "day_type": tomorrow_type,
+                    "label": DAY_LABELS[tomorrow_type],
+                    "holiday": holiday_name(tomorrow),
                 }
 
         templates = request.app.state.templates
@@ -235,6 +239,10 @@ async def stop_view(
                 "routes": routes,
                 "departures": departures,
                 "current_time": current_time[:5],
+                "live": live,
+                "board_day_type": board_day_type,
+                "next_day": next_day,
+                "today_holiday": holiday_name(today),
                 "ls_stage": ls_stage,
                 "ls_warning": ls_warning,
                 "uct_stale_warning": uct_stale_warning,

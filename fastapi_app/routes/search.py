@@ -14,6 +14,13 @@ from fastapi_app.config import settings
 from fastapi_app.dependencies import get_connection
 from fastapi_app.services.journey_page import journey_href_direct, journey_href_transfer
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
+from fastapi_app.services.service_day import (
+    DAY_LABELS,
+    day_type_for,
+    holiday_name,
+    is_live_board,
+    next_service_day,
+)
 from fastapi_app.services.trip_preview import preview_ok_for_card
 from fastapi_app.services.trust import trust_context
 from fastapi_app.services.uct_validity import drop_expired, uct_expiry_state
@@ -34,16 +41,28 @@ def get_cape_town_time():
 
 
 def get_current_day_type(dt: Optional[datetime] = None) -> str:
-    """Determine day type from datetime."""
+    """Timetable that runs on *dt* (default: now): weekday, saturday or sunday.
+
+    Public holidays run the Sunday timetable (see services/service_day.py).
+    """
     if dt is None:
         dt = get_cape_town_time()
+    return day_type_for(dt.date())
 
-    weekday = dt.weekday()  # 0=Monday, 6=Sunday
-    if weekday == 5:
-        return "saturday"
-    if weekday == 6:
-        return "sunday"
-    return "weekday"
+
+def _without_expired_direct(df, expired_uct: set[str]):
+    """Drop direct services on UCT routes whose timetable has expired."""
+    if expired_uct and df is not None and not df.empty:
+        return df[~df["route_id"].isin(expired_uct)].reset_index(drop=True)
+    return df
+
+
+def _without_expired_transfers(df, expired_uct: set[str]):
+    """Drop transfer journeys that use any expired UCT route."""
+    if expired_uct and df is not None and not df.empty:
+        keep = df["route_ids"].apply(lambda ids: drop_expired(list(ids), expired_uct))
+        return df[keep].reset_index(drop=True)
+    return df
 
 
 @router.get("/search", response_class=HTMLResponse)
@@ -145,15 +164,16 @@ async def search_page(
         # Get current time for filtering
         now = get_cape_town_time()
 
-        # If a specific date is selected, start from beginning of day
-        if search_date_parsed:
-            current_time_str = "00:00:00"
-            today = search_date_parsed
-            time_context = f"date={search_date}"
-        else:
+        # Live search: today's own timetable hides buses that have left.
+        # A picked date, or another day's timetable, shows the whole day.
+        live = is_live_board(day_type, now, search_date_parsed)
+        today = search_date_parsed or now.date()
+        if live:
             current_time_str = now.strftime("%H:%M:%S")
-            today = now.date()
             time_context = f"time={current_time_str}"
+        else:
+            current_time_str = "00:00:00"
+            time_context = f"date={search_date}" if search_date else "whole day"
 
         logger.info(f"Journey search: {from_stop} → {to_stop}, {day_type}, {time_context}")
 
@@ -179,56 +199,72 @@ async def search_page(
             to_block = None
 
         # Search for direct connections (scoped to selected operator)
-        direct_df = find_connections(conn, from_stop, to_stop, day_type, operator)
-        if expired_uct and not direct_df.empty:
-            direct_df = direct_df[~direct_df["route_id"].isin(expired_uct)].reset_index(drop=True)
+        direct_df = _without_expired_direct(
+            find_connections(conn, from_stop, to_stop, day_type, operator), expired_uct
+        )
 
-        # Filter for upcoming departures only
+        # After the last bus, results switch to tomorrow's first departures
+        # on tomorrow's own timetable (Friday night shows Saturday's).
+        tomorrow, tomorrow_type = next_service_day(now)
+        results_day_type = day_type
         showing_next_day = False
+
+        # Direct services: upcoming only, else tomorrow's first ten
         if not direct_df.empty:
-            upcoming = direct_df[direct_df["dep"] >= current_time_str].copy()
-
-            # If no upcoming buses today, show tomorrow's first departures
-            if upcoming.empty and len(direct_df) > 0:
-                logger.info("No upcoming buses today, showing tomorrow's departures")
-                direct_df = direct_df.head(10)  # Show first 10 departures of next day
-                showing_next_day = True
-            else:
+            upcoming = direct_df[direct_df["dep"] >= current_time_str]
+            if not upcoming.empty:
                 direct_df = upcoming.sort_values("dep").reset_index(drop=True)
+            else:
+                logger.info("No upcoming buses today, showing tomorrow's departures")
+                if tomorrow_type != day_type:
+                    direct_df = _without_expired_direct(
+                        find_connections(conn, from_stop, to_stop, tomorrow_type, operator),
+                        expired_uct,
+                    )
+                direct_df = direct_df.head(10)
+                if not direct_df.empty:
+                    showing_next_day = True
+                    results_day_type = tomorrow_type
 
-        # Search for transfer connections if no direct routes
+        # Transfers, only when there is no direct service at all
         transfer_df = None
         if direct_df.empty:
             logger.info("No direct connections, searching for transfers...")
-            transfer_df = find_transfer_connections(
-                conn, from_stop, to_stop, day_type, operator=operator)
-            if expired_uct and transfer_df is not None and not transfer_df.empty:
-                keep = transfer_df["route_ids"].apply(
-                    lambda ids: drop_expired(list(ids), expired_uct)
-                )
-                transfer_df = transfer_df[keep].reset_index(drop=True)
-
-            # Filter for upcoming departures
+            transfer_df = _without_expired_transfers(
+                find_transfer_connections(conn, from_stop, to_stop, day_type, operator=operator),
+                expired_uct,
+            )
             if transfer_df is not None and not transfer_df.empty:
-                upcoming_transfers = transfer_df[transfer_df["dep"] >= current_time_str].copy()
-
-                # If no upcoming transfers today, show tomorrow's first transfers
-                if upcoming_transfers.empty and len(transfer_df) > 0:
-                    logger.info("No upcoming transfers today, showing tomorrow's departures")
-                    transfer_df = transfer_df.head(10)
-                    showing_next_day = True
-                else:
+                upcoming_transfers = transfer_df[transfer_df["dep"] >= current_time_str]
+                if not upcoming_transfers.empty:
                     transfer_df = upcoming_transfers.sort_values("dep").reset_index(drop=True)
+                else:
+                    logger.info("No upcoming transfers today, showing tomorrow's departures")
+                    if tomorrow_type != day_type:
+                        transfer_df = _without_expired_transfers(
+                            find_transfer_connections(
+                                conn, from_stop, to_stop, tomorrow_type, operator=operator
+                            ),
+                            expired_uct,
+                        )
+                    transfer_df = transfer_df.head(10)
+                    if not transfer_df.empty:
+                        showing_next_day = True
+                        results_day_type = tomorrow_type
 
         # Prepare results for template
         results = {
             "from_stop": from_stop,
             "to_stop": to_stop,
-            "day_type": day_type,
+            "day_type": results_day_type,
             "search_date": search_date or "",
             "current_time": current_time_str[:5] if not search_date else "start of day",
             "has_results": False,
             "showing_next_day": showing_next_day,
+            "next_day_label": DAY_LABELS[results_day_type],
+            "next_day_holiday": holiday_name(tomorrow) if showing_next_day else None,
+            "today_holiday": holiday_name(today) if live else None,
+            "live": live,
             "direct": [],
             "transfers": [],
             "tabs": {
@@ -264,14 +300,14 @@ async def search_page(
                 # Recover intermediate stop names for the schematic
                 stops = leg_stop_sequence(
                     conn, row["route_id"], row.get("direction", ""),
-                    from_stop, to_stop, day_type,
+                    from_stop, to_stop, results_day_type,
                 )
 
                 preview_ok = preview_ok_for_card(
                     conn,
                     route_id=row["route_id"],
                     direction=row.get("direction", ""),
-                    day_type=day_type,
+                    day_type=results_day_type,
                     board=from_stop,
                     alight=to_stop,
                     dep=row["dep"][:5],
@@ -295,7 +331,7 @@ async def search_page(
                     "journey_href": journey_href_direct(
                         from_stop=from_stop,
                         to_stop=to_stop,
-                        day_type=day_type,
+                        day_type=results_day_type,
                         route_id=row["route_id"],
                         direction=row.get("direction", ""),
                         dep=row["dep"][:5],
@@ -333,7 +369,7 @@ async def search_page(
                 for leg in legs_data:
                     stops = leg_stop_sequence(
                         conn, leg["route_id"], leg.get("direction", ""),
-                        leg["board"], leg["alight"], day_type,
+                        leg["board"], leg["alight"], results_day_type,
                     )
                     leg_stops.append(stops)
                     leg_colors.append(route_colors.get(leg["route_id"], "#666"))
@@ -347,7 +383,7 @@ async def search_page(
                         conn,
                         route_id=first["route_id"],
                         direction=first.get("direction", ""),
-                        day_type=day_type,
+                        day_type=results_day_type,
                         board=first["board"],
                         alight=first["alight"],
                         dep=str(first.get("dep", ""))[:5],
@@ -375,7 +411,7 @@ async def search_page(
                     "journey_href": journey_href_transfer(
                         from_stop=from_stop,
                         to_stop=to_stop,
-                        day_type=day_type,
+                        day_type=results_day_type,
                         legs=legs_data,
                         operator=operator or "both",
                     ),

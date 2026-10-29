@@ -200,6 +200,10 @@
       <p class="results-meta">
         {% if results.search_date %}
         Departures for {{ results.search_date }}
+        {% elif results.showing_next_day %}
+        Tomorrow's first departures
+        {% elif not results.live %}
+        All departures
         {% else %}
         Departures from {{ results.current_time }}
         {% endif %}
@@ -214,11 +218,20 @@
     </div>
     {% endif %}
 
+    <!-- Public holiday notice -->
+    {% if results.today_holiday %}
+    <div class="alert alert-info" role="status">
+      <div class="alert-title">{{ results.today_holiday }}</div>
+      <p>It's a public holiday, so Sunday timetables apply today.</p>
+    </div>
+    {% endif %}
+
     <!-- Next-day notice -->
     {% if results.showing_next_day %}
     <div class="alert alert-info" role="status">
       <div class="alert-title">No more buses today</div>
-      <p>The last bus has left. Showing tomorrow morning's departures instead.</p>
+      <p>The last bus has left. Showing tomorrow morning's departures
+         ({% if results.next_day_holiday %}{{ results.next_day_holiday }}, so the Sunday timetable{% else %}{{ results.next_day_label }} timetable{% endif %}).</p>
     </div>
     {% endif %}
 
