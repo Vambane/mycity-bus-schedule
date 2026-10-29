@@ -1517,3 +1517,89 @@ a.btn-primary {
 .when-row:has(#when-now:checked) .when-time {
   opacity: 0.45;
 }
+
+/* ============================================================
+   USE MY LOCATION (search form, beside From)
+   ============================================================ */
+.form-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: 32px;
+}
+
+.btn-locate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 2px var(--sp-3);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--border-width) solid var(--ink);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--duration-fast) ease, box-shadow var(--duration-fast) ease,
+              background var(--duration-fast) ease;
+}
+
+.btn-locate:hover {
+  background: var(--yellow);
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+.btn-locate[hidden] { display: none; }
+
+.btn-locate:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.locate-status:empty { display: none; }
+
+.locate-status p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.locate-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.locate-chips__label {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-sm);
+}
+
+.locate-chips .recent-chip {
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+/* The privacy line sits under From, not in the trust strip */
+.locate-privacy .trust-strip__line {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+/* Side-by-side fields stay level: every label in a 2-column row is as
+   tall as the From row with its "Use my location" button. */
+.form-grid--2col > .form-group > .form-label:first-child {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}

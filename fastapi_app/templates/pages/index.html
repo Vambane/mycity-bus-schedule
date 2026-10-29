@@ -22,7 +22,19 @@
       <div class="form-grid form-grid--2col">
         <!-- From stop combobox -->
         <div class="form-group">
-          <label class="form-label" id="label-from">From</label>
+          <div class="form-label-row">
+            <label class="form-label" id="label-from">From</label>
+            {# Shown by nearest.js only when the browser can share location #}
+            <button type="button" class="btn-locate" id="locate-btn" hidden
+                    data-operator="{{ operator }}"
+                    aria-describedby="locate-status">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2.5"/>
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+              Use my location
+            </button>
+          </div>
           <div class="combobox" data-combobox="from_stop">
             <input type="text"
                    class="combobox-input"
@@ -52,6 +64,10 @@
               <option value="{{ stop }}" {% if stop == from_stop %}selected{% endif %}>{{ stop }}</option>
               {% endfor %}
             </select>
+          </div>
+          <div class="locate-status" id="locate-status" role="status" aria-live="polite"></div>
+          <div class="locate-privacy" id="locate-privacy" hidden>
+            {% include 'components/location_privacy.html' %}
           </div>
         </div>
 
@@ -378,4 +394,5 @@
 <script src="/static/js/combobox.js?v={{ asset_v }}"></script>
 <script src="/static/js/tabs.js?v={{ asset_v }}"></script>
 <script src="/static/js/search.js?v={{ asset_v }}"></script>
+<script src="/static/js/nearest.js?v={{ asset_v }}"></script>
 {% endblock %}
