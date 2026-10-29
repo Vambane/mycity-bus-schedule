@@ -823,16 +823,45 @@ def _split_repeats(stops: list[str], rows: list[list[Optional[str]]]):
 # Extend this if UCT confirms 26 Nov.
 VALID_UNTIL_OVERRIDES = {"UCT5": "2026-11-20"}
 
-# Trips on these routes that run past midnight are left out for now: times
-# are stored as HH:MM within one day, so their post-midnight stops would be
-# shown out of order. Known gap, documented in README.md.
-MIDNIGHT_EXCLUDED_ROUTES = {"UCT13", "UCT14"}
+# A trip that runs past midnight is printed with its clock times (23:50,
+# then 00:05). Times are stored on one service day, so after-midnight
+# stops are written past 24:00 (00:05 -> 24:05), the usual timetable
+# convention, which keeps every trip's stops in order. Only a drop of at
+# least this much counts as midnight; a smaller drop is left alone (it is
+# more likely a misprint than a trip running backwards in time).
+MIDNIGHT_DROP_MIN = 12 * 60
 
 
 def crosses_midnight(row) -> bool:
-    """True if a trip's times go backwards (e.g. 23:50 then 00:05)."""
+    """True if a trip's times go backwards past midnight (e.g. 23:50 then 00:05)."""
     times = [t for t in row if t]
-    return any(b < a for a, b in zip(times, times[1:]))
+    return any(
+        _to_minutes(a) - _to_minutes(b) >= MIDNIGHT_DROP_MIN
+        for a, b in zip(times, times[1:])
+    )
+
+
+def unroll_midnight(row: list[Optional[str]]) -> list[Optional[str]]:
+    """Rewrite after-midnight times on one trip as 24:xx so they stay in order.
+
+    ['23:15:00', '23:50:00', '00:05:00'] -> ['23:15:00', '23:50:00', '24:05:00']
+    Empty cells (stops the trip skips) stay empty.
+    """
+    out: list[Optional[str]] = []
+    offset = 0
+    prev: Optional[int] = None
+    for t in row:
+        if not t:
+            out.append(t)
+            continue
+        minutes = _to_minutes(t) + offset
+        if prev is not None and prev - minutes >= MIDNIGHT_DROP_MIN:
+            offset += 24 * 60
+            minutes += 24 * 60
+        prev = minutes
+        h, m = divmod(minutes, 60)
+        out.append(f"{h:02d}:{m:02d}:{t[6:8] or '00'}")
+    return out
 
 
 # Walks the source layout step by step; splitting it would scatter the parsing rules.
@@ -902,11 +931,9 @@ def parse_uct_pdf(  # pylint: disable=too-many-locals,too-many-branches,too-many
                                         "operator": "uct", "scraped_at": now,
                                     })
                             for row in rows:
-                                if (route_id in MIDNIGHT_EXCLUDED_ROUTES
-                                        and crosses_midnight(row)):
-                                    log.info(f"  {route_id}: skipping trip "
-                                             f"crossing midnight {row}")
-                                    continue
+                                if crosses_midnight(row):
+                                    row = unroll_midnight(row)
+                                    log.info(f"  {route_id}: trip runs past midnight {row}")
                                 for name, t in zip(stops, row):
                                     if not t:
                                         continue

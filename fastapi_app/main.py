@@ -11,6 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from jinja2 import Environment, FileSystemLoader
 
+from journey import clock_time
+
 from .config import settings
 from .dependencies import close_connection_pool, get_connection, init_connection_pool, is_pool_ready
 from .routes import api, journey, landing, search, stop, system_map
@@ -56,6 +58,8 @@ templates_dir = Path(__file__).parent / "templates"
 # Auto-escaping stays on; cache_size=0 so template edits show without a restart.
 jinja_env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=True, cache_size=0)
 jinja_env.globals["uct_notes"] = uct_notes
+# Display times as wall-clock HH:MM (stored overnight times run past 24:00).
+jinja_env.filters["clock"] = clock_time
 templates = Jinja2Templates(env=jinja_env)
 
 # Cache-busting version for local static assets: short git SHA on Render,

@@ -26,6 +26,7 @@ import math
 import duckdb
 import streamlit.components.v1 as components
 
+from journey import clock_time
 # Deliberately shared internals: the journey map must place stops exactly
 # where the system map places them, and draw the same street geometries.
 from system_map import _load_route_paths, _load_stop_coords, _match_coords
@@ -290,32 +291,32 @@ def build_journey_map_data(
         return None
 
     origin = _marker("origin", legs[0]["board"],
-                     f"{legs[0]['board']} · dep {legs[0]['dep'][:5]}", coords)
+                     f"{legs[0]['board']} · dep {clock_time(legs[0]['dep'])}", coords)
     if origin is None:
         # Endpoint missing from the city layer: anchor it at the first
         # drawable point of the journey and say so.
         first = leg_paths[0]["points"][0]
         origin = {
             "kind": "origin", "lat": first[0], "lon": first[1],
-            "label": f"{legs[0]['board']} (approx) · dep {legs[0]['dep'][:5]}",
+            "label": f"{legs[0]['board']} (approx) · dep {clock_time(legs[0]['dep'])}",
         }
 
     destination = _marker("destination", legs[-1]["alight"],
-                          f"{legs[-1]['alight']} · arr {legs[-1]['arr'][:5]}",
+                          f"{legs[-1]['alight']} · arr {clock_time(legs[-1]['arr'])}",
                           coords)
     if destination is None:
         last = leg_paths[-1]["points"][-1]
         destination = {
             "kind": "destination", "lat": last[0], "lon": last[1],
             "label": f"{legs[-1]['alight']} (approx) · "
-                     f"arr {legs[-1]['arr'][:5]}",
+                     f"arr {clock_time(legs[-1]['arr'])}",
         }
 
     markers = [origin]
     for leg in legs[1:]:
         markers.append(_marker(
             "transfer", leg["board"],
-            f"{leg['board']} · change to {leg['route_id']} {leg['dep'][:5]}",
+            f"{leg['board']} · change to {leg['route_id']} {clock_time(leg['dep'])}",
             coords,
         ))
     markers.append(destination)

@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 import duckdb
+import pandas as pd
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -20,12 +21,13 @@ from fastapi_app.services.service_day import (
     holiday_name,
     is_live_board,
     next_service_day,
+    overnight_carryover,
 )
 from fastapi_app.services.trip_preview import preview_ok_for_card
 from fastapi_app.services.trust import trust_context
 from fastapi_app.services.uct_validity import drop_expired, uct_expiry_state
 # Import core business logic
-from journey import find_connections, find_transfer_connections
+from journey import _to_minutes, find_connections, find_transfer_connections
 from journey_map import leg_stop_sequence
 from system_map import get_route_colors
 
@@ -55,6 +57,45 @@ def _without_expired_direct(df, expired_uct: set[str]):
     if expired_uct and df is not None and not df.empty:
         return df[~df["route_id"].isin(expired_uct)].reset_index(drop=True)
     return df
+
+
+def _with_overnight_carryover(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    df, conn, from_stop: str, to_stop: str, operator: str, expired_uct: set[str], now
+):
+    """Add yesterday's still-running overnight trips to today's direct services.
+
+    Between midnight and early morning, a trip that left yesterday at 23:15
+    is stored on yesterday's timetable as 24:xx. Those rows are tagged with
+    their own service day so cards and links use the right timetable.
+    """
+    if df is not None and not df.empty:
+        df = df.assign(service_day_type=None, overnight=False)
+    carry = overnight_carryover(now)
+    if not carry:
+        return df
+    y_type, y_from = carry
+    y_df = _without_expired_direct(
+        find_connections(conn, from_stop, to_stop, y_type, operator), expired_uct
+    )
+    if y_df is None or y_df.empty:
+        return df
+    y_df = y_df[y_df["dep"] >= y_from]
+    if y_df.empty:
+        return df
+    y_df = y_df.assign(service_day_type=y_type, overnight=True)
+    if df is None or df.empty:
+        return y_df.reset_index(drop=True)
+    return pd.concat([y_df, df], ignore_index=True)
+
+
+def _in_clock_order(df):
+    """Sort by real departure time: yesterday's 24:15 comes before today's 05:40."""
+    minutes = df["dep"].map(_to_minutes)
+    if "overnight" in df:
+        minutes = minutes - df["overnight"].fillna(False).astype(bool) * 24 * 60
+    return df.assign(_order=minutes).sort_values("_order").drop(columns="_order").reset_index(
+        drop=True
+    )
 
 
 def _without_expired_transfers(df, expired_uct: set[str]):
@@ -202,6 +243,10 @@ async def search_page(
         direct_df = _without_expired_direct(
             find_connections(conn, from_stop, to_stop, day_type, operator), expired_uct
         )
+        if live:
+            direct_df = _with_overnight_carryover(
+                direct_df, conn, from_stop, to_stop, operator, expired_uct, now
+            )
 
         # After the last bus, results switch to tomorrow's first departures
         # on tomorrow's own timetable (Friday night shows Saturday's).
@@ -213,7 +258,7 @@ async def search_page(
         if not direct_df.empty:
             upcoming = direct_df[direct_df["dep"] >= current_time_str]
             if not upcoming.empty:
-                direct_df = upcoming.sort_values("dep").reset_index(drop=True)
+                direct_df = _in_clock_order(upcoming)
             else:
                 logger.info("No upcoming buses today, showing tomorrow's departures")
                 if tomorrow_type != day_type:
@@ -286,6 +331,10 @@ async def search_page(
 
             # Convert to list of dicts for template
             for _, row in direct_df.iterrows():
+                # Overnight carry-over rows belong to yesterday's timetable
+                row_day_type = row.get("service_day_type")
+                if not isinstance(row_day_type, str):
+                    row_day_type = results_day_type
                 # Assess load shedding disruption
                 assessment = assess_connection(
                     row["dep"], row["arr"], from_block, to_block, stage, today
@@ -300,14 +349,14 @@ async def search_page(
                 # Recover intermediate stop names for the schematic
                 stops = leg_stop_sequence(
                     conn, row["route_id"], row.get("direction", ""),
-                    from_stop, to_stop, results_day_type,
+                    from_stop, to_stop, row_day_type,
                 )
 
                 preview_ok = preview_ok_for_card(
                     conn,
                     route_id=row["route_id"],
                     direction=row.get("direction", ""),
-                    day_type=results_day_type,
+                    day_type=row_day_type,
                     board=from_stop,
                     alight=to_stop,
                     dep=row["dep"][:5],
@@ -331,7 +380,7 @@ async def search_page(
                     "journey_href": journey_href_direct(
                         from_stop=from_stop,
                         to_stop=to_stop,
-                        day_type=results_day_type,
+                        day_type=row_day_type,
                         route_id=row["route_id"],
                         direction=row.get("direction", ""),
                         dep=row["dep"][:5],
