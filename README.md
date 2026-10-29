@@ -32,6 +32,7 @@ It's built from the published timetables, so it's a **planning aid, not live GPS
 | 🪧 **Departure board** | Leave "To" empty and get the next departures for every route at that stop. |
 | 🌍 **Network map** | Every route on real Cape Town geography. Flip between *Schematic* (the tidy 45°/90° look) and *Street* (the actual roads). Tap a stop to see its timetable. |
 | 👻 **Trip preview** | Pop a ghost marker on the map where your bus *should* be, interpolated from the timetable. Clearly labelled "Estimated from timetable, not live GPS." |
+| 🌙 **Late nights and holidays** | After the last bus, see tomorrow's first departures on tomorrow's timetable (Friday night shows Saturday's). Just after midnight, yesterday's late trips still show. Public holidays switch to the Sunday timetable by themselves. |
 | ⚡ **Load-shedding awareness** | Shows the stage Halte is assuming (Stage 0 by default) and flags journeys that hit a scheduled outage window at either end. |
 | 🎓 **UCT shuttles** | The Jammie timetables live alongside MyCiTi, each route with its own validity dates. Expired ones are hidden and named in a banner, not silently shown. |
 | 🔀 **Network toggle** | Both / MyCiTi / UCT on every search. |
@@ -226,7 +227,7 @@ On a cold start Halte rebuilds `data/myciti.duckdb` from the snapshot if it's mi
 ├── fastapi_app/
 │   ├── main.py                 # App, routers, /health, cache headers
 │   ├── routes/                 # landing, search, journey, stop, system_map, api
-│   ├── services/               # load shedding, trip preview, UCT validity + notes
+│   ├── services/               # service days + holidays, load shedding, trip preview, UCT validity
 │   ├── templates/
 │   │   ├── base.html           # App shell: header, footer
 │   │   ├── pages/              # landing, index (search), journey, stop, system_map
@@ -242,6 +243,7 @@ On a cold start Halte rebuilds `data/myciti.duckdb` from the snapshot if it's mi
 ├── disruption.py               # Load-shedding schedule model
 ├── etl/                        # MyCiTi + UCT scrapers, DuckDB loader, stop blocks
 ├── run_etl.py                  # One-command ETL
+├── tools/landing_screenshot.py # Regenerates the landing page hero image
 ├── app.py                      # The original Streamlit app
 ├── data/                       # Open-data GeoJSON + Parquet snapshot
 └── tests/
@@ -252,11 +254,10 @@ On a cold start Halte rebuilds `data/myciti.duckdb` from the snapshot if it's mi
 ## Things Halte can't do (yet) 🙈
 
 - **No live tracking.** Timetables only. If the bus is late, Halte is late too.
-- **Public holidays** use the Sunday timetable but aren't detected automatically. Pick Sunday yourself.
+- **One-off public holidays** (an election day, say) can't be predicted. The regular ones are worked out automatically, Easter included; declared extras go in `EXTRA_HOLIDAYS` in `fastapi_app/services/service_day.py`.
 - **A few new MyCiTi routes and stops** are missing from the city's open data: 4 routes are drawn as straight dashed lines in street mode, and about 23 stops don't appear on the map (they're still searchable).
 - **UCT stops have no coordinates yet**, so they're in search and departure boards but not on the map.
 - **UCT Route 5's end date** is 20 Nov in its PDF and 26 Nov on UCT's website. Halte uses the earlier date until UCT confirms (`VALID_UNTIL_OVERRIDES` in `etl/scrape_uct.py`). Route 20 (Educare) isn't in the current set.
-- **UCT Routes 13 and 14** each lose their 23:15 weekday trip, because times are stored within a single day and the after-midnight stops would come out in the wrong order. They'll come back once cross-midnight times are supported.
 - **UCT footnotes** (Roscommon House after 18:55, via Kramer, via Mowbray and so on) are shown as short notes next to the affected routes, not parsed from the PDFs.
 - **Load-shedding flags** always use today's date and check each end of a trip at a single moment. The delay buffer is a fixed rule of thumb.
 - **Transfers are suggestions**, not guaranteed connections.

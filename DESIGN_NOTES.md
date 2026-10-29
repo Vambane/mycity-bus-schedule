@@ -12,6 +12,14 @@ The small decisions that make Halte behave well, collected in one place so the R
 - **Shape language.** 2px ink borders, 10px radii, hard offset shadows (`2px`, `4px`, `8px`, `12px`). Buttons press "into" their shadow on hover, exactly like the landing CTAs. Active nav pills, tabs and toggles are ink with yellow text, painted on the active element itself (no sliding indicator to mis-measure).
 - **Hero band.** Every app page opens with a full-bleed yellow band. It's painted with `border-image` outset, so it reaches both edges of the viewport without ever widening the page.
 - **Route colours** come from the official map and never change: trunk red, direct blue, area green, UCT navy.
+- **Landing hero image.** `landing-search.webp` is a real search result. After any visual change, regenerate it with `python3 tools/landing_screenshot.py` (clock pinned, so the times never drift).
+
+## Times and service days
+
+- **Which timetable.** `fastapi_app/services/service_day.py` maps a date to weekday, Saturday or Sunday. South African public holidays (fixed dates, Good Friday, Family Day, and a Sunday holiday moving to Monday) run the Sunday timetable. *(tests/test_service_day.py)*
+- **Live vs whole day.** Only today's own timetable hides buses that have left. Another day's timetable, or a picked date, shows the whole day.
+- **After the last bus**, results switch to tomorrow's first departures on tomorrow's timetable, with a banner naming it.
+- **Past midnight.** A trip that crosses midnight is stored past 24:00 (00:05 → `24:05`) so its stops stay in order. Riders always see clock time via the `clock` filter; links and queries keep the stored value. Until 06:00, yesterday's still-running trips appear first. *(tests/test_overnight.py)*
 
 ## Pages and routing
 
