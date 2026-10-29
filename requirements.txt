@@ -8,10 +8,6 @@ lxml>=5.0.0
 pdfplumber>=0.10.0
 shapely>=2.0.0
 
-# Flask dependencies (for webapp.py)
-Flask>=3.0.0
-gunicorn>=22.0.0
-
 # FastAPI dependencies (for fastapi_app/)
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0

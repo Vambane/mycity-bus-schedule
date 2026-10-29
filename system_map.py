@@ -353,7 +353,7 @@ def render_system_map(graph: dict) -> Optional[str]:
     Returns None until the user clicks a stop; after a click, every rerun
     returns the same stop name until a different stop is clicked — callers
     must track the last handled value to avoid re-triggering. The Streamlit
-    component is loaded lazily so the Flask website can reuse build_network
+    component is loaded lazily so the FastAPI app can reuse build_network
     without initializing Streamlit.
     """
     map_component = components.declare_component(
