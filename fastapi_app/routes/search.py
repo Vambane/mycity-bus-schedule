@@ -24,10 +24,18 @@ from fastapi_app.services.service_day import (
     overnight_carryover,
 )
 from fastapi_app.services.trip_preview import preview_ok_for_card
+from fastapi_app.services.trip_window import (
+    ARRIVE,
+    DEPART,
+    NOW,
+    arriving_by,
+    last_departure_by,
+    parse_window,
+)
 from fastapi_app.services.trust import trust_context
 from fastapi_app.services.uct_validity import drop_expired, uct_expiry_state
 # Import core business logic
-from journey import _to_minutes, find_connections, find_transfer_connections
+from journey import _to_minutes, clock_time, find_connections, find_transfer_connections
 from journey_map import leg_stop_sequence
 from system_map import get_route_colors
 
@@ -117,6 +125,8 @@ async def search_page(
     day_type: Optional[str] = None,
     search_date: Optional[str] = None,  # Format: YYYY-MM-DD
     operator: Optional[str] = None,     # 'both' | 'myciti' | 'uct'
+    when: Optional[str] = None,         # 'now' | 'depart' | 'arrive'
+    at: Optional[str] = None,           # HH:MM, with when=depart|arrive
     conn: duckdb.DuckDBPyConnection = Depends(get_connection)
 ):
     """
@@ -126,6 +136,7 @@ async def search_page(
         from_stop: Origin stop name
         to_stop: Destination stop name (optional - redirects to stop view if empty)
         day_type: Service day type (weekday/saturday/sunday)
+        when, at: Leave now (default), depart at HH:MM, or arrive by HH:MM
         conn: Database connection
 
     Returns:
@@ -170,6 +181,10 @@ async def search_page(
     if operator not in ("both", "myciti", "uct"):
         operator = "both"
 
+    # Leave now, depart at, or arrive by (bad input falls back to now)
+    window = parse_window(when, at)
+    window_context = {"when": window.mode, "at": window.at_hhmm}
+
     # Per-route UCT validity: expired routes are hidden and the banner shown
     expired_uct: set[str] = set()
     uct_stale_warning = None
@@ -189,6 +204,7 @@ async def search_page(
                 "day_type": day_type,
                 "search_date": search_date or "",
                 "operator": operator,
+                **window_context,
                 "results": None,
                 "ls_stage": ls_stage,
                 "uct_stale_warning": uct_stale_warning,
@@ -215,6 +231,15 @@ async def search_page(
         else:
             current_time_str = "00:00:00"
             time_context = f"date={search_date}" if search_date else "whole day"
+
+        # A chosen time replaces "now". Arrive-by on today's timetable still
+        # hides buses that have already left: they can't get you there.
+        on_today = live
+        arrive_floor = current_time_str
+        if window.mode != NOW:
+            live = False
+            current_time_str = window.at if window.mode == DEPART else "00:00:00"
+            time_context = f"{window.mode}={window.at_hhmm}"
 
         logger.info(f"Journey search: {from_stop} → {to_stop}, {day_type}, {time_context}")
 
@@ -255,7 +280,12 @@ async def search_page(
         showing_next_day = False
 
         # Direct services: upcoming only, else tomorrow's first ten
-        if not direct_df.empty:
+        arrive_missed = None
+        if window.mode == ARRIVE:
+            if on_today:
+                arrive_missed = last_departure_by(direct_df, window.at)
+            direct_df = arriving_by(direct_df, window.at, arrive_floor)
+        elif not direct_df.empty:
             upcoming = direct_df[direct_df["dep"] >= current_time_str]
             if not upcoming.empty:
                 direct_df = _in_clock_order(upcoming)
@@ -279,7 +309,11 @@ async def search_page(
                 find_transfer_connections(conn, from_stop, to_stop, day_type, operator=operator),
                 expired_uct,
             )
-            if transfer_df is not None and not transfer_df.empty:
+            if window.mode == ARRIVE:
+                if on_today and arrive_missed is None:
+                    arrive_missed = last_departure_by(transfer_df, window.at)
+                transfer_df = arriving_by(transfer_df, window.at, arrive_floor)
+            elif transfer_df is not None and not transfer_df.empty:
                 upcoming_transfers = transfer_df[transfer_df["dep"] >= current_time_str]
                 if not upcoming_transfers.empty:
                     transfer_df = upcoming_transfers.sort_values("dep").reset_index(drop=True)
@@ -310,6 +344,10 @@ async def search_page(
             "next_day_holiday": holiday_name(tomorrow) if showing_next_day else None,
             "today_holiday": holiday_name(today) if live else None,
             "live": live,
+            "when": window.mode,
+            "at": window.at_hhmm,
+            # Arrive-by with nothing left today: when the last one went
+            "arrive_missed": clock_time(arrive_missed) if arrive_missed else None,
             "direct": [],
             "transfers": [],
             "tabs": {
@@ -488,6 +526,7 @@ async def search_page(
                 "day_type": day_type,
                 "search_date": search_date or "",
                 "operator": operator,
+                **window_context,
                 "results": results,
                 "ls_stage": ls_stage,
                 "uct_stale_warning": uct_stale_warning,
@@ -513,6 +552,7 @@ async def search_page(
                 "day_type": day_type,
                 "search_date": search_date or "",
                 "operator": operator,
+                **window_context,
                 "results": None,
                 "error": f"Error searching for journeys: {str(e)}",
                 "ls_stage": ls_stage,

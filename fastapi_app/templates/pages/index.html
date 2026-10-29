@@ -137,9 +137,41 @@
         </div>
       </div>
 
-      <!-- Row 2b: Date -->
-      <div style="margin-top: var(--sp-4);">
-        <div class="form-group" style="max-width: 50%;">
+      <!-- Row 2b: When (leave now / depart at / arrive by) -->
+      <div class="form-grid form-grid--2col" style="margin-top: var(--sp-4);">
+        <div class="form-group">
+          <span class="form-label" id="label-when">When</span>
+          <div class="when-row">
+            <div class="segmented" role="radiogroup" aria-labelledby="label-when">
+              <span class="segmented-option">
+                <input type="radio" name="when" value="now" id="when-now"
+                       class="segmented-input" {% if not when or when == 'now' %}checked{% endif %}>
+                <label for="when-now" class="segmented-label">Leave now</label>
+              </span>
+              <span class="segmented-option">
+                <input type="radio" name="when" value="depart" id="when-depart"
+                       class="segmented-input" {% if when == 'depart' %}checked{% endif %}>
+                <label for="when-depart" class="segmented-label">Depart at</label>
+              </span>
+              <span class="segmented-option">
+                <input type="radio" name="when" value="arrive" id="when-arrive"
+                       class="segmented-input" {% if when == 'arrive' %}checked{% endif %}>
+                <label for="when-arrive" class="segmented-label">Arrive by</label>
+              </span>
+            </div>
+            <label for="at" class="sr-only">Time</label>
+            <input type="time"
+                   name="at"
+                   id="at"
+                   class="form-input when-time"
+                   value="{{ at or '' }}"
+                   step="60"
+                   aria-describedby="when-hint">
+          </div>
+          <span class="form-hint" id="when-hint">Pick a time for Depart at or Arrive by</span>
+        </div>
+
+        <div class="form-group">
           <label for="search_date" class="form-label">Date (optional)</label>
           <input type="date"
                  name="search_date"
@@ -147,7 +179,7 @@
                  class="form-input"
                  value="{{ search_date or '' }}"
                  aria-describedby="date-hint">
-          <span class="form-hint" id="date-hint">Leave blank to search from now</span>
+          <span class="form-hint" id="date-hint">Leave blank for today</span>
         </div>
       </div>
 
@@ -158,7 +190,7 @@
         </button>
 
         {% if from_stop and to_stop %}
-        <a href="/search?from_stop={{ to_stop }}&to_stop={{ from_stop }}&day_type={{ day_type }}&operator={{ operator }}{% if search_date %}&search_date={{ search_date }}{% endif %}"
+        <a href="/search?from_stop={{ to_stop }}&to_stop={{ from_stop }}&day_type={{ day_type }}&operator={{ operator }}{% if search_date %}&search_date={{ search_date }}{% endif %}{% if when and when != 'now' %}&when={{ when }}&at={{ at }}{% endif %}"
            class="btn btn-ghost btn-icon btn-swap"
            id="swap-btn"
            title="Swap origin and destination"
@@ -198,7 +230,11 @@
         <h2 style="margin-bottom: 0;">{{ results.to_stop }}</h2>
       </div>
       <p class="results-meta">
-        {% if results.search_date %}
+        {% if results.when == 'arrive' %}
+        Arriving by {{ results.at }}{% if results.search_date %} on {{ results.search_date }}{% endif %}, latest departure first
+        {% elif results.when == 'depart' %}
+        Departing from {{ results.at }}{% if results.search_date %} on {{ results.search_date }}{% endif %}
+        {% elif results.search_date %}
         Departures for {{ results.search_date }}
         {% elif results.showing_next_day %}
         Tomorrow's first departures
@@ -314,11 +350,23 @@
     {% include 'components/trust_strip.html' %}
     <div class="empty-state">
       <div class="empty-state-icon" aria-hidden="true">&#128652;</div>
+      {% if results.when == 'arrive' %}
+      <div class="empty-state-title">Nothing gets you there by {{ results.at }}</div>
+      <p class="empty-state-text">
+        {% if results.arrive_missed %}
+        The last bus that arrives at {{ results.to_stop }} by {{ results.at }} left at {{ results.arrive_missed }}.
+        {% else %}
+        No {{ results.day_type }} trip from {{ results.from_stop }} reaches {{ results.to_stop }} by {{ results.at }}.
+        {% endif %}
+        Try a later time.
+      </p>
+      {% else %}
       <div class="empty-state-title">No routes found</div>
       <p class="empty-state-text">
         There are no direct or connecting routes between {{ results.from_stop }} and {{ results.to_stop }}
         on {{ results.day_type }}s.
       </p>
+      {% endif %}
     </div>
     {% endif %}
   {% endif %}

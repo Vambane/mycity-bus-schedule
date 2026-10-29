@@ -1491,3 +1491,29 @@ a.btn-primary {
   align-self: flex-start;
   max-width: 100%;
 }
+
+/* ============================================================
+   WHEN (leave now / depart at / arrive by) + time
+   ============================================================ */
+.when-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.when-row .segmented {
+  align-self: auto;
+}
+
+.when-time {
+  width: auto;
+  min-width: 8.5rem;
+  flex: 0 0 auto;
+  color-scheme: light;
+}
+
+/* "Leave now" ignores the time: show it as inactive (still editable). */
+.when-row:has(#when-now:checked) .when-time {
+  opacity: 0.45;
+}
