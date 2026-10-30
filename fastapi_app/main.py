@@ -55,8 +55,12 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Setup Jinja2 templates
 templates_dir = Path(__file__).parent / "templates"
-# Auto-escaping stays on; cache_size=0 so template edits show without a restart.
-jinja_env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=True, cache_size=0)
+# Auto-escaping stays on. Templates are compiled once and cached; Jinja's
+# auto_reload (on by default) still picks up edited files without a restart.
+# (cache_size=0 used to recompile the result-card template once per card.)
+jinja_env = Environment(
+    loader=FileSystemLoader(str(templates_dir)), autoescape=True, auto_reload=True
+)
 jinja_env.globals["uct_notes"] = uct_notes
 # Display times as wall-clock HH:MM (stored overnight times run past 24:00).
 jinja_env.filters["clock"] = clock_time

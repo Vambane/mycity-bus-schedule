@@ -283,3 +283,29 @@
     computeRelativeTimes();
   }
 })();
+
+/* ---- When: a typed time means "Depart at" unless Arrive by is chosen ---- */
+(function () {
+  'use strict';
+  var time = document.getElementById('at');
+  var now = document.getElementById('when-now');
+  var depart = document.getElementById('when-depart');
+  if (!time || !now || !depart) return;
+
+  time.addEventListener('input', function () {
+    if (time.value && now.checked) depart.checked = true;
+  });
+
+  /* Picking Depart at / Arrive by with no time yet: start from the next
+     quarter hour, so the search is never sent half-filled. */
+  document.querySelectorAll('[name="when"]').forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      if (radio.value === 'now' || time.value) return;
+      var d = new Date();
+      var mins = Math.ceil((d.getHours() * 60 + d.getMinutes() + 1) / 15) * 15 % (24 * 60);
+      time.value = String(Math.floor(mins / 60)).padStart(2, '0') + ':' +
+                   String(mins % 60).padStart(2, '0');
+      time.focus();
+    });
+  });
+})();

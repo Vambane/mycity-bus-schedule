@@ -14,6 +14,7 @@ from typing import Any, Optional
 import duckdb
 
 from fastapi_app.config import settings
+from fastapi_app.services.service_day import day_type_for
 from fastapi_app.services.trust import get_scraped_at_raw
 from journey import clock_time
 from journey_map import (
@@ -47,12 +48,8 @@ def _now_ct() -> datetime:
 
 
 def _day_type_for(dt: datetime) -> str:
-    weekday = dt.weekday()
-    if weekday == 5:
-        return "saturday"
-    if weekday == 6:
-        return "sunday"
-    return "weekday"
+    """Timetable running at *dt*, public holidays included (service_day.py)."""
+    return day_type_for(dt.date())
 
 
 def _norm_time(value: str) -> str:
@@ -111,6 +108,37 @@ def _point_along(path: list[list[float]], fraction: float) -> list[float]:
     return list(path[-1])
 
 
+def _memo(memo: Optional[dict], key: tuple, compute):
+    """Return memo[key], computing it once. memo=None disables caching.
+
+    One search builds up to ~150 result cards that share a handful of
+    route/direction pairs, and each card used to repeat the same queries.
+    The database is read-only while the app runs, so within one request
+    the answers cannot change.
+    """
+    if memo is None:
+        return compute()
+    if key not in memo:
+        memo[key] = compute()
+    return memo[key]
+
+
+def cached_leg_stop_sequence(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    memo: Optional[dict],
+    con: duckdb.DuckDBPyConnection,
+    route_id: str,
+    direction: str,
+    board: str,
+    alight: str,
+    day_type: str,
+) -> list[str]:
+    """leg_stop_sequence(), remembered for the rest of the request."""
+    return _memo(
+        memo, ("leg", route_id, direction, board, alight, day_type),
+        lambda: leg_stop_sequence(con, route_id, direction, board, alight, day_type),
+    )
+
+
 def _stop_times_lists(
     con: duckdb.DuckDBPyConnection,
     route_id: str,
@@ -149,6 +177,7 @@ def _find_trip_index(board_times: list[str], dep: str) -> int | None:
 def eligibility(
     *,
     con: duckdb.DuckDBPyConnection,
+    memo: Optional[dict] = None,
     day_type: str,
     board: str,
     alight: str,
@@ -158,7 +187,7 @@ def eligibility(
     arr: Optional[str] = None,
 ) -> tuple[bool, Optional[str]]:
     """Return (ok, hide_reason). Reasons are internal; button is hidden when not ok."""
-    scraped = get_scraped_at_raw(con)
+    scraped = _memo(memo, ("scraped",), lambda: get_scraped_at_raw(con))
     if scraped is None:
         return False, "stale"
     now = _now_ct()
@@ -169,11 +198,14 @@ def eligibility(
     if day_type != _day_type_for(now):
         return False, "wrong_day"
 
-    seq = leg_stop_sequence(con, route_id, direction, board, alight, day_type)
+    seq = cached_leg_stop_sequence(memo, con, route_id, direction, board, alight, day_type)
     if len(seq) < 2:
         return False, "no_geometry"
 
-    times = _stop_times_lists(con, route_id, direction, day_type, seq)
+    times = _memo(
+        memo, ("times", route_id, direction, day_type, tuple(seq)),
+        lambda: _stop_times_lists(con, route_id, direction, day_type, seq),
+    )
     board_times = times.get(board) or []
     if not board_times:
         return False, "no_geometry"
@@ -343,10 +375,12 @@ def preview_ok_for_card(
     alight: str,
     dep: str,
     arr: Optional[str] = None,
+    memo: Optional[dict] = None,
 ) -> bool:
     """True when a result card may show the "Preview this trip" control."""
     ok, _ = eligibility(
         con=con,
+        memo=memo,
         day_type=day_type,
         board=board,
         alight=alight,
