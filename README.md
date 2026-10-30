@@ -1,176 +1,123 @@
-# 🚌 Halte
+# ⚡ Halte
+
+**Your bus, sorted.** Cape Town's MyCiTi and UCT Jammie shuttle timetables in one place, with no PDF reader required.
 
 > Halte is an independent app, not affiliated with the City of Cape Town, MyCiTi or the University of Cape Town.
 
-A custom, responsive website for exploring Cape Town's MyCiTi bus network and
-the UCT shuttle service: plan a journey, browse upcoming departures, and
-explore an interactive route map. A FastAPI backend serves the website with
-Jinja2 templates and reuses the Python timetable and network logic. The
-original Streamlit interface remains available for local development.
+---
 
-Both MyCiTi and UCT only publish timetables as PDFs. This project scrapes
-those PDFs into a queryable database and adds the tools the sites don't
-have — next-departure lookups from published timetables, a visual departure timeline, and a clickable
-geographic system map. The two operators are loaded independently and can be
-filtered via a Network toggle (Both / MyCiTi / UCT) on every page.
+## The problem 📄😩
 
-## Features
+Both MyCiTi and UCT publish their timetables as PDFs. One PDF per route. On two different websites. If your trip needs a change between routes, good luck: grab a pen, open six tabs and do the maths yourself.
 
-- **Landing page** (`/`) — Neo-Brutalist marketing page (yellow `#FFE17C`,
-  charcoal, sage) scoped under `.landing` so the lime app theme is unchanged.
-  Headings use self-hosted Cabinet Grotesk ExtraBold; body uses Satoshi Medium
-  (Fontshare free licence — see `FONTSHARE_LICENCE.md`). No Fontshare CDN.
-  Journey search lives at **`/search`**; any `/?…` query is **301**-redirected
-  to `/search?…`. The hero CTA is **Plan a trip** → `/search`.
-- **Journey search** (`/search`) — pick a From and To stop (flight-search style, with a
-  ⇄ swap button) and get every direct service between them as result cards:
-  departure time, arrival time, duration, with Best / Fastest / All-day tabs
-  and per-route filters in the sidebar
-  - When no direct route exists, the app suggests timetable-based
-    connections with one transfer (or two, via a bridging line), showing
-    each leg, the changeover stop, and the wait time
-  - Each result card is **clickable** and opens a dedicated **journey
-    schematic page** (`/journey`) listing every stop with a full
-    tube-map diagram (search results stay compact — no open-by-default
-    stop lists on cards). **Preview this trip** and reverse-search keep
-    their own hit targets
-  - A small map above the transfer results draws the next connection's
-    legs in route colors with markers for the origin, each changeover
-    stop, and the destination, with the same *Schematic* / *Street*
-    toggle as the system map
-- **Departure board** — leave "Going to" empty to see every route serving a
-  stop and its next 10 departures per route and direction, filtered to the
-  current time in Cape Town (weekday / Saturday / Sunday–public holiday
-  timetables, defaulting to today's)
-- **Departure map** — a timeline chart of every departure of the day per
-  route/direction, with a marker at the current time, so frequency, peak
-  bunching and the last bus are visible at a glance
-- **Lime/ink theme** — light app surfaces (`#F2F2F0` page, white cards, ink
-  `#0A0A0A` text) with lime `#C8FF00` used only as a fill under ink text (hero
-  headline, active pill/toggle) or on dark; never lime text on a light
-  background. Primary actions (Search, **Preview this trip**) are ink pills
-  with white text. The map stays dark: its floating chrome (legend, style
-  toggle, reset, preview bar) uses dark panels (`#111111` / `#F0F0F0`) with
-  lime active states and focus rings; route colours are unchanged.
-  Trip preview remains **estimated from timetable — not live GPS**.
-  Map tiles are standard OpenStreetMap (no API key), darkened with a CSS
-  filter on the tile layer only so route lines and stops keep their colours.
-  On phones (<480px) the header compacts and the load-shedding badge reads
-  e.g. `Stage 0 · default` (full source in its tooltip / screen-reader label).
-  The active (ink/lime) Search/Map pill is drawn on the active link itself, so it
-  always sits behind its label at any width (checked at 390px and 360px).
-  On phones (≤480px) search result cards stack as depart → `Direct · N min`
-  → arrive: times stay full size and never truncate, while long stop names
-  shorten with an ellipsis (full name in the tooltip). Result tabs scroll
-  inside their own pill; the page itself never scrolls sideways.
-  Card grids use `minmax(0, 1fr)` tracks (not bare `1fr`) and `html` sets
-  `-webkit-text-size-adjust: 100%`, so iOS Safari cannot widen cards or
-  inflate text.
-- **Caching:** every local CSS/JS link (and the `/map` iframe) carries
-  `?v=<asset_v>`, a Jinja global set to the short `RENDER_GIT_COMMIT` SHA
-  (startup timestamp locally). HTML and `/static` responses send
-  `Cache-Control: no-cache`, so browsers revalidate instead of serving stale
-  CSS; static is not marked immutable because unversioned URLs still work.
-- **Stage badge:** screen readers hear only the `aria-label`
-  `Stage 0 (default)`; the visible text (`Stage 0 · default` on phones ≤480px,
-  kept on one line) is `aria-hidden`, so "default" is never read twice. The
-  hidden native `<select>` behind each stop combobox is pinned with
-  `right: 0; max-width: 100%` so it can't widen the search card.
-  The live "in N min" hint sits on the `Direct · N min` line on phones so
-  depart and arrive stop names share one left edge; truncated stop names carry
-  the full name as both tooltip and accessible label.
-  On the `/map` page, phones (≤480px) start with the route legend collapsed
-  behind a **Legend** toggle button (keyboard accessible, `aria-expanded`);
-  on desktop the legend is always shown; **Esc** closes
-  the open legend and returns focus to the toggle.
-- **Interactive system map** — the full network on real Cape Town geography
-  (Leaflet + OpenStreetMap tiles), with a toggle between:
-  - *Schematic*: square-ish 45°/90° lines in the style of the official route map
-  - *Street*: the exact road-following route geometries from city open data
+## The fix 🚌✨
 
-  Stop markers are sized to stay readable on the lines (Design buckets):
-  1–2 routes → radius 5 (route colour); 3–5 → radius 6 (white); 6+ hubs →
-  radius 7 (white) with a permanent name label. Each stop has a white
-  behind-halo and sits in a Leaflet pane above the polylines. Desktop:
-  hover shows the stop name (and routes); click opens the timetable.
-  Touch: first tap sticky-shows the name (~2.5 s, no navigation); second
-  tap opens the timetable. Legend highlight dims inactive stops (~0.2
-  opacity) while active-route stops stay full size and opacity. Stops sit
-  at their true coordinates (~96% geolocated).
-- **Journey schematic page** — tap a search result card (outside
-  Preview / reverse) to open `/journey` with every stop named and
-  a full vertical tube-map schematic (origin/destination/transfer
-  dots 14px; intermediates 10px filled route colour + dark ring).
-  Back returns to the same search. No Leaflet on this page in v1.
-  Trust strip and deliberate Preview (same gates as below) live on
-  the page.
-  The page title line shows the day as `Weekday` / `Saturday` / `Sunday`, and
-  the **Search** header tab stays active while viewing a journey. The page footer credits map data to `OpenStreetMap` (no CARTO). Tapping the card body opens the journey; **Preview this trip** and the ⇅ return-trip button sit above the card's tap overlay and keep their own actions.
-- **Trip preview** — on eligible journey results, a deliberate
-  **Preview this trip** control opens the system map with a single
-  timetable-interpolated ghost marker on that trip’s path (street
-  geometry when available, otherwise schematic). The ghost uses a muted
-  route colour at ~45% opacity with a hollow/dashed ring. While preview
-  is active the map always shows the Compliance caption
-  `Estimated from timetable — not live GPS.` (optional planning-aid
-  line beneath). Preview never starts from legend highlight, stop click,
-  or map open alone. The control is hidden for soft-paired legs, stale
-  scrapes, wrong day type, or trips already past their arrival. Dismiss
-  with **Clear preview**, choosing another trip, or leaving the map.
-  Clock: Africa/Johannesburg. FastAPI-first (v1 previews the first leg
-  of a transfer).
-- **Load shedding awareness**: a sidebar panel shows the current Eskom
-  stage (via EskomSePush when configured, manually overridable, defaulting to
-  stage 0), and journey results, departure boards and the departure map
-  flag connections and time windows hit by scheduled shedding
+Halte scrapes every one of those PDFs into a little database, then answers the questions you actually have:
 
-## Cold start (DuckDB snapshot)
+- *When's the next bus from here?*
+- *How do I get from Big Bay to Gardens?*
+- *Where do I change, and how long do I wait?*
 
-Production boots with:
+It's built from the published timetables, so it's a **planning aid, not live GPS**. Halte will never pretend to know where a bus is right now. It knows where the bus is *supposed* to be, and it's honest about the difference.
+
+---
+
+## What it does
+
+| | |
+|---|---|
+| 🔎 **Stop search** | Type part of a stop name; Halte matches across both networks. |
+| 🧭 **Journey planner** | Direct trips, plus timetable-based connections with one or two changes, showing each leg, the changeover stop and the wait. Best / Fastest / All day tabs. |
+| 🗺️ **Journey page** | Tap any result to see every stop on a tube-map style schematic. |
+| 🪧 **Departure board** | Leave "To" empty and get the next departures for every route at that stop. |
+| 🌍 **Network map** | Every route on real Cape Town geography. Flip between *Schematic* (the tidy 45°/90° look) and *Street* (the actual roads). Tap a stop to see its timetable. |
+| 👻 **Trip preview** | Pop a ghost marker on the map where your bus *should* be, interpolated from the timetable. Clearly labelled "Estimated from timetable, not live GPS." |
+| 🌙 **Late nights and holidays** | After the last bus, see tomorrow's first departures on tomorrow's timetable (Friday night shows Saturday's). Just after midnight, yesterday's late trips still show. Public holidays switch to the Sunday timetable by themselves. |
+| ⚡ **Load-shedding awareness** | Shows the stage Halte is assuming (Stage 0 by default) and flags journeys that hit a scheduled outage window at either end. |
+| 🎓 **UCT shuttles** | The Jammie timetables live alongside MyCiTi, each route with its own validity dates. Expired ones are hidden and named in a banner, not silently shown. |
+| 🔀 **Network toggle** | Both / MyCiTi / UCT on every search. |
+
+### The look
+
+Neo-Brutalist and proud of it: butter yellow `#FFE17C`, black ink, charcoal and sage, 2px borders and chunky offset shadows that buttons press into. Headings are Cabinet Grotesk, body text is Satoshi, both self-hosted (see [`FONTSHARE_LICENCE.md`](FONTSHARE_LICENCE.md)). The whole product, landing page and app alike, shares one token file: [`fastapi_app/static/css/tokens.css`](fastapi_app/static/css/tokens.css). Every text and fill pair passes WCAG AA, and a test checks it.
+
+The nitty-gritty (mobile layout rules, map marker sizes, caching, screen-reader details) lives in [`DESIGN_NOTES.md`](DESIGN_NOTES.md).
+
+---
+
+## Quick start 🏁
+
+Requires Python 3.10+.
 
 ```bash
-uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT
+pip install -r requirements.txt
+uvicorn fastapi_app.main:app --port 8000
 ```
 
-On cold start, `fastapi_app/dependencies.py` rebuilds `data/myciti.duckdb` from
-`data/snapshot/*.parquet` if the DB file is missing. **Do not** run full PDF ETL
-on cold start. Missing snapshot → loud startup failure (no silent empty boards).
-`GET /health` reports `status`, `version`, `db_ready`, and `scraped_at` without
-blocking on ETL. See [DEPLOYMENT.md](DEPLOYMENT.md). Railway deploy is currently
-parked by product; Render remains a documented alternative.
+Open http://localhost:8000. That's it. No scraping, no API keys, no database server: on first start Halte builds its DuckDB database from the Parquet snapshot committed in `data/snapshot/`.
 
-## How it works
+| Route | Page |
+|---|---|
+| `/` | Landing page |
+| `/search` | Journey search and departure boards (any `/?…` query is redirected here) |
+| `/journey` | One trip, every stop |
+| `/stop/<name>` | Departure board for a stop |
+| `/map` | Network map |
+| `/health` | Status, version, DB readiness and data timestamp |
+
+There's also the original **Streamlit** app, which still has a couple of extras (a departure timeline chart and a manual load-shedding stage picker):
+
+```bash
+streamlit run app.py
+```
+
+## Running the tests 🧪
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+The suite covers journey finding and transfers, load-shedding maths, UCT validity dates, the landing page's honesty rules (no "real-time", no fake stars) and brand consistency.
+
+---
+
+## Fresh timetables, please 🔄
+
+The snapshot is only as fresh as the last scrape. To refresh:
+
+```bash
+python3 run_etl.py                  # MyCiTi (default)
+python3 run_etl.py --uct            # UCT shuttles only
+python3 run_etl.py --all            # both
+python3 run_etl.py --uct --offline  # UCT from cached PDFs in data/uct_raw/
+python3 run_etl.py --inspect        # peek at the DB without scraping
+```
+
+Each operator is loaded independently, so refreshing UCT never touches MyCiTi and vice versa. The ETL rebuilds the database **and** re-exports the snapshot. Commit the updated `data/snapshot/*.parquet` files so deploys pick them up.
+
+## How it works ⚙️
 
 ```
-myciti.org.za route-timetable PDFs ──┐
-                                     │ scraped + parsed (requests, pdfplumber)
-uct.ac.za shuttle timetable PDFs  ──┘
+myciti.org.za timetable PDFs ──┐
+                               │  scraped + parsed (requests, pdfplumber)
+uct.ac.za shuttle PDFs ────────┘
         │
         ▼
-data/myciti.duckdb  ◄── City of Cape Town open data (stop coordinates,
-        │               street route geometries: data/cct_*.geojson)
+data/myciti.duckdb  ◄── City of Cape Town open data
+        │               (stop coordinates, street geometries: data/cct_*.geojson)
         ▼
-FastAPI app (fastapi_app/) ── Jinja2 templates + Leaflet maps
-Streamlit app (app.py)    ── Leaflet custom component (map_component/)
+FastAPI (fastapi_app/) ── Jinja2 templates + Leaflet maps
+Streamlit (app.py)     ── Leaflet custom component (map_component/)
 ```
 
-- `etl/scrape_myciti.py` downloads every MyCiTi route's timetable PDF and
-  parses the tables (one row per stop; day type and direction from page headers).
-- `etl/scrape_uct.py` scrapes the UCT shuttle index page, picks the
-  timetable set that covers today (currently "Consolidation & Exam",
-  26 Oct – 20 Nov 2026) and parses its PDFs row by row (stop names from the
-  table header, one row per trip). Each route keeps its own validity dates.
-- `etl/load_db.py` loads routes, stops and ~172k departure times into DuckDB.
-  Each operator's data is loaded independently — a full-refresh for one
-  operator leaves the other's rows untouched.
-- `system_map.py` builds the map network: stop order along each route is
-  reconstructed from the timetable itself (the first trip of the day visits
-  stops in sequence), then stops are matched by name to the city's official
-  stops layer for coordinates.
-- `map_component/index.html` is a bidirectional Streamlit custom component —
-  clicking a stop on the map sends its name back to Python.
+- **`etl/scrape_myciti.py`** downloads every route's PDF and parses the tables: one row per stop, with day type and direction read from the page headers.
+- **`etl/scrape_uct.py`** finds the UCT timetable set that covers today (currently *Consolidation & Exam*, 26 Oct to 20 Nov 2026) and parses it trip by trip. Every route keeps its own validity dates.
+- **`etl/load_db.py`** loads about 168,000 departure times into DuckDB (roughly 166.5k MyCiTi and 1.5k UCT) across 55 routes and 540 stops.
+- **`system_map.py`** rebuilds each route's stop order from the timetable itself (the first trip of the day visits stops in order), then matches stops by name to the city's official stops layer for coordinates. About 96% land on the map.
+- **`journey.py`** finds direct trips and connections. Transfers assume a 3 minute minimum change, cap waits at 45 minutes and try the nearest few changeover stops per line pair.
 
-## Database schema
+### Database schema
 
 ```mermaid
 erDiagram
@@ -214,13 +161,13 @@ erDiagram
         varchar route_name
         varchar day_type
         varchar timetable_url
-        date valid_from "timetable validity start"
-        date valid_until "timetable validity end"
+        date valid_from
+        date valid_until
         varchar operator "myciti | uct"
         timestamp scraped_at
     }
     scrape_log {
-        int run_id PK "auto via sequence"
+        int run_id PK
         timestamp started_at
         timestamp finished_at
         int routes_loaded
@@ -232,237 +179,99 @@ erDiagram
     }
     stop_blocks {
         varchar stop_name PK
-        int block "CCT load shedding block 1..16, NULL if unmapped"
+        int block "CCT load-shedding block 1..16, NULL if unmapped"
     }
 ```
 
-`departures` is the core fact table (~168k rows: ~167k MyCiTi + ~1.5k UCT) the
-app queries; `stops` ↔ `departures` join on `stop_name` rather than a foreign
-key because the PDFs identify stops only by name. Every table carries an
-`operator` column (`myciti` or `uct`) for per-network filtering and independent
-ETL runs. `scrape_log` is a standalone audit table, one row per ETL run.
+`departures` is the main fact table. `stops` and `departures` join on `stop_name` rather than a foreign key, because the PDFs only ever name stops; they never number them. Every table carries an `operator` column, which powers the network toggle and the independent ETL runs.
 
-## Run the website locally
+---
 
-Requires Python 3.10+.
+## Load shedding, the honest version ⚡
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+**Which stage?** Halte resolves it in this order:
 
-# Start the website (FastAPI)
-uvicorn fastapi_app.main:app --port 8000
-```
+1. A manual override, if one is set (the Streamlit app has a picker for "what if" checks).
+2. The live national stage from [EskomSePush](https://eskomsepush.gumroad.com/l/api), if `ESP_API_KEY` is set. It's checked every 30 minutes, which stays inside the free tier's 50 calls a day.
+3. Otherwise, **Stage 0**, and the badge says so (`Stage 0 · default`).
 
-Open `http://localhost:8000`. The server builds its local DuckDB database from
-the committed Parquet snapshot on first start; no scraping is needed.
+If the API falls over, the app doesn't: it quietly drops to the next option.
 
-## Free website hosting
+**Which stops are affected?** Cape Town sheds power across 16 area blocks. To learn each stop's block:
 
-The repository includes a Render Blueprint (`render.yaml`) for deploying the
-custom website as a free web service:
-
-1. Sign in to [Render](https://render.com/) with GitHub.
-2. Create a new **Blueprint** and select this repository.
-3. Confirm the `myciti-bus-schedule` service and deploy.
-
-Render's free services can spin down when idle, so the first visit after a
-quiet period may take a little longer. The app uses the committed timetable
-snapshot and does not require a paid database or API key.
-
-To run the original Streamlit interface locally instead:
-
-```bash
-streamlit run app.py
-```
-
-To refresh the data (takes a few minutes):
-
-```bash
-python3 run_etl.py            # MyCiTi only (default)
-python3 run_etl.py --uct      # UCT shuttle only
-python3 run_etl.py --all      # both operators
-python3 run_etl.py --uct --offline  # UCT from cached PDFs in data/uct_raw/
-python3 run_etl.py --inspect  # print what's in the DB without scraping
-```
-
-Each operator's ETL is independent — `--uct` replaces only UCT rows while
-MyCiTi data survives intact, and vice versa. The ETL rebuilds the database
-**and** re-exports the snapshot — commit the updated `data/snapshot/*.parquet`
-files so deployments pick up the new timetables.
-
-## Project structure
-
-```
-├── fastapi_app/              # FastAPI web application
-│   ├── main.py               # Application entry point
-│   ├── routes/
-│   │   ├── landing.py        # Neo-Brutalist landing page at /
-│   │   └── search.py         # Journey search at /search
-│   ├── templates/
-│   │   ├── pages/            # Full page templates (index, stop view)
-│   │   └── components/       # Reusable card components (connection, transfer)
-│   └── static/
-│       ├── css/              # Lime app tokens + landing.css
-│       ├── fonts/            # Self-hosted Cabinet Grotesk + Satoshi WOFF2
-│       ├── img/              # Landing hero screenshot (landing-search.webp)
-│       └── js/               # Combobox, tabs, search behaviour
-├── app.py                    # Streamlit app (search, timetables, map tabs)
-├── journey.py                # Connection finder (direct + transfer)
-├── journey_map.py            # Inline Leaflet map for transfer itineraries
-├── system_map.py             # System-map graph builder + route colour palette
-├── disruption.py             # Load shedding schedule model
-├── map_component/
-│   └── index.html            # Leaflet map frontend (Streamlit component)
-├── etl/
-│   ├── scrape_myciti.py      # MyCiTi PDF scraper/parser
-│   ├── scrape_uct.py         # UCT shuttle PDF scraper/parser
-│   ├── load_db.py            # DuckDB loader (multi-operator)
-│   └── build_stop_blocks.py  # Optional stop-to-loadshedding-block mapping
-├── run_etl.py                # One-command ETL pipeline (--uct / --all)
-├── data/
-│   ├── cct_stops.geojson     # Stop coordinates (City of Cape Town open data)
-│   ├── cct_routes.geojson    # Street route geometries (City of Cape Town)
-│   ├── uct_stops.csv         # UCT stop names (coordinates pending)
-│   ├── snapshot/             # Parquet snapshot — app rebuilds the DB from it
-│   └── myciti.duckdb         # Built from snapshot or ETL (not committed)
-└── requirements.txt
-```
-
-## Load shedding awareness
-
-The sidebar shows the load shedding stage the app is working with. The
-effective stage is resolved in this order:
-
-1. **Manual override**: pick a stage (0 to 8) in the sidebar selectbox.
-   Useful for "what if" checks and for when the API is unavailable.
-2. **Live stage**: with the selectbox on Auto and an API key configured,
-   the app reads the national Eskom stage from the
-   [EskomSePush API](https://eskomsepush.gumroad.com/l/api) every 30
-   minutes (48 calls/day, inside the free tier's 50/day allowance).
-3. **Default**: without an override or API key, the app assumes stage 0.
-
-The badge under the selectbox names the source in use: `manual override`,
-`live · EskomSePush`, or `assumed · no API key`.
-
-To enable the live source, create `.streamlit/secrets.toml`:
-
-```toml
-ESP_API_KEY = "your-eskomsepush-key"
-```
-
-or set the `ESP_API_KEY` environment variable. API failures never break
-the app: the stage silently falls back to the next source in the list.
-
-### Mapping stops to load shedding blocks
-
-Load shedding in Cape Town rotates through 16 city-defined area blocks.
-To know which block each bus stop sits in, the ETL can join stop
-coordinates against the city's block polygons:
-
-1. Download the **Load shedding areas** dataset as GeoJSON from the
-   [City of Cape Town Open Data Portal](https://odp-cctegis.opendata.arcgis.com/).
+1. Download the **Load shedding areas** GeoJSON from the [City of Cape Town Open Data Portal](https://odp-cctegis.opendata.arcgis.com/).
 2. Save it as `data/cct_loadshedding_areas.geojson`.
-3. Rerun the mapping step:
+3. Run `python3 etl/build_stop_blocks.py` (or the full `run_etl.py`).
 
-   ```bash
-   python3 etl/build_stop_blocks.py   # or the full pipeline: python3 run_etl.py
-   ```
+Stops outside every polygon stay unmapped. Halte never guesses a block. Without the file, the step is skipped and the flags simply stay off.
 
-This produces a `stop_blocks` table (and
-`data/snapshot/stop_blocks.parquet`). Stops that fall outside every
-polygon keep a NULL block. The step is optional: without the polygon
-file, `run_etl.py` skips it and the app simply carries no block data.
-No block assignments are ever guessed.
+**What gets flagged?** [`disruption.py`](disruption.py) rebuilds the city's 16-block rotation (12 two-hourly slots a day, 2h30 outages, the published per-stage offsets). A journey is flagged when the bus is due at its origin or destination while that stop's block is off, and gets a 10 minute buffer per affected end (20 max), because the traffic lights are probably out too. It's a heuristic, not a prophecy. At Stage 0 none of this appears.
 
-### How disruption is assessed
+More detail: [`LOAD_SHEDDING_BLOCKS.md`](LOAD_SHEDDING_BLOCKS.md).
 
-`disruption.py` generates the standard City of Cape Town 16-block
-rotational schedule from three data constants: 12 daily slots starting
-every 2 hours, a 2 h 30 outage per slot, and the published per-stage
-block offsets (the pattern behind the city's "all areas" schedule
-table). The base block advances by one each slot, so day 17 repeats
-day 1.
+---
 
-A connection is flagged when the bus is scheduled to be at a stop while
-that stop's block is shed. The model's assumptions:
+## Deploying 🚀
 
-- Each end is checked as a point in time (departure moment at the
-  origin, arrival moment at the destination), not the whole ride span.
-- An affected end adds a 10 minute delay buffer (traffic lights are
-  usually down around a shedding stop), capped at 20 minutes total.
-  This is a heuristic, not a measured delay.
-- Overnight GTFS times (a 24:15:00 departure) are checked against the
-  next day's schedule, matching the timetable convention used
-  throughout the app.
-- Stops with an unknown block are never flagged, and stage 0 disables
-  the whole model.
+Production runs:
 
-### What the flags mean in the app
+```bash
+uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT
+```
 
-When the effective stage is above 0 and block data is available:
+On a cold start Halte rebuilds `data/myciti.duckdb` from the snapshot if it's missing. It never scrapes on boot, and a missing snapshot fails loudly rather than serving empty boards. A **Render** Blueprint (`render.yaml`) is included for a free web service; free instances nap when idle, so the first visit after a quiet spell is a bit slow. Full details in [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
-- An amber **⚡ Stage-affected** chip on a journey card means the bus is
-  scheduled to be at the origin or destination stop while that stop's
-  block is shed. The caption under the card names the end, its block,
-  and the shedding window; the amber duration next to the scheduled one
-  (for example `~24 min (+20 buffer)`) adds the delay buffer.
-- A warning banner on a stop's departure board lists today's shedding
-  windows for that stop's block.
-- Amber bands on the departure map shade those windows on the time
-  axis, so you can see which departures fall inside them.
+## Project map 🗂️
 
-At stage 0 none of this appears, and the app looks exactly as it does
-without the feature. The same applies when the block mapping has not
-been built (see the ETL section above): the flags simply stay off. The
-flags are schedule-based estimates, not live outage reports.
+```
+├── fastapi_app/
+│   ├── main.py                 # App, routers, /health, cache headers
+│   ├── routes/                 # landing, search, journey, stop, system_map, api
+│   ├── services/               # service days + holidays, load shedding, trip preview, UCT validity
+│   ├── templates/
+│   │   ├── base.html           # App shell: header, footer
+│   │   ├── pages/              # landing, index (search), journey, stop, system_map
+│   │   └── components/         # connection + transfer cards, trust strip
+│   └── static/
+│       ├── css/                # tokens.css (shared brand), base, components, landing
+│       ├── fonts/              # Cabinet Grotesk + Satoshi (WOFF2)
+│       ├── js/                 # combobox, search, tabs, stop filter, journey map
+│       └── map/                # Network map page (Leaflet)
+├── journey.py                  # Connection finder (direct + transfers)
+├── journey_map.py              # Inline Leaflet map for transfer itineraries
+├── system_map.py               # Network graph + route colours
+├── disruption.py               # Load-shedding schedule model
+├── etl/                        # MyCiTi + UCT scrapers, DuckDB loader, stop blocks
+├── run_etl.py                  # One-command ETL
+├── tools/landing_screenshot.py # Regenerates the landing page hero image
+├── app.py                      # The original Streamlit app
+├── data/                       # Open-data GeoJSON + Parquet snapshot
+└── tests/
+```
 
-## Data sources & credits
+---
 
-- MyCiTi timetables: [MyCiTi](https://www.myciti.org.za) route timetable PDFs
-- UCT shuttle timetables: [UCT Transport](https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables)
-- Stop coordinates & route geometries:
-  [City of Cape Town Open Data Portal](https://odp-cctegis.opendata.arcgis.com/)
-- Basemap tiles: [CARTO](https://carto.com/attributions) /
-  [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
+## Things Halte can't do (yet) 🙈
 
-This is an unofficial hobby project, not affiliated with MyCiTi, UCT, or the
-City of Cape Town. Timetable data is only as fresh as the last ETL run — always
-check official sources before travelling.
+- **No live tracking.** Timetables only. If the bus is late, Halte is late too.
+- **One-off public holidays** (an election day, say) can't be predicted. The regular ones are worked out automatically, Easter included; declared extras go in `EXTRA_HOLIDAYS` in `fastapi_app/services/service_day.py`.
+- **A few new MyCiTi routes and stops** are missing from the city's open data: 4 routes are drawn as straight dashed lines in street mode, and about 23 stops don't appear on the map (they're still searchable).
+- **UCT stops have no coordinates yet**, so they're in search and departure boards but not on the map.
+- **UCT Route 5's end date** is 20 Nov in its PDF and 26 Nov on UCT's website. Halte uses the earlier date until UCT confirms (`VALID_UNTIL_OVERRIDES` in `etl/scrape_uct.py`). Route 20 (Educare) isn't in the current set.
+- **UCT footnotes** (Roscommon House after 18:55, via Kramer, via Mowbray and so on) are shown as short notes next to the affected routes, not parsed from the PDFs.
+- **Load-shedding flags** always use today's date and check each end of a trip at a single moment. The delay buffer is a fixed rule of thumb.
+- **Transfers are suggestions**, not guaranteed connections.
 
-## Known limitations
+When in doubt, check [MyCiTi](https://www.myciti.org.za) or [UCT Transport](https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables) before you run for the bus.
 
-- Timetable-based only — no real-time vehicle tracking
-- Public holidays follow the Sunday timetable but are not auto-detected
-- A few of the newest MyCiTi routes/stops are missing from the city's
-  open-data layers: 4 routes fall back to straight dashed lines in street
-  mode, and ~23 stops are not shown on the map (they still appear in search)
-- UCT shuttle stops have no coordinates yet — they appear in search and
-  departure boards but not on the map. UCT timetables have per-route validity
-  dates. The current set is Consolidation & Exam: routes 1–7, 9–11, 13–16 and
-  the Overnight library loop (Mon–Fri) run 26 Oct – 20 Nov 2026. Once a
-  route's end date has passed its times are hidden from search and departure
-  boards and the "Timetable expired" banner names it. Route 20 (Educare) is
-  not in this set and has been dropped
-- Route 5 end date: UCT's timetable page says Route 5 runs to 26 Nov 2026,
-  but its PDF says 20 Nov. We use the earlier date (20 Nov) and can extend it
-  (`VALID_UNTIL_OVERRIDES` in `etl/scrape_uct.py`) if UCT confirms 26 Nov
-- UCT PDF footnotes are shown as short static notes next to the affected
-  routes in search results and departure boards (Route 1 Roscommon House
-  after 18:55, Route 2 via Kramer, Route 6 via Mowbray, Route 11 South Stop,
-  Routes 13/14 weekend 15:35–21:50 Roscommon House boarding, Overnight loop card or visitor's pass)
-- Known gap: Routes 13/14 trips that run past midnight (the 23:15 weekday
-  trip on each route) are left out, because times are stored within a single
-  day and their after-midnight stops would show out of order. They will be
-  added back once cross-midnight times are supported
-- Load shedding flags always use today's date (the day-type selector
-  carries no day of month) and check each journey end as a point in
-  time; the delay buffer is a fixed heuristic, not a prediction
-- Transfer suggestions are timetable-based, not guaranteed connections:
-  they assume a 3 minute minimum changeover, cap waits at 45 minutes,
-  search at most two transfers, and try the nearest few changeover stops
-  per line pair rather than every possibility
+## Credits 🙏
+
+- Timetables: [MyCiTi](https://www.myciti.org.za) and [UCT Transport](https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables)
+- Stop coordinates and route geometries: [City of Cape Town Open Data Portal](https://odp-cctegis.opendata.arcgis.com/)
+- Map tiles: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
+- Load-shedding stage: [EskomSePush](https://eskomsepush.gumroad.com/l/api) (optional)
+- Fonts: Cabinet Grotesk and Satoshi by [Fontshare](FONTSHARE_LICENCE.md)
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Go build something nice. 🚏
