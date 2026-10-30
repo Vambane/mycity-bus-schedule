@@ -1,24 +1,20 @@
 """Stop timetable view route handler."""
+import logging
+import zoneinfo
+from datetime import datetime
+from typing import Optional
+
+import duckdb
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-from typing import Optional
-import logging
-import sys
-from pathlib import Path
-from datetime import datetime
-import zoneinfo
 
-# Add parent directory to path to import core modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from fastapi_app.dependencies import get_connection
+import ls_ui
+from disruption import _fmt_window, _windows_min
 from fastapi_app.config import settings
+from fastapi_app.dependencies import get_connection
+from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
 from fastapi_app.services.trust import trust_context
 from fastapi_app.services.uct_validity import uct_expiry_state
-from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
-from disruption import _windows_min, _fmt_window
-import ls_ui
-import duckdb
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +43,14 @@ def get_current_day_type(dt: Optional[datetime] = None) -> str:
     weekday = dt.weekday()  # 0=Monday, 6=Sunday
     if weekday == 5:  # Saturday
         return "saturday"
-    elif weekday == 6:  # Sunday
+    if weekday == 6:  # Sunday
         return "sunday"
-    else:
-        return "weekday"
+    return "weekday"
 
 
 @router.get("/stop/{stop_name}", response_class=HTMLResponse)
+# One handler builds the whole departure board; splitting it is tracked as a refactor.
+# pylint: disable-next=too-many-locals,too-many-branches,too-many-statements
 async def stop_view(
     request: Request,
     stop_name: str,
@@ -251,7 +248,7 @@ async def stop_view(
         try:
             stage, stage_source = get_effective_stage()
             ls_stage = stage_display_info(stage, stage_source)
-        except:
+        except Exception:  # never let the badge break the error page
             ls_stage = None
 
         templates = request.app.state.templates

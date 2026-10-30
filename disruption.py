@@ -26,7 +26,7 @@ bus is at that stop), not the whole ride span.
 """
 
 from dataclasses import dataclass, field
-from datetime import date, timedelta, time
+from datetime import date, time, timedelta
 
 from journey import _to_minutes  # deliberately shared: one time convention
 

@@ -11,7 +11,7 @@ services:
         sync: false  # Set manually in Render dashboard
       - key: PYTHON_VERSION
         value: 3.11
-    healthCheckPath: /
+    healthCheckPath: /health  # fast; non-200 until the DuckDB pool is ready
     autoDeploy: true
 
 # Optional: If you want to rebuild the database on deploy

@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Quick test script for FastAPI app."""
-import uvicorn
-from fastapi_app.main import app
 import threading
 import time
+
 import requests
+import uvicorn
+
+from fastapi_app.main import app
+
 
 # Start server
 def run_server():
+    """Serve the app on a background thread for the smoke checks below."""
     uvicorn.run(app, host='127.0.0.1', port=8001, log_level='info')
 
 thread = threading.Thread(target=run_server, daemon=True)
@@ -21,17 +25,17 @@ print("Testing FastAPI endpoints...")
 
 try:
     # Health check
-    resp = requests.get('http://127.0.0.1:8001/health')
+    resp = requests.get('http://127.0.0.1:8001/health', timeout=10)
     print(f"Health check: {resp.status_code} - {resp.json()}")
 
     # Homepage
-    resp = requests.get('http://127.0.0.1:8001/')
+    resp = requests.get('http://127.0.0.1:8001/', timeout=10)
     print(f"Homepage: {resp.status_code} - Length: {len(resp.text)} chars")
     if resp.status_code != 200:
         print(f"Error: {resp.text[:500]}")
 
     # Stops API
-    resp = requests.get('http://127.0.0.1:8001/api/stops')
+    resp = requests.get('http://127.0.0.1:8001/api/stops', timeout=10)
     print(f"Stops API: {resp.status_code}")
     if resp.status_code == 200:
         data = resp.json()

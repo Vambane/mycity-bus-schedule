@@ -1,8 +1,9 @@
 """System map page route handler."""
+import logging
+
+import duckdb
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
-import logging
-import duckdb
 
 from fastapi_app.dependencies import get_connection
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info

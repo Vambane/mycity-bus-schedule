@@ -378,7 +378,7 @@ def _pareto(rows: list[dict]) -> list[dict]:
     return kept
 
 
-def find_transfer_connections(
+def find_transfer_connections(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     con: duckdb.DuckDBPyConnection,
     from_stop: str,
     to_stop: str,

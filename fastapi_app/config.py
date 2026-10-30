@@ -1,6 +1,7 @@
 """FastAPI application configuration using Pydantic settings."""
-from pydantic_settings import BaseSettings
 from pathlib import Path
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -23,7 +24,9 @@ class Settings(BaseSettings):
     # Timezone
     timezone: str = "Africa/Johannesburg"
 
-    class Config:
+    class Config:  # pylint: disable=too-few-public-methods
+        """pydantic-settings options: read .env, case-insensitive names."""
+
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False

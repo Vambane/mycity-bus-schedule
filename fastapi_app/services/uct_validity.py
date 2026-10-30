@@ -17,6 +17,7 @@ CAPE_TOWN = ZoneInfo("Africa/Johannesburg")
 
 
 def today_cape_town() -> date:
+    """Today's date in Cape Town (UCT validity dates are local calendar days)."""
     return datetime.now(CAPE_TOWN).date()
 
 

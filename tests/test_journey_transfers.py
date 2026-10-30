@@ -9,11 +9,7 @@ same-route exclusion, overnight GTFS times, and the Pareto reduction.
 import duckdb
 import pytest
 
-from journey import (
-    MAX_WAIT_MIN,
-    MIN_TRANSFER_MIN,
-    find_transfer_connections,
-)
+from journey import MAX_WAIT_MIN, MIN_TRANSFER_MIN, find_transfer_connections
 
 
 def _make_db(departures: list[tuple[str, str, str, str]]) -> duckdb.DuckDBPyConnection:

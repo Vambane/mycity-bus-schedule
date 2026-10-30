@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -46,9 +47,8 @@ def test_landing_renders_at_root(client):
     assert "landing.css" in html
     # Brand fonts live in the shared tokens file, loaded before landing.css.
     assert html.index("tokens.css") < html.index("landing.css")
-    assert "CabinetGrotesk-Extrabold.woff2" in open(
-        "fastapi_app/static/css/tokens.css"
-    ).read()
+    tokens = Path("fastapi_app/static/css/tokens.css").read_text(encoding="utf-8")
+    assert "CabinetGrotesk-Extrabold.woff2" in tokens
 
 
 def test_search_works_at_search_path(client):
@@ -102,7 +102,7 @@ def test_landing_no_fontshare_cdn(client):
     html = client.get("/").text.lower()
     assert "fontshare.com" not in html
     assert "cdn.fontshare" not in html
-    css = open("fastapi_app/static/css/landing.css").read().lower()
+    css = Path("fastapi_app/static/css/landing.css").read_text(encoding="utf-8").lower()
     assert "fontshare.com" not in css
     assert "fonts.googleapis.com" not in css
 
@@ -113,7 +113,8 @@ def test_marquee_from_real_routes(client):
     assert "landing-marquee" in html
     assert "aria-hidden=\"true\"" in html
     # No |safe dump of route HTML
-    assert "|safe" not in open("fastapi_app/templates/pages/landing.html").read()
+    template = Path("fastapi_app/templates/pages/landing.html").read_text(encoding="utf-8")
+    assert "|safe" not in template
 
 
 def test_load_shedding_card_copy(client):
@@ -131,19 +132,17 @@ def test_hero_subhead_says_plan_your_trip(client):
 
 
 def test_self_hosted_fonts_and_licence():
-    from pathlib import Path
 
     fonts = Path("fastapi_app/static/fonts")
     assert (fonts / "CabinetGrotesk-Extrabold.woff2").is_file()
     assert (fonts / "Satoshi-Medium.woff2").is_file()
-    note = Path("FONTSHARE_LICENCE.md").read_text()
+    note = Path("FONTSHARE_LICENCE.md").read_text(encoding="utf-8")
     assert "Fontshare" in note
     assert "Cabinet Grotesk" in note
     assert "Satoshi" in note
 
 
 def test_hero_mockup_image_exists(client):
-    from pathlib import Path
 
     assert Path("fastapi_app/static/img/landing-search.webp").is_file()
     html = client.get("/").text

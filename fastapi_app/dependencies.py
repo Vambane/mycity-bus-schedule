@@ -1,9 +1,13 @@
 """FastAPI dependencies for database connections and caching."""
+import logging
+from pathlib import Path
+
 import duckdb
 from cachetools import TTLCache
 from fastapi import HTTPException
-import logging
-from pathlib import Path
+
+from etl.load_db import MIGRATIONS
+
 from .config import settings
 
 logger = logging.getLogger(__name__)
@@ -46,7 +50,6 @@ def _ensure_database() -> None:
     # Run idempotent migrations so older databases gain new columns.
     # A writable connection requires exclusive access in DuckDB, so if
     # another process already holds the file open we skip gracefully.
-    from etl.load_db import MIGRATIONS
     try:
         con = duckdb.connect(str(db_path))
         try:
@@ -64,11 +67,12 @@ def _ensure_database() -> None:
 
 def init_connection_pool() -> None:
     """Initialize DuckDB connection pool at startup."""
-    global _connection_pool
     try:
         _ensure_database()
-        logger.info(f"Initializing connection pool with {settings.connection_pool_size} connections...")
-        for i in range(settings.connection_pool_size):
+        logger.info(
+            f"Initializing connection pool with {settings.connection_pool_size} connections..."
+        )
+        for _ in range(settings.connection_pool_size):
             conn = duckdb.connect(settings.db_path, read_only=True)
             _connection_pool.append(conn)
         logger.info(f"Connection pool initialized with {len(_connection_pool)} connections")
@@ -79,7 +83,6 @@ def init_connection_pool() -> None:
 
 def close_connection_pool() -> None:
     """Close all connections in the pool at shutdown."""
-    global _connection_pool
     logger.info("Closing connection pool...")
     for conn in _connection_pool:
         try:

@@ -1,4 +1,6 @@
+"""Halte name, wordmark and independence disclaimer on the landing page."""
 from fastapi.testclient import TestClient
+
 from fastapi_app.main import app
 
 DISCLAIMER = (

@@ -3,14 +3,18 @@
 Production readiness test for FastAPI MyCiTi Timetable.
 Tests all critical functionality before deployment.
 """
-import uvicorn
-from fastapi_app.main import app
+import sys
 import threading
 import time
+
 import requests
-import sys
+import uvicorn
+
+from fastapi_app.main import app
+
 
 def run_server():
+    """Serve the app on a background thread for the smoke checks below."""
     uvicorn.run(app, host='127.0.0.1', port=8004, log_level='error')
 
 print("=" * 70)
@@ -22,14 +26,14 @@ thread = threading.Thread(target=run_server, daemon=True)
 thread.start()
 time.sleep(3)
 
-base_url = 'http://127.0.0.1:8004'
+BASE_URL = 'http://127.0.0.1:8004'
 all_passed = True
 
 def test(name, url, checks=None, params=None):
     """Run a test and verify response."""
-    global all_passed
+    global all_passed  # pylint: disable=global-statement
     try:
-        resp = requests.get(f"{base_url}{url}", params=params, timeout=10)
+        resp = requests.get(f"{BASE_URL}{url}", params=params, timeout=10)
 
         # Basic status check
         if resp.status_code != 200:
@@ -92,15 +96,15 @@ print("-" * 70)
 # Test 6: Stops API
 result = test("Stops list API", "/api/stops")
 if result:
-    resp = requests.get(f"{base_url}/api/stops")
-    stops = resp.json().get('stops', [])
+    stops_resp = requests.get(f"{BASE_URL}/api/stops", timeout=10)
+    stops = stops_resp.json().get('stops', [])
     print(f"   → {len(stops)} stops available")
 
 # Test 7: Network API
 result = test("Network data API", "/api/map/network")
 if result:
-    resp = requests.get(f"{base_url}/api/map/network")
-    data = resp.json()
+    network_resp = requests.get(f"{BASE_URL}/api/map/network", timeout=10)
+    data = network_resp.json()
     print(f"   → {len(data.get('nodes', []))} nodes, {len(data.get('routes', []))} routes")
 
 print("\n⚡ Load Shedding Integration")
@@ -111,7 +115,7 @@ try:
     from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
     stage, source = get_effective_stage()
     info = stage_display_info(stage, source)
-    print(f"✅ Load shedding service")
+    print("✅ Load shedding service")
     print(f"   → Stage {stage} ({source})")
     print(f"   → Colors: {info['bg_color']} / {info['fg_color']}")
 except Exception as e:
@@ -120,10 +124,11 @@ except Exception as e:
 
 # Test 9: Disruption Assessment
 try:
-    from disruption import assess_connection
     from datetime import date
+
+    from disruption import assess_connection
     assessment = assess_connection("10:00:00", "11:00:00", 1, 2, 2, date.today())
-    print(f"✅ Disruption assessment")
+    print("✅ Disruption assessment")
     print(f"   → Assessment working: affected={assessment.affected}")
 except Exception as e:
     print(f"❌ Disruption assessment: {e}")
@@ -152,10 +157,10 @@ print("-" * 70)
 
 # Test 13: Database Connection
 try:
-    from fastapi_app.dependencies import get_connection
+    from fastapi_app.dependencies import get_connection  # pylint: disable=ungrouped-imports
     conn = get_connection()
     result = conn.execute("SELECT COUNT(*) FROM stops").fetchone()
-    print(f"✅ Database connection")
+    print("✅ Database connection")
     print(f"   → {result[0]} stops in database")
 except Exception as e:
     print(f"❌ Database connection: {e}")

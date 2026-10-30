@@ -12,10 +12,10 @@ import requests
 
 import loadshedding
 from loadshedding import (
+    _STAGE_COLORS,
     _fetch_esp_stage_uncached,
     _resolve_stage,
     _stage_color,
-    _STAGE_COLORS,
     fetch_esp_stage,
 )
 

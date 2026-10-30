@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import logging
+import zoneinfo
 from datetime import datetime
 from typing import Any, Optional
 
 import duckdb
-import zoneinfo
 
 from fastapi_app.config import settings
 from fastapi_app.dependencies import is_pool_ready
@@ -61,6 +61,7 @@ def format_scraped_at(value: Optional[datetime]) -> str:
 
 
 def get_scraped_at_display(conn: Optional[duckdb.DuckDBPyConnection]) -> str:
+    """Human-readable "timetable as of" stamp, or the unknown placeholder."""
     if conn is None:
         return UNKNOWN_SCRAPED_AT
     return format_scraped_at(get_scraped_at_raw(conn))

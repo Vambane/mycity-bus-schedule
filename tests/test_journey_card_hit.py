@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -41,20 +42,19 @@ def _free_port() -> int:
 @pytest.fixture(scope="module")
 def server():
     port = _free_port()
-    proc = subprocess.Popen(
+    with subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "fastapi_app.main:app", "--port", str(port)],
         cwd=REPO, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
-    import urllib.request
-    for _ in range(60):
-        try:
-            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1)
-            break
-        except Exception:
-            time.sleep(0.25)
-    yield f"http://127.0.0.1:{port}"
-    proc.terminate()
-    proc.wait(timeout=10)
+    ) as proc:
+        for _ in range(60):
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1):
+                    break
+            except OSError:
+                time.sleep(0.25)
+        yield f"http://127.0.0.1:{port}"
+        proc.terminate()
+        proc.wait(timeout=10)
 
 
 HIT_JS = """() => {

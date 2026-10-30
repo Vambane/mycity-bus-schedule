@@ -4,8 +4,9 @@ UCT's page says Route 5 runs to 26 Nov but its PDF says 20 Nov; we use the
 earlier date (compliance), so every route ends 20 Nov. After a route's end
 date its times are hidden and the "Timetable expired" banner is shown.
 """
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import duckdb
 import pytest
@@ -116,6 +117,7 @@ def test_loaded_consolidation_exam_set():
 def test_search_hides_expired_routes_and_shows_banner(monkeypatch):
     """After 20 Nov the search page shows the banner and no expired UCT times."""
     from fastapi.testclient import TestClient
+
     import fastapi_app.services.uct_validity as uv
     from fastapi_app.main import app
 
@@ -183,13 +185,12 @@ def test_uct_notes_by_route_and_day():
 
 
 def test_notes_are_escaped_not_safe(monkeypatch):
-    from jinja2 import Environment
     import fastapi_app.services.uct_notes as un
     from fastapi_app.main import jinja_env
     src = Path(__file__).resolve().parents[1] / "fastapi_app" / "templates"
     for f in ("components/connection_card.html", "components/transfer_card.html",
               "pages/stop.html"):
-        t = (src / f).read_text()
+        t = (src / f).read_text(encoding="utf-8")
         assert "uct_notes(" in t
         assert "note|safe" not in t.replace(" ", "")
     monkeypatch.setitem(un.UCT_ROUTE_NOTES, "UCTX", [(None, "<b>x</b>")])
@@ -201,9 +202,18 @@ def test_notes_are_escaped_not_safe(monkeypatch):
 @pytest.mark.skipif(not DB.exists(), reason="myciti.duckdb missing")
 def test_notes_shown_in_search_and_stop_board(monkeypatch):
     from fastapi.testclient import TestClient
+
+    import fastapi_app.routes.search as search_route
+    import fastapi_app.routes.stop as stop_route
     import fastapi_app.services.uct_validity as uv
     from fastapi_app.main import app
     monkeypatch.setattr(uv, "today_cape_town", lambda: date(2026, 11, 1))
+    # Freeze the clock mid-morning: the notes sit on departure cards, and after
+    # the last bus of the night there are no cards, so the test used to fail
+    # whenever the suite ran late in the evening.
+    mid_morning = datetime(2026, 11, 2, 10, 0, tzinfo=ZoneInfo("Africa/Johannesburg"))
+    monkeypatch.setattr(search_route, "get_cape_town_time", lambda: mid_morning)
+    monkeypatch.setattr(stop_route, "get_cape_town_time", lambda: mid_morning)
     with TestClient(app) as client:
         search = client.get("/", params={"from_stop": "UC North", "to_stop": "Kramer",
                                          "day_type": "saturday", "operator": "uct"}).text

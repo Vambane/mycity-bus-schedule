@@ -1,21 +1,21 @@
 """FastAPI application entry point."""
+import logging
+import os
+import time
 from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import logging
-import os
-import time
-from pathlib import Path
+from jinja2 import Environment, FileSystemLoader
 
 from .config import settings
-from .dependencies import (
-    init_connection_pool,
-    close_connection_pool,
-    is_pool_ready,
-    get_connection,
-)
+from .dependencies import close_connection_pool, get_connection, init_connection_pool, is_pool_ready
+from .routes import api, journey, landing, search, stop, system_map
+from .services.trust import get_scraped_at_display, get_scraped_at_raw
+from .services.uct_notes import uct_notes
 
 # Configure logging
 logging.basicConfig(
@@ -28,7 +28,7 @@ APP_VERSION = "2.0.0"
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Application lifespan events."""
     # Startup
     logger.info("Starting Halte application...")
@@ -53,10 +53,8 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Setup Jinja2 templates
 templates_dir = Path(__file__).parent / "templates"
-# Disable Jinja2 auto-escaping for performance and compatibility
-from jinja2 import Environment, FileSystemLoader
+# Auto-escaping stays on; cache_size=0 so template edits show without a restart.
 jinja_env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=True, cache_size=0)
-from fastapi_app.services.uct_notes import uct_notes
 jinja_env.globals["uct_notes"] = uct_notes
 templates = Jinja2Templates(env=jinja_env)
 
@@ -83,9 +81,7 @@ async def cache_control_headers(request, call_next):
 # Make templates available globally
 app.state.templates = templates
 
-# Import and register routes
-from .routes import api, landing, search, stop, system_map, journey
-
+# Register routes
 app.include_router(api.router, prefix="/api", tags=["API"])
 app.include_router(landing.router, tags=["Landing"])
 app.include_router(search.router, tags=["Search"])
@@ -102,8 +98,6 @@ async def health_check():
     Does not run ETL. Returns non-200 / degraded when the DuckDB pool or
     snapshot-backed data is unavailable (fail-loud for empty boards).
     """
-    from .services.trust import get_scraped_at_display, get_scraped_at_raw
-
     db_ready = is_pool_ready()
     scraped_at = None
     scraped_display = None

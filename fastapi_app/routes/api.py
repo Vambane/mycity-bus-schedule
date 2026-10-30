@@ -1,15 +1,13 @@
 """JSON API endpoints for AJAX requests."""
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Dict, Any, Optional
 import logging
-import sys
-from pathlib import Path
+from typing import Any, Dict, Optional
 
-# Add parent directory to path to import core modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+import duckdb
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from fastapi_app.dependencies import get_connection
-import duckdb
+from fastapi_app.services.trip_preview import build_trip_preview
+from system_map import build_network
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +29,6 @@ async def network_data(
         Dict containing nodes, links, routes, and paths for Leaflet rendering
     """
     try:
-        from system_map import build_network
         logger.info(f"Building network graph (operator={operator})...")
         network = build_network(conn, operator=operator or "both")
         logger.info(
@@ -41,7 +38,9 @@ async def network_data(
         return network
     except Exception as e:
         logger.error(f"Error building network data: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to build network data: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to build network data: {e}"
+        ) from e
 
 
 @router.get("/stops")
@@ -73,6 +72,8 @@ async def list_stops(
 
 
 @router.get("/trip-preview")
+# Each query parameter is a function argument in FastAPI.
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def trip_preview(
     route_id: str = Query(..., min_length=1),
     direction: str = Query(..., min_length=1),
@@ -89,8 +90,6 @@ async def trip_preview(
     Hide reasons: soft pairing, stale scrape, wrong day, past last bus.
     """
     try:
-        from fastapi_app.services.trip_preview import build_trip_preview
-
         return build_trip_preview(
             conn,
             route_id=route_id,

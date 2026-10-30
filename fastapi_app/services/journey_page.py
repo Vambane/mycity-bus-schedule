@@ -13,9 +13,9 @@ from urllib.parse import urlencode
 
 import duckdb
 
+from fastapi_app.services.trip_preview import preview_ok_for_card
 from journey_map import leg_stop_sequence
 from system_map import get_route_colors
-from fastapi_app.services.trip_preview import preview_ok_for_card
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,11 @@ def encode_legs(legs: list[dict[str, Any]]) -> str:
 
 
 def decode_legs(token: str) -> list[dict[str, str]]:
+    """Decode the base64 `legs` query token back into leg dicts.
+
+    Raises JourneyParamError for anything malformed or oversized, so a
+    hand-edited URL shows a friendly error rather than a crash.
+    """
     if not token or len(token) > 4000:
         raise JourneyParamError("invalid legs")
     pad = "=" * (-len(token) % 4)
@@ -136,7 +141,7 @@ def search_back_href(
     })
 
 
-def journey_href_direct(
+def journey_href_direct(  # pylint: disable=too-many-arguments
     *,
     from_stop: str,
     to_stop: str,
@@ -147,6 +152,11 @@ def journey_href_direct(
     arr: str,
     operator: str = "both",
 ) -> str:
+    """Link from a direct search result to its schematic page.
+
+    Keyword-only on purpose: eight same-typed strings are too easy to
+    pass in the wrong order positionally.
+    """
     return "/journey?" + urlencode({
         "from_stop": from_stop,
         "to_stop": to_stop,
@@ -167,6 +177,7 @@ def journey_href_transfer(
     legs: list[dict[str, Any]],
     operator: str = "both",
 ) -> str:
+    """Link from a transfer search result to its schematic page (legs encoded)."""
     return "/journey?" + urlencode({
         "from_stop": from_stop,
         "to_stop": to_stop,
@@ -190,7 +201,7 @@ def _fmt_duration(dep: str, arr: str) -> str:
     return f"{m} min"
 
 
-def build_journey_view(
+def build_journey_view(  # pylint: disable=too-many-arguments
     con: duckdb.DuckDBPyConnection,
     *,
     from_stop: str,

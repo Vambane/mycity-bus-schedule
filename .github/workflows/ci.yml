@@ -1,0 +1,47 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The app targets Python 3.10+ (see README)
+        python-version: ["3.10", "3.11", "3.12"]
+    env:
+      # Repo-root modules (journey.py, system_map.py, ...) are plain scripts,
+      # not a package: put the root on the path for pylint and pytest alike.
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: pip
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Project deps are needed so pylint can resolve imports
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+    - name: Lint app code
+      run: |
+        pylint $(git ls-files '*.py' ':!:tests/*')
+    - name: Lint tests
+      # pytest idioms pylint misreads: fixtures shadow names by design,
+      # test names say what they check, and lazy imports keep app start-up
+      # (and its DB) out of tests that do not need it. Exact `== []`
+      # assertions are kept on purpose: they also check the type.
+      run: |
+        pylint \
+          --disable=missing-function-docstring,missing-class-docstring \
+          --disable=redefined-outer-name,import-outside-toplevel \
+          --disable=protected-access,too-few-public-methods \
+          --disable=use-implicit-booleaness-not-comparison \
+          $(git ls-files 'tests/*.py')
+    - name: Run tests
+      run: |
+        pytest -q

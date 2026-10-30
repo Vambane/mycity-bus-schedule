@@ -10,9 +10,9 @@ times, boundary semantics).
 from datetime import date, time
 
 from disruption import (
-    DisruptionAssessment,
     MAX_BUFFER_MIN,
     PER_END_BUFFER_MIN,
+    DisruptionAssessment,
     _blocks_for_slot,
     assess_connection,
     get_shedding_windows,
