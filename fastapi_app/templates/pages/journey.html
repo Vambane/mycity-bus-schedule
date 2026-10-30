@@ -18,7 +18,7 @@
     </p>
     <h1 class="hero-title">{{ journey.from_stop }} → {{ journey.to_stop }}</h1>
     <p class="hero-subtitle">
-      {{ journey.day_type|capitalize }} · {{ journey.dep }}–{{ journey.arr }}
+      {{ journey.day_type|capitalize }} · {{ journey.dep|clock }}–{{ journey.arr|clock }}
       {% if journey.duration %} · {{ journey.duration }}{% endif %}
     </p>
     <div class="route-chain" style="margin-top: var(--sp-3);">
@@ -56,9 +56,9 @@
              style="--route-color: {{ journey.route_color }};"></div>
         <span class="stop-name stop-name--page">{{ stop }}</span>
         {% if loop.first %}
-        <span class="stop-time">{{ journey.dep }}</span>
+        <span class="stop-time">{{ journey.dep|clock }}</span>
         {% elif loop.last %}
-        <span class="stop-time">{{ journey.arr }}</span>
+        <span class="stop-time">{{ journey.arr|clock }}</span>
         {% endif %}
       </div>
       {% endfor %}
@@ -83,9 +83,9 @@
           {% endif %}
           <span class="stop-name stop-name--page">{{ stop }}</span>
           {% if loop.first and outer.first %}
-          <span class="stop-time">{{ journey.dep }}</span>
+          <span class="stop-time">{{ journey.dep|clock }}</span>
           {% elif loop.last and outer.last %}
-          <span class="stop-time">{{ journey.arr }}</span>
+          <span class="stop-time">{{ journey.arr|clock }}</span>
           {% elif loop.last and not outer.last %}
           <span class="stop-time stop-time--transfer">change</span>
           {% endif %}

@@ -19,6 +19,7 @@ from fastapi_app.services.service_day import (
     holiday_name,
     is_live_board,
     next_service_day,
+    overnight_carryover,
 )
 from fastapi_app.services.trust import trust_context
 from fastapi_app.services.uct_validity import uct_expiry_state
@@ -110,6 +111,21 @@ def _load_board(  # pylint: disable=too-many-arguments,too-many-positional-argum
     return routes, departures
 
 
+def _merge_boards(earlier: tuple[list, dict], later: tuple[list, dict]) -> tuple[list, dict]:
+    """Combine two boards, *earlier* departures first, still 10 per route."""
+    routes = list(earlier[0])
+    seen = {(r["route_id"], r["direction"]) for r in routes}
+    routes += [r for r in later[0] if (r["route_id"], r["direction"]) not in seen]
+
+    departures: dict = {}
+    for key in list(earlier[1]) + [k for k in later[1] if k not in earlier[1]]:
+        upcoming = (earlier[1].get(key, {}).get("upcoming", [])
+                    + later[1].get(key, {}).get("upcoming", []))[:10]
+        route = (earlier[1].get(key) or later[1][key])["route"]
+        departures[key] = {"route": route, "next_departure": upcoming[0], "upcoming": upcoming}
+    return routes, departures
+
+
 @router.get("/stop/{stop_name}", response_class=HTMLResponse)
 # One handler builds the whole departure board; splitting it is tracked as a refactor.
 # pylint: disable-next=too-many-locals,too-many-branches,too-many-statements
@@ -188,6 +204,16 @@ async def stop_view(
             conn, stop_name, day_type, current_time if live else "00:00:00",
             operator, expired_uct,
         )
+        if live:
+            # Just after midnight, yesterday's late trips are still running.
+            carry = overnight_carryover(now)
+            if carry:
+                y_routes, y_departures = _load_board(
+                    conn, stop_name, carry[0], carry[1], operator, expired_uct
+                )
+                routes, departures = _merge_boards(
+                    (y_routes, y_departures), (routes, departures)
+                )
 
         if not routes:
             # No routes found for this stop

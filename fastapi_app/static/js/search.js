@@ -246,6 +246,8 @@
 
     var depMinutes = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
     var diff = depMinutes - nowMinutes;
+    /* Across midnight: at 23:50 a 00:05 bus is 15 min away, not -1425. */
+    if (diff < -12 * 60) diff += 24 * 60;
 
     /* Only show for departures in the next 60 minutes */
     if (diff < 0 || diff > 60) return;

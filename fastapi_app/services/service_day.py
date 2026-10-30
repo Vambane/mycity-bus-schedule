@@ -110,4 +110,22 @@ def is_live_board(day_type: str, now: datetime, picked_date: Optional[date] = No
     return day_type == day_type_for(now.date())
 
 
+# Trips that start before midnight can run until about this hour.
+OVERNIGHT_UNTIL_HOUR = 6
+
+
+def overnight_carryover(now: datetime) -> Optional[tuple[str, str]]:
+    """Yesterday's timetable and the stored time 'now' corresponds to, after midnight.
+
+    A trip that left at 23:15 yesterday and reaches a stop at 00:20 today
+    is stored on yesterday's timetable as 24:20. Between midnight and
+    OVERNIGHT_UNTIL_HOUR, the live board must include those trips too.
+    Returns (yesterday's day type, 'HH:MM:SS' with HH >= 24), or None.
+    """
+    if now.hour >= OVERNIGHT_UNTIL_HOUR:
+        return None
+    yesterday = now.date() - timedelta(days=1)
+    return day_type_for(yesterday), f"{now.hour + 24:02d}:{now.minute:02d}:{now.second:02d}"
+
+
 DAY_LABELS = {WEEKDAY: "weekday", SATURDAY: "Saturday", SUNDAY: "Sunday"}

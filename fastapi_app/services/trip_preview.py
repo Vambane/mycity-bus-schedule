@@ -15,6 +15,7 @@ import duckdb
 
 from fastapi_app.config import settings
 from fastapi_app.services.trust import get_scraped_at_raw
+from journey import clock_time
 from journey_map import (
     _load_route_paths,
     _load_stop_coords,
@@ -316,8 +317,8 @@ def build_trip_preview(
         "day_type": day_type,
         "board": board,
         "alight": alight,
-        "dep": _norm_time(dep)[:5],
-        "arr": timed_stops[-1]["time"][:5],
+        "dep": clock_time(_norm_time(dep)),  # display only (map caption)
+        "arr": clock_time(timed_stops[-1]["time"]),
         "route_color": route_color,
         "ghost_color": ghost_color,
         "ghost_opacity": 0.45,

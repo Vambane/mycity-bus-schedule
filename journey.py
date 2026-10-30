@@ -28,6 +28,20 @@ def _to_minutes(hms: str) -> int:
     return int(h) * 60 + int(m)
 
 
+def clock_time(hms: object) -> str:
+    """Wall-clock HH:MM for display: '24:15:00' -> '00:15', '07:05:00' -> '07:05'.
+
+    Stored times run past 24:00 for trips that cross midnight (see
+    etl/scrape_uct.py), so their stops stay in order. Riders see the
+    ordinary clock time. Use the raw value, not this, in links and queries.
+    """
+    raw = str(hms or "")
+    parts = raw.split(":")
+    if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
+        return raw[:5]
+    return f"{int(parts[0]) % 24:02d}:{int(parts[1]):02d}"
+
+
 def _fmt_duration(minutes: int) -> str:
     """65 → '1 h 05', 42 → '42 min'."""
     if minutes >= 60:

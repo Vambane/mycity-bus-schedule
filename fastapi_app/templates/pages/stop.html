@@ -124,7 +124,7 @@
             {% if data.next_departure %}
             <div class="metric-card">
                 <div class="metric-label">Next Departure</div>
-                <div class="metric-value">{{ data.next_departure.time }}</div>
+                <div class="metric-value">{{ data.next_departure.time|clock }}</div>
                 <div class="metric-subtitle">{{ data.route.direction }}</div>
             </div>
             {% endif %}
@@ -136,7 +136,7 @@
                     {% for departure in data.upcoming %}
                     <li class="departure-item">
                         <div class="departure-info">
-                            <span class="departure-time time">{{ departure.time }}</span>
+                            <span class="departure-time time">{{ departure.time|clock }}</span>
                             <span class="departure-direction">{{ departure.headsign }}</span>
                         </div>
                     </li>
