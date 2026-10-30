@@ -6,6 +6,7 @@ import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from fastapi_app.dependencies import get_connection
+from fastapi_app.services.stop_locations import stop_locations
 from fastapi_app.services.trip_preview import build_trip_preview
 from system_map import build_network
 
@@ -69,6 +70,23 @@ async def list_stops(
     except Exception as e:
         logger.error(f"Error fetching stops: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch stops") from e
+
+
+@router.get("/stops/locations")
+async def stop_locations_api(
+    operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
+    conn: duckdb.DuckDBPyConnection = Depends(get_connection),
+) -> Dict[str, Any]:
+    """Coordinates of searchable stops, for "Use my location".
+
+    The browser picks the nearest stop itself; the rider's position is
+    never sent here.
+    """
+    try:
+        return stop_locations(conn, operator or "both")
+    except Exception as e:
+        logger.error(f"Error fetching stop locations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch stop locations") from e
 
 
 @router.get("/trip-preview")
