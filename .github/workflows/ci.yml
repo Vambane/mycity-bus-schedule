@@ -27,6 +27,11 @@ jobs:
         # Project deps are needed so pylint can resolve imports
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+    - name: Install Chromium for the browser test
+      # One Python version is enough to run the tap-target test in a real
+      # browser; on the others it skips itself when no browser is found.
+      if: matrix.python-version == '3.12'
+      run: python -m playwright install --with-deps chromium
     - name: Lint app code
       run: |
         pylint $(git ls-files '*.py' ':!:tests/*')
