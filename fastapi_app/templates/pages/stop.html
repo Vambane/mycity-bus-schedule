@@ -7,10 +7,29 @@
     <!-- Page header: yellow hero band, same as the other app pages -->
     <section class="hero">
         <h1 class="hero-title">{{ stop_name }}</h1>
-        <p class="hero-subtitle">Upcoming departures {% if current_time %}from {{ current_time }}{% endif %}</p>
+        <p class="hero-subtitle">
+            {% if next_day %}Tomorrow's first departures
+            {% elif live is defined and not live %}All {{ day_type }} departures
+            {% else %}Upcoming departures {% if current_time %}from {{ current_time }}{% endif %}{% endif %}
+        </p>
     </section>
 
     {% include 'components/trust_strip.html' %}
+
+    {% if today_holiday and live %}
+    <div class="alert alert-info">
+        <strong>{{ today_holiday }}</strong>
+        <p>It's a public holiday, so Sunday timetables apply today.</p>
+    </div>
+    {% endif %}
+
+    {% if next_day %}
+    <div class="alert alert-info">
+        <strong>No more buses today</strong>
+        <p>The last bus has left. Showing tomorrow's first departures
+           ({% if next_day.holiday %}{{ next_day.holiday }}, so the Sunday timetable{% else %}{{ next_day.label }} timetable{% endif %}).</p>
+    </div>
+    {% endif %}
 
     <!-- UCT stale data warning -->
     {% if uct_stale_warning %}
@@ -97,7 +116,7 @@
                 </div>
             </div>
 
-            {% for note in uct_notes(data.route.route_id, day_type) %}
+            {% for note in uct_notes(data.route.route_id, board_day_type or day_type) %}
             <p class="metric-subtitle route-note">{{ note }}</p>
             {% endfor %}
 
@@ -127,10 +146,15 @@
         </div>
         {% endfor %}
     {% else %}
-    <!-- No upcoming departures -->
+    <!-- No departures: either none left today and none tomorrow, or none at all -->
     <div class="alert alert-info">
+        {% if live %}
         <strong>No more buses today</strong>
-        <p>There are no more scheduled departures for the selected routes on {{ day_type }}s.</p>
+        <p>There are no more scheduled departures from this stop today.</p>
+        {% else %}
+        <strong>No {{ day_type }} departures</strong>
+        <p>The {{ day_type }} timetable has no departures from this stop.</p>
+        {% endif %}
     </div>
     {% endif %}
     {% endif %}
