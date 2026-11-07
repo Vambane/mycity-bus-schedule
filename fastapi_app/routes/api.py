@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.get("/map/network")
-async def network_data(
+def network_data(
     operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
     conn: duckdb.DuckDBPyConnection = Depends(get_connection),
 ) -> Dict[str, Any]:
@@ -40,12 +40,12 @@ async def network_data(
     except Exception as e:
         logger.error(f"Error building network data: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to build network data: {e}"
+            status_code=500, detail="Failed to build network data"
         ) from e
 
 
 @router.get("/stops")
-async def list_stops(
+def list_stops(
     operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
     conn: duckdb.DuckDBPyConnection = Depends(get_connection),
 ) -> Dict[str, Any]:
@@ -73,7 +73,7 @@ async def list_stops(
 
 
 @router.get("/stops/locations")
-async def stop_locations_api(
+def stop_locations_api(
     operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
     conn: duckdb.DuckDBPyConnection = Depends(get_connection),
 ) -> Dict[str, Any]:
@@ -92,7 +92,7 @@ async def stop_locations_api(
 @router.get("/trip-preview")
 # Each query parameter is a function argument in FastAPI.
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-async def trip_preview(
+def trip_preview(
     route_id: str = Query(..., min_length=1),
     direction: str = Query(..., min_length=1),
     day_type: str = Query(..., pattern="^(weekday|saturday|sunday)$"),

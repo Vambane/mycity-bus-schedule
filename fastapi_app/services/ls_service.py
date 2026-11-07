@@ -6,6 +6,7 @@ uses standard caching and environment variables.
 """
 import logging
 import os
+import threading
 from typing import Optional, Tuple
 
 import requests
@@ -75,7 +76,8 @@ def _fetch_esp_stage_uncached() -> Optional[int]:
     return stage
 
 
-@cached(_esp_cache)
+# Handlers run in a threadpool; cachetools caches are not thread-safe alone.
+@cached(_esp_cache, lock=threading.Lock())
 def fetch_esp_stage() -> Optional[int]:
     """
     Cached wrapper around the ESP stage fetch.

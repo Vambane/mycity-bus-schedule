@@ -24,7 +24,7 @@ _GENERIC_MISS = "We could not rebuild that journey from the timetable."
 @router.get("/journey", response_class=HTMLResponse)
 # Each query parameter is a function argument in FastAPI.
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-async def journey_page(
+def journey_page(
     request: Request,
     from_stop: Optional[str] = Query(None),
     to_stop: Optional[str] = Query(None),

@@ -8,7 +8,9 @@
 <html>
 <head>
 <meta charset="utf-8">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+      crossorigin="">
 <style>
   body     { margin:0; padding:0; background:transparent;
              font-family:"Source Sans Pro",-apple-system,sans-serif; }
@@ -96,7 +98,9 @@
   </div>
   <div id="hint">Click a stop to view its timetable · click a route to highlight</div>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+        crossorigin=""></script>
 <script>
 // ---- Legend toggle (phones start collapsed; desktop always shows legend) ----
 (function () {
@@ -114,6 +118,24 @@
     btn.focus();
   });
 })();
+
+// ---- Escaping for network data ----
+// Stop and route names come from scraped timetables. Leaflet tooltips take
+// HTML strings, so every piece of network data is escaped before use.
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Only plain hex colours reach style properties; anything else is neutral.
+const NEUTRAL_COLOR = "#A0A0A8";
+function safeColor(c) {
+  return /^#[0-9a-fA-F]{3,8}$/.test(String(c)) ? c : NEUTRAL_COLOR;
+}
 
 // ---- Fetch network data and initialize map ----
 fetch('/api/map/network')
@@ -261,14 +283,15 @@ function initMap(graph) {
     m._node = n;
     m._halo = halo;
     const tipHtml =
-      `<b>${n.id}</b><br><span style="color:#0072BC">${n.routes.join(" · ")}</span>` +
+      `<b>${escapeHtml(n.id)}</b><br><span style="color:#0072BC">` +
+      `${n.routes.map(escapeHtml).join(" · ")}</span>` +
       `<br><span style="color:#888">Tap for timetable</span>`;
     m.bindTooltip(tipHtml, { direction: "top", offset: [0, -6], sticky: false });
     if (n.n >= 6) {
       L.tooltip({
         permanent: true, direction: "top", offset: [0, -10],
         className: "hub-label", pane: "stops",
-      }).setContent(n.id).setLatLng([n.lat, n.lon]).addTo(map);
+      }).setContent(escapeHtml(n.id)).setLatLng([n.lat, n.lon]).addTo(map);
     }
     m.on("click", (e) => {
       if (fromTouch(e)) {
@@ -332,9 +355,17 @@ function initMap(graph) {
       const row = document.createElement("div");
       row.className = "lrow";
       row.dataset.route = r.id;
-      row.innerHTML = `<div class="swatch" style="background:${r.color}"></div>
-                       <div class="rid" style="color:${r.color}">${r.id}</div>
-                       <div>${r.name.replace(/^[^–]+– /, "")}</div>`;
+      const rc = safeColor(r.color);
+      const swatch = document.createElement("div");
+      swatch.className = "swatch";
+      swatch.style.background = rc;
+      const rid = document.createElement("div");
+      rid.className = "rid";
+      rid.style.color = rc;
+      rid.textContent = r.id;
+      const rname = document.createElement("div");
+      rname.textContent = String(r.name || "").replace(/^[^–]+– /, "");
+      row.append(swatch, rid, rname);
       row.onclick = () => { active = active === r.id ? null : r.id; applyHighlight(); };
       legend.appendChild(row);
     }
@@ -421,7 +452,7 @@ function showTripPreview(map, data) {
     fillColor: data.ghost_color,
     fillOpacity: data.ghost_opacity || 0.45,
   }).addTo(map);
-  ghost.bindTooltip(data.caption, {
+  ghost.bindTooltip(escapeHtml(data.caption), {
     permanent: true, direction: "top", offset: [0, -10], className: "ghost-label",
   });
   layers.push(ghost);

@@ -100,10 +100,15 @@ def is_pool_ready() -> bool:
 
 def get_connection() -> duckdb.DuckDBPyConnection:
     """
-    Get a connection from the pool.
+    Get a per-request cursor on the pooled read-only connection.
+
+    Route handlers are plain ``def`` so FastAPI runs them in its threadpool.
+    A DuckDB connection object must not be used by two threads at once, so
+    every caller gets its own ``cursor()`` (an independent connection to the
+    same database) instead of the shared pooled object.
 
     Returns:
-        DuckDB connection from the pool
+        A DuckDB cursor for this request
 
     Raises:
         HTTPException: If connection pool is not initialized
@@ -112,8 +117,7 @@ def get_connection() -> duckdb.DuckDBPyConnection:
         logger.error("Connection pool not initialized")
         raise HTTPException(status_code=500, detail="Database connection pool not available")
 
-    # Simple approach: return first connection (all are read-only and thread-safe for reads)
-    return _connection_pool[0]
+    return _connection_pool[0].cursor()
 
 
 def get_cache() -> TTLCache:
