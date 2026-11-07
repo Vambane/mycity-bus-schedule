@@ -47,7 +47,7 @@ The nitty-gritty (mobile layout rules, map marker sizes, caching, screen-reader 
 
 ## Quick start 🏁
 
-Requires Python 3.10+.
+Requires Python 3.11+.
 
 ```bash
 pip install -r requirements.txt

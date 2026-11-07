@@ -129,7 +129,7 @@ def _merge_boards(earlier: tuple[list, dict], later: tuple[list, dict]) -> tuple
 @router.get("/stop/{stop_name}", response_class=HTMLResponse)
 # One handler builds the whole departure board; splitting it is tracked as a refactor.
 # pylint: disable-next=too-many-locals,too-many-branches,too-many-statements
-async def stop_view(
+def stop_view(
     request: Request,
     stop_name: str,
     day_type: Optional[str] = None,

@@ -2,14 +2,19 @@ name: CI
 
 on: [push]
 
+# Least privilege: CI only needs to read the code.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # The app targets Python 3.10+ (see README)
-        python-version: ["3.10", "3.11", "3.12"]
+        # The app targets Python 3.11+ (see README). Render runs 3.11, and
+        # the pinned requirements need 3.11 or newer.
+        python-version: ["3.11", "3.12"]
     env:
       # Repo-root modules (journey.py, system_map.py, ...) are plain scripts,
       # not a package: put the root on the path for pylint and pytest alike.

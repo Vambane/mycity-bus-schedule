@@ -29,3 +29,8 @@ data/*.duckdb.wal
 
 # Local tool lock files
 .claude/scheduled_tasks.lock
+
+# Local secrets (config.py reads .env; never commit API keys)
+.env
+.env.*
+.streamlit/secrets.toml

@@ -3,6 +3,7 @@ import logging
 import zoneinfo
 from datetime import datetime
 from typing import Optional
+from urllib.parse import quote
 
 import duckdb
 import pandas as pd
@@ -117,7 +118,7 @@ def _without_expired_transfers(df, expired_uct: set[str]):
 # FastAPI maps query parameters to arguments, and this handler builds the
 # whole results page in one pass. Splitting it is tracked as a refactor.
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-branches,too-many-statements
-async def search_page(
+def search_page(
     request: Request,
     from_stop: Optional[str] = None,
     to_stop: Optional[str] = None,
@@ -214,7 +215,7 @@ async def search_page(
     # If only from_stop is selected, redirect to single-stop view
     if not to_stop or to_stop == from_stop:
         return RedirectResponse(
-            url=f"/stop/{from_stop}?day_type={day_type}&operator={operator}")
+            url=f"/stop/{quote(from_stop, safe='')}?day_type={day_type}&operator={operator}")
 
     try:
         # Get current time for filtering
