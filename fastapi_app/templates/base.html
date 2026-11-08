@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   {%- set app_name = "Halte" -%}
-  {%- set app_disclaimer = "Halte is an independent app, not affiliated with the City of Cape Town, MyCiTi or the University of Cape Town." -%}
-  <meta name="description" content="Halte: MyCiTi and UCT Jammie shuttle timetables and journey planning for Cape Town">
+  {%- set app_disclaimer = "Halte is an independent app, not affiliated with the City of Cape Town, MyCiTi, the University of Cape Town or PRASA (Metrorail)." -%}
+  <meta name="description" content="Halte: MyCiTi, UCT Jammie shuttle and Metrorail timetables and journey planning for Cape Town">
   <meta property="og:site_name" content="{{ app_name }}">
   <meta property="og:title" content="{{ app_name }}">
-  <meta property="og:description" content="Halte: MyCiTi and UCT Jammie shuttle timetables and journey planning for Cape Town">
+  <meta property="og:description" content="Halte: MyCiTi, UCT Jammie shuttle and Metrorail timetables and journey planning for Cape Town">
   <title>{% block title %}Halte{% endblock %}</title>
 
   <!-- Design system -->
@@ -86,13 +86,15 @@
     <div class="container">
       <div class="footer-inner">
         <p class="footer-sources">
-          Sources: MyCiTi route PDFs · UCT shuttle timetables · City of Cape Town Open Data · OpenStreetMap
+          Sources: MyCiTi route PDFs · UCT shuttle timetables · PRASA Metrorail sheets, transcribed by <a href="https://nexttrain.co.za" target="_blank" rel="noopener">Next Train</a> · City of Cape Town Open Data · OpenStreetMap
         </p>
         <p class="footer-links">
           Confirm on
           <a href="https://www.myciti.org.za" target="_blank" rel="noopener">MyCiTi</a>
           &amp;
           <a href="https://uct.ac.za/students/services-transport-parking-uct-shuttle/route-maps-timetables" target="_blank" rel="noopener">UCT Transport</a>
+          &amp;
+          <a href="https://www.prasa.com/train-schedules/" target="_blank" rel="noopener">PRASA</a>
           &middot;
           Load shedding via <a href="https://eskomsepush.gumroad.com/l/api" target="_blank" rel="noopener">EskomSePush</a>
           &middot;

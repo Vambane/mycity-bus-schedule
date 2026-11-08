@@ -77,7 +77,7 @@ def find_connections(
     Return every direct service from `from_stop` to `to_stop` on `day_type`.
 
     Args:
-        operator: 'myciti', 'uct', or 'both' (no operator filter).
+        operator: 'myciti', 'uct', 'metrorail', or 'both' (no operator filter).
 
     Returns a DataFrame with [route_id, route_name, direction, dep, arr,
     duration_min, duration] sorted by departure time. Empty if no route
@@ -130,7 +130,11 @@ def find_connections(
             # Minimum 5 minutes filters out obvious impossibilities (1-3 min for
             # long routes) from skip-stop patterns where unequal stop counts cause
             # wrong trip pairing, while allowing legitimate short hops.
-            if 5 <= minutes <= 300:
+            # Metrorail lines are split into exact stop patterns at load time
+            # (etl/scrape_metrorail.py), so pairing is exact and a 2-3 minute
+            # hop between neighbouring stations is real.
+            min_ride = 1 if str(cand["route_id"]).startswith("MR-") else 5
+            if min_ride <= minutes <= 300:
                 rows.append({
                     "route_id": cand["route_id"],
                     "route_name": cand["route_name"],
@@ -180,7 +184,7 @@ def _load_lines(
     of the day visits stops in order, as in the direct search).
 
     Args:
-        operator: 'myciti', 'uct', or 'both' (no operator filter).
+        operator: 'myciti', 'uct', 'metrorail', or 'both' (no operator filter).
     """
     op_filter = ""
     params: list = [day_type]
@@ -408,7 +412,7 @@ def find_transfer_connections(  # pylint: disable=too-many-arguments,too-many-po
     needs at least MIN_TRANSFER_MIN minutes and at most MAX_WAIT_MIN.
 
     Args:
-        operator: 'myciti', 'uct', or 'both' (no operator filter).
+        operator: 'myciti', 'uct', 'metrorail', or 'both' (no operator filter).
 
     Returns a DataFrame with [dep, arr, duration_min, duration, transfers,
     route_ids, via, legs] sorted by departure, reduced to the Pareto set

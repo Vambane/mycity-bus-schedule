@@ -21,6 +21,8 @@ UCT_TRANSPORT_URL = (
     "route-maps-timetables"
 )
 
+PRASA_URL = "https://www.prasa.com/train-schedules/"
+
 LOCATION_PRIVACY_LINE = (
     "Location stays on your device and is only used to suggest nearby stops."
 )
@@ -78,6 +80,7 @@ def trust_context(
         "db_ready": is_pool_ready(),
         "show_shedding_trust": show_shedding_trust,
         "myciti_url": MYCITI_URL,
+        "prasa_url": PRASA_URL,
         "uct_transport_url": UCT_TRANSPORT_URL,
         "location_privacy_line": LOCATION_PRIVACY_LINE,
     }

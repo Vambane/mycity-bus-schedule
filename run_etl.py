@@ -2,12 +2,14 @@
 run_etl.py — Multi-Operator ETL Runner
 ========================================
 One-command pipeline for scraping and loading timetable data from
-MyCiTi and/or UCT shuttle into data/myciti.duckdb.
+MyCiTi, UCT shuttle and/or Metrorail into data/myciti.duckdb.
 
 Usage:
     python3 run_etl.py                # scrape + load MyCiTi only (default)
     python3 run_etl.py --uct          # scrape + load UCT only
-    python3 run_etl.py --all          # scrape + load both operators
+    python3 run_etl.py --metrorail    # load Metrorail Western Cape only
+    python3 run_etl.py --metrorail --offline  # Metrorail from data/metrorail_raw/
+    python3 run_etl.py --all          # scrape + load every operator
     python3 run_etl.py --uct --offline  # UCT from cached PDFs
     python3 run_etl.py --inspect      # show what's in the DB
 """
@@ -79,6 +81,29 @@ def _run_uct(db_path: Path, offline: bool = False) -> None:
         log.info(f"UCT data inconsistencies logged: {len(inconsistencies)}")
 
 
+def _run_metrorail(db_path: Path, offline: bool = False) -> None:
+    """Load Metrorail Western Cape timetables (see etl/scrape_metrorail.py)."""
+    from etl.scrape_metrorail import (  # pylint: disable=import-outside-toplevel
+        scrape_all as scrape_metrorail,
+    )
+
+    log.info("=== Metrorail ETL ===")
+    try:
+        data = scrape_metrorail(offline=offline)
+    except (OSError, ValueError, KeyError) as exc:
+        log.error(
+            "Metrorail load failed: %s\n"
+            "  • Check that raw.githubusercontent.com is reachable, or\n"
+            "  • re-run with --offline once data/metrorail_raw/ has a cached export.",
+            exc,
+        )
+        return
+    if not data["departures"]:
+        log.error("Metrorail export contained no departures; nothing loaded.")
+        return
+    load(data, db_path, operator="metrorail")
+
+
 def main() -> None:
     """Parse args and run the ETL pipeline."""
     parser = argparse.ArgumentParser(
@@ -97,12 +122,17 @@ def main() -> None:
         help="Run UCT shuttle ETL (instead of MyCiTi).",
     )
     parser.add_argument(
+        "--metrorail", action="store_true",
+        help="Run Metrorail Western Cape ETL only.",
+    )
+    parser.add_argument(
         "--all", action="store_true", dest="run_all",
-        help="Run ETL for all operators (MyCiTi + UCT).",
+        help="Run ETL for all operators (MyCiTi + UCT + Metrorail).",
     )
     parser.add_argument(
         "--offline", action="store_true",
-        help="UCT: parse from cached PDFs in data/uct_raw/ instead of fetching.",
+        help="UCT / Metrorail: use cached sources in data/uct_raw/ or "
+             "data/metrorail_raw/ instead of fetching.",
     )
     args = parser.parse_args()
 
@@ -122,6 +152,9 @@ def main() -> None:
     if args.run_all:
         _run_myciti(db_path)
         _run_uct(db_path, offline=args.offline)
+        _run_metrorail(db_path, offline=args.offline)
+    elif args.metrorail:
+        _run_metrorail(db_path, offline=args.offline)
     elif args.uct:
         _run_uct(db_path, offline=args.offline)
     else:

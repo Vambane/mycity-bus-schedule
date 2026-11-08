@@ -443,6 +443,7 @@ a.btn-primary {
 .route-badge.direct { background: var(--route-direct); }
 .route-badge.area   { background: var(--route-area); }
 .route-badge.uct    { background: var(--route-uct); }
+.route-badge.rail   { background: var(--route-rail); }
 
 /* Status badges */
 .badge {

@@ -16,6 +16,7 @@ from journey import clock_time
 from .config import settings
 from .dependencies import close_connection_pool, get_connection, init_connection_pool, is_pool_ready
 from .routes import api, journey, landing, search, stop, system_map
+from .services.metrorail_notes import badge_label
 from .services.trust import get_scraped_at_display, get_scraped_at_raw
 from .services.uct_notes import uct_notes
 
@@ -64,6 +65,8 @@ jinja_env = Environment(
 jinja_env.globals["uct_notes"] = uct_notes
 # Display times as wall-clock HH:MM (stored overnight times run past 24:00).
 jinja_env.filters["clock"] = clock_time
+# Route chips in transfer chains: "MR-S" reads as "Southern" (bus ids unchanged).
+jinja_env.filters["badge_label"] = badge_label
 templates = Jinja2Templates(env=jinja_env)
 
 # Cache-busting version for local static assets: short git SHA on Render,

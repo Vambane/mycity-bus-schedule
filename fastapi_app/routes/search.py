@@ -12,10 +12,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 import ls_ui
 from disruption import assess_connection
-from fastapi_app.config import settings
+from fastapi_app.config import OPERATOR_FILTERS, settings
 from fastapi_app.dependencies import get_connection
 from fastapi_app.services.journey_page import journey_href_direct, journey_href_transfer
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
+from fastapi_app.services.metrorail_notes import metrorail_notice, serves_rail
 from fastapi_app.services.service_day import (
     DAY_LABELS,
     day_type_for,
@@ -124,7 +125,7 @@ def search_page(
     to_stop: Optional[str] = None,
     day_type: Optional[str] = None,
     search_date: Optional[str] = None,  # Format: YYYY-MM-DD
-    operator: Optional[str] = None,     # 'both' | 'myciti' | 'uct'
+    operator: Optional[str] = None,     # 'both' | 'myciti' | 'uct' | 'metrorail'
     when: Optional[str] = None,         # 'now' | 'depart' | 'arrive'
     at: Optional[str] = None,           # HH:MM, with when=depart|arrive
     conn: duckdb.DuckDBPyConnection = Depends(get_connection)
@@ -178,7 +179,7 @@ def search_page(
         day_type = "weekday"
 
     # Validate operator filter (default: show both networks)
-    if operator not in ("both", "myciti", "uct"):
+    if operator not in OPERATOR_FILTERS:
         operator = "both"
 
     # Leave now, depart at, or arrive by (bad input falls back to now)
@@ -190,6 +191,13 @@ def search_page(
     uct_stale_warning = None
     if operator in ("uct", "both"):
         expired_uct, uct_stale_warning = uct_expiry_state(conn)
+
+    # Metrorail: say why trains are missing (Sunday/holiday) or may be stale
+    rail_notice = None
+    if operator == "metrorail" or (
+        operator == "both" and serves_rail(conn, [from_stop, to_stop])
+    ):
+        rail_notice = metrorail_notice(conn, day_type)
 
     # If no search yet, show empty form
     if not from_stop:
@@ -208,6 +216,7 @@ def search_page(
                 "results": None,
                 "ls_stage": ls_stage,
                 "uct_stale_warning": uct_stale_warning,
+                "rail_notice": rail_notice,
                 **trust_context(conn),
             }
         )
@@ -535,6 +544,7 @@ def search_page(
                 "results": results,
                 "ls_stage": ls_stage,
                 "uct_stale_warning": uct_stale_warning,
+                "rail_notice": rail_notice,
                 **trust_context(
                     conn,
                     show_shedding_trust=any(
@@ -562,6 +572,7 @@ def search_page(
                 "error": f"Error searching for journeys: {str(e)}",
                 "ls_stage": ls_stage,
                 "uct_stale_warning": uct_stale_warning,
+                "rail_notice": rail_notice,
                 **trust_context(conn),
             }
         )

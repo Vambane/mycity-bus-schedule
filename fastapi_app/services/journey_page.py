@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 
 import duckdb
 
+from fastapi_app.config import OPERATOR_FILTERS
 from fastapi_app.services.trip_preview import preview_ok_for_card
 from journey_map import leg_stop_sequence
 from system_map import get_route_colors
@@ -132,7 +133,7 @@ def search_back_href(
     operator: str = "both",
 ) -> str:
     """Relative search URL only — never an open redirect."""
-    op = operator if operator in ("both", "myciti", "uct") else "both"
+    op = operator if operator in OPERATOR_FILTERS else "both"
     return "/search?" + urlencode({
         "from_stop": from_stop,
         "to_stop": to_stop,
@@ -165,7 +166,7 @@ def journey_href_direct(  # pylint: disable=too-many-arguments
         "direction": direction,
         "dep": dep,
         "arr": arr,
-        "operator": operator if operator in ("both", "myciti", "uct") else "both",
+        "operator": operator if operator in OPERATOR_FILTERS else "both",
     })
 
 
@@ -183,7 +184,7 @@ def journey_href_transfer(
         "to_stop": to_stop,
         "day_type": day_type,
         "legs": encode_legs(legs),
-        "operator": operator if operator in ("both", "myciti", "uct") else "both",
+        "operator": operator if operator in OPERATOR_FILTERS else "both",
     })
 
 
@@ -218,7 +219,7 @@ def build_journey_view(  # pylint: disable=too-many-arguments
     from_stop = _clean_stop(from_stop, field="from_stop")
     to_stop = _clean_stop(to_stop, field="to_stop")
     day_type = _clean_day(day_type)
-    op = operator if operator in ("both", "myciti", "uct") else "both"
+    op = operator if operator in OPERATOR_FILTERS else "both"
 
     colors = get_route_colors(con)
 

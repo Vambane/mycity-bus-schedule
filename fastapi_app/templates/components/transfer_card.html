@@ -7,8 +7,8 @@
   <div class="card-header journey-card-front">
     <div class="route-chain">
       {% for rid in conn.route_ids %}
-      <span class="route-badge {% if rid.startswith('UCT') %}uct{% elif rid.startswith('T') %}trunk{% elif rid.startswith('D') %}direct{% else %}area{% endif %}">
-        {{ rid }}
+      <span class="route-badge {% if rid.startswith('UCT') %}uct{% elif rid.startswith('MR-') %}rail{% elif rid.startswith('T') %}trunk{% elif rid.startswith('D') %}direct{% else %}area{% endif %}">
+        {{ rid|badge_label }}
       </span>
       {% if not loop.last %}
       <span class="route-chain-arrow" aria-hidden="true">&#8594;</span>

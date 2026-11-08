@@ -39,6 +39,8 @@
     </div>
     {% endif %}
 
+  {% include "components/rail_notice.html" %}
+
     <!-- Load shedding warning -->
     {% if ls_warning %}
     <div class="alert alert-warning shedding-panel">
@@ -92,7 +94,7 @@
                   {% if route.route_id not in seen_routes %}
                     {% if seen_routes.append(route.route_id) %}{% endif %}
                     <button type="button"
-                            class="route-badge route-badge--filterable {% if route.route_id.startswith('UCT') %}uct{% elif route.route_id.startswith('T') %}trunk{% elif route.route_id.startswith('D') %}direct{% else %}area{% endif %}"
+                            class="route-badge route-badge--filterable {% if route.route_id.startswith('UCT') %}uct{% elif route.route_id.startswith('MR-') %}rail{% elif route.route_id.startswith('T') %}trunk{% elif route.route_id.startswith('D') %}direct{% else %}area{% endif %}"
                             data-route-id="{{ route.route_id }}">
                         {{ route.route_name }}
                     </button>
@@ -109,7 +111,7 @@
             <!-- Route header -->
             <div class="card-header">
                 <div style="display: flex; align-items: center; gap: 1rem;">
-                    <span class="route-badge {% if data.route.route_id.startswith('UCT') %}uct{% elif data.route.route_id.startswith('T') %}trunk{% elif data.route.route_id.startswith('D') %}direct{% else %}area{% endif %}">
+                    <span class="route-badge {% if data.route.route_id.startswith('UCT') %}uct{% elif data.route.route_id.startswith('MR-') %}rail{% elif data.route.route_id.startswith('T') %}trunk{% elif data.route.route_id.startswith('D') %}direct{% else %}area{% endif %}">
                         {{ data.route.route_name }}
                     </span>
                     <span class="journey-direction">{{ data.route.direction }}</span>
