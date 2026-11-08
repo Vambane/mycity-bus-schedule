@@ -34,3 +34,6 @@ data/*.duckdb.wal
 .env
 .env.*
 .streamlit/secrets.toml
+
+# Metrorail source cache (etl/scrape_metrorail.py)
+data/metrorail_raw/

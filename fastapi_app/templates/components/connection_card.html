@@ -5,7 +5,7 @@
      aria-label="View all stops for {{ results.from_stop }} to {{ results.to_stop }}"></a>
 
   <div class="card-header journey-card-front">
-    <span class="route-badge {% if conn.route_id.startswith('UCT') %}uct{% elif conn.route_id.startswith('T') %}trunk{% elif conn.route_id.startswith('D') %}direct{% else %}area{% endif %}">
+    <span class="route-badge {% if conn.route_id.startswith('UCT') %}uct{% elif conn.route_id.startswith('MR-') %}rail{% elif conn.route_id.startswith('T') %}trunk{% elif conn.route_id.startswith('D') %}direct{% else %}area{% endif %}">
       {{ conn.route_name }}
     </span>
     <span class="journey-direction">{{ conn.direction }}</span>

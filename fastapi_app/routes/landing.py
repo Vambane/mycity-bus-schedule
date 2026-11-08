@@ -17,7 +17,7 @@ router = APIRouter()
 # Exact independence disclaimer (must match base.html app_disclaimer).
 APP_DISCLAIMER = (
     "Halte is an independent app, not affiliated with the City of Cape Town, "
-    "MyCiTi or the University of Cape Town."
+    "MyCiTi, the University of Cape Town or PRASA (Metrorail)."
 )
 
 

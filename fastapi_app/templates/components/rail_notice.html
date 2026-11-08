@@ -1,0 +1,9 @@
+{# Metrorail note: no Sunday trains, or old Saturday sheets (services/metrorail_notes.py). #}
+{% if rail_notice %}
+<div class="alert alert-info" role="status">
+  <div class="alert-title">{{ rail_notice.title }}</div>
+  <p>{{ rail_notice.body }}
+    <a href="{{ rail_notice.url }}" target="_blank" rel="noopener">PRASA train schedules</a>
+  </p>
+</div>
+{% endif %}

@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from fastapi_app.config import OPERATOR_FILTERS
 from fastapi_app.dependencies import get_connection
 from fastapi_app.services.stop_locations import stop_locations
 from fastapi_app.services.trip_preview import build_trip_preview
@@ -12,19 +13,21 @@ from system_map import build_network
 
 logger = logging.getLogger(__name__)
 
+OPERATOR_PATTERN = "^(" + "|".join(OPERATOR_FILTERS) + ")$"
+
 router = APIRouter()
 
 
 @router.get("/map/network")
 def network_data(
-    operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
+    operator: Optional[str] = Query("both", pattern=OPERATOR_PATTERN),
     conn: duckdb.DuckDBPyConnection = Depends(get_connection),
 ) -> Dict[str, Any]:
     """
     Get network graph data for the system map.
 
     Args:
-        operator: 'both', 'myciti', or 'uct' — filter to one network.
+        operator: 'both', 'myciti', 'uct' or 'metrorail' — filter to one network.
 
     Returns:
         Dict containing nodes, links, routes, and paths for Leaflet rendering
@@ -46,14 +49,14 @@ def network_data(
 
 @router.get("/stops")
 def list_stops(
-    operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
+    operator: Optional[str] = Query("both", pattern=OPERATOR_PATTERN),
     conn: duckdb.DuckDBPyConnection = Depends(get_connection),
 ) -> Dict[str, Any]:
     """
     Get list of all stops for autocomplete/dropdown.
 
     Args:
-        operator: 'both', 'myciti', or 'uct' — filter to one network.
+        operator: 'both', 'myciti', 'uct' or 'metrorail' — filter to one network.
 
     Returns:
         Dict with stops list
@@ -74,7 +77,7 @@ def list_stops(
 
 @router.get("/stops/locations")
 def stop_locations_api(
-    operator: Optional[str] = Query("both", pattern="^(both|myciti|uct)$"),
+    operator: Optional[str] = Query("both", pattern=OPERATOR_PATTERN),
     conn: duckdb.DuckDBPyConnection = Depends(get_connection),
 ) -> Dict[str, Any]:
     """Coordinates of searchable stops, for "Use my location".

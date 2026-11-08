@@ -33,3 +33,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Network filters accepted by search, stop boards, journeys and the API.
+# "both" is the historical value for "every network" and stays for old links.
+OPERATORS = ("myciti", "uct", "metrorail")
+OPERATOR_FILTERS = ("both",) + OPERATORS

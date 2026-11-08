@@ -1,8 +1,8 @@
 # ⚡ Halte
 
-**Your bus, sorted.** Cape Town's MyCiTi and UCT Jammie shuttle timetables in one place, with no PDF reader required.
+**Your bus, sorted.** Cape Town's MyCiTi, UCT Jammie shuttle and Metrorail timetables in one place, with no PDF reader required.
 
-> Halte is an independent app, not affiliated with the City of Cape Town, MyCiTi or the University of Cape Town.
+> Halte is an independent app, not affiliated with the City of Cape Town, MyCiTi, the University of Cape Town or PRASA (Metrorail).
 
 ---
 
@@ -35,7 +35,8 @@ It's built from the published timetables, so it's a **planning aid, not live GPS
 | 🌙 **Late nights and holidays** | After the last bus, see tomorrow's first departures on tomorrow's timetable (Friday night shows Saturday's). Just after midnight, yesterday's late trips still show. Public holidays switch to the Sunday timetable by themselves. |
 | ⚡ **Load-shedding awareness** | Shows the stage Halte is assuming (Stage 0 by default) and flags journeys that hit a scheduled outage window at either end. |
 | 🎓 **UCT shuttles** | The Jammie timetables live alongside MyCiTi, each route with its own validity dates. Expired ones are hidden and named in a banner, not silently shown. |
-| 🔀 **Network toggle** | Both / MyCiTi / UCT on every search. |
+| 🚆 **Metrorail** | All five Western Cape lines, train by train, with rail-to-rail changes (Southern to Northern via Salt River, say). Sunday and old Saturday sheets are called out, not hidden. See [`METRORAIL_INTEGRATION.md`](METRORAIL_INTEGRATION.md). |
+| 🔀 **Network toggle** | All / MyCiTi / UCT / Metrorail on every search. |
 
 ### The look
 
@@ -89,19 +90,22 @@ The snapshot is only as fresh as the last scrape. To refresh:
 ```bash
 python3 run_etl.py                  # MyCiTi (default)
 python3 run_etl.py --uct            # UCT shuttles only
-python3 run_etl.py --all            # both
+python3 run_etl.py --metrorail      # Metrorail only
+python3 run_etl.py --all            # every operator
 python3 run_etl.py --uct --offline  # UCT from cached PDFs in data/uct_raw/
+python3 run_etl.py --metrorail --offline  # Metrorail from data/metrorail_raw/
 python3 run_etl.py --inspect        # peek at the DB without scraping
 ```
 
-Each operator is loaded independently, so refreshing UCT never touches MyCiTi and vice versa. The ETL rebuilds the database **and** re-exports the snapshot. Commit the updated `data/snapshot/*.parquet` files so deploys pick them up.
+Each operator is loaded independently, so refreshing one never touches the others. Stop the app first: DuckDB allows one writer at a time. The ETL rebuilds the database **and** re-exports the snapshot. Commit the updated `data/snapshot/*.parquet` files so deploys pick them up.
 
 ## How it works ⚙️
 
 ```
 myciti.org.za timetable PDFs ──┐
                                │  scraped + parsed (requests, pdfplumber)
-uct.ac.za shuttle PDFs ────────┘
+uct.ac.za shuttle PDFs ────────┤
+PRASA sheets via Next Train ───┘  (JSON export, etl/scrape_metrorail.py)
         │
         ▼
 data/myciti.duckdb  ◄── City of Cape Town open data
@@ -113,7 +117,8 @@ Streamlit (app.py)     ── Leaflet custom component (map_component/)
 
 - **`etl/scrape_myciti.py`** downloads every route's PDF and parses the tables: one row per stop, with day type and direction read from the page headers.
 - **`etl/scrape_uct.py`** finds the UCT timetable set that covers today (currently *Consolidation & Exam*, 26 Oct to 20 Nov 2026) and parses it trip by trip. Every route keeps its own validity dates.
-- **`etl/load_db.py`** loads about 168,000 departure times into DuckDB (roughly 166.5k MyCiTi and 1.5k UCT) across 55 routes and 540 stops.
+- **`etl/scrape_metrorail.py`** reads PRASA's Western Cape sheets as transcribed by [Next Train](https://nexttrain.co.za), merges trains printed across sheets, and splits each line into stop patterns so every existing feature pairs trains exactly. Details in [`METRORAIL_INTEGRATION.md`](METRORAIL_INTEGRATION.md).
+- **`etl/load_db.py`** loads about 168,000 departure times into DuckDB (roughly 166.5k MyCiTi, 1.5k UCT and 7.9k Metrorail). Metrorail rows also carry the train number in `trip_id`.
 - **`system_map.py`** rebuilds each route's stop order from the timetable itself (the first trip of the day visits stops in order), then matches stops by name to the city's official stops layer for coordinates. About 96% land on the map.
 - **`journey.py`** finds direct trips and connections. Transfers assume a 3 minute minimum change, cap waits at 45 minutes and try the nearest few changeover stops per line pair.
 
@@ -131,7 +136,7 @@ erDiagram
         varchar route_name
         varchar route_description
         varchar detail_url "timetable PDF"
-        varchar operator "myciti | uct"
+        varchar operator "myciti | uct | metrorail"
         timestamp scraped_at
     }
     stops {
@@ -142,7 +147,7 @@ erDiagram
         varchar direction "e.g. 'To 101 Vredehoek'"
         double stop_lat "unused; coords live in cct_stops.geojson"
         double stop_lon
-        varchar operator "myciti | uct"
+        varchar operator "myciti | uct | metrorail"
         timestamp scraped_at
     }
     departures {
@@ -152,7 +157,8 @@ erDiagram
         varchar direction
         varchar day_type "weekday | saturday | sunday"
         varchar departure_time "HH:MM:SS"
-        varchar operator "myciti | uct"
+        varchar trip_id "train number (Metrorail only)"
+        varchar operator "myciti | uct | metrorail"
         timestamp scraped_at
     }
     timetables {
@@ -163,7 +169,7 @@ erDiagram
         varchar timetable_url
         date valid_from
         date valid_until
-        varchar operator "myciti | uct"
+        varchar operator "myciti | uct | metrorail"
         timestamp scraped_at
     }
     scrape_log {
@@ -173,7 +179,7 @@ erDiagram
         int routes_loaded
         int stops_loaded
         int departures_loaded
-        varchar operator "myciti | uct"
+        varchar operator "myciti | uct | metrorail"
         varchar status "success | error"
         varchar notes
     }

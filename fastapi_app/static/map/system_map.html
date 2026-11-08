@@ -345,7 +345,7 @@ function initMap(graph) {
   }
 
   const legend = document.getElementById("legend");
-  for (const cat of ["Trunk", "Direct", "Area"]) {
+  for (const cat of ["Metrorail", "Trunk", "Direct", "Area"]) {
     const routes = graph.routes.filter(r => r.category === cat);
     if (!routes.length) continue;
     const h = document.createElement("h4");
@@ -362,7 +362,7 @@ function initMap(graph) {
       const rid = document.createElement("div");
       rid.className = "rid";
       rid.style.color = rc;
-      rid.textContent = r.id;
+      rid.textContent = r.category === "Metrorail" ? "" : r.id;  // rail: name says it
       const rname = document.createElement("div");
       rname.textContent = String(r.name || "").replace(/^[^–]+– /, "");
       row.append(swatch, rid, rname);

@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS routes (
     route_name        VARCHAR,
     route_description VARCHAR,
     detail_url        VARCHAR,
-    operator          VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
+    operator          VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct' | 'metrorail'
     scraped_at        TIMESTAMP
 );
 
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS stops (
     direction     VARCHAR,   -- 'outbound' | 'inbound'
     stop_lat      DOUBLE,
     stop_lon      DOUBLE,
-    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
+    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct' | 'metrorail'
     scraped_at    TIMESTAMP
 );
 
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS timetables (
     timetable_url VARCHAR,
     valid_from    DATE,      -- timetable validity start (NULL for MyCiTi)
     valid_until   DATE,      -- timetable validity end (NULL for MyCiTi)
-    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
+    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct' | 'metrorail'
     scraped_at    TIMESTAMP
 );
 
@@ -80,7 +80,8 @@ CREATE TABLE IF NOT EXISTS departures (
     direction      VARCHAR,
     day_type       VARCHAR NOT NULL,  -- 'weekday' | 'saturday' | 'sunday'
     departure_time VARCHAR NOT NULL,  -- HH:MM:SS
-    operator       VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
+    trip_id        VARCHAR,           -- train number (Metrorail); NULL for buses
+    operator       VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct' | 'metrorail'
     scraped_at     TIMESTAMP
 );
 
@@ -95,7 +96,7 @@ CREATE TABLE IF NOT EXISTS scrape_log (
     routes_loaded INTEGER,
     stops_loaded  INTEGER,
     departures_loaded INTEGER,
-    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct'
+    operator      VARCHAR DEFAULT 'myciti',  -- 'myciti' | 'uct' | 'metrorail'
     status        VARCHAR,
     notes         VARCHAR
 );
@@ -114,6 +115,7 @@ MIGRATIONS = [
     "ALTER TABLE timetables ADD COLUMN IF NOT EXISTS valid_from DATE",
     "ALTER TABLE timetables ADD COLUMN IF NOT EXISTS valid_until DATE",
     "ALTER TABLE scrape_log ADD COLUMN IF NOT EXISTS operator VARCHAR DEFAULT 'myciti'",
+    "ALTER TABLE departures ADD COLUMN IF NOT EXISTS trip_id VARCHAR",
 ]
 
 # ---------------------------------------------------------------------------
@@ -190,7 +192,7 @@ def load(
     Args:
         data:     Dict with keys {routes, stops, timetables, departures}.
         db_path:  Path to the DuckDB file (created if it doesn't exist).
-        operator: Operator tag — 'myciti' or 'uct'.
+        operator: Operator tag — 'myciti', 'uct' or 'metrorail'.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     log.info(f"Opening DuckDB at {db_path}")
@@ -251,7 +253,7 @@ def load(
         departures_loaded = _insert_rows(
             con, "departures", data["departures"],
             ["id", "route_id", "stop_name", "direction",
-             "day_type", "departure_time", "operator", "scraped_at"],
+             "day_type", "departure_time", "trip_id", "operator", "scraped_at"],
         )
 
         # --- audit log ---

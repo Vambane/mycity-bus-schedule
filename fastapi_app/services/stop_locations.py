@@ -6,10 +6,10 @@ promise in components/location_privacy.html).
 
 Coordinates come from the City of Cape Town stops layer, matched to
 stop names exactly as the network map does (system_map.py), so a stop
-sits in the same place on the map and in "nearest stop". Only stops
-served by MyCiTi are included: UCT shuttle stops have no coordinates
-yet, and a UCT-only name must never borrow a MyCiTi stop's position
-through a loose name match.
+sits in the same place on the map and in "nearest stop". MyCiTi stops
+and Metrorail stations are included: UCT shuttle stops have no
+coordinates yet, and a UCT-only name must never borrow a MyCiTi stop's
+position through a loose name match.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from functools import lru_cache
 
 import duckdb
 
-from system_map import _load_stop_coords, _match_coords
+from system_map import _load_stop_coords, _match_coords, _station_coords
 
 
 @lru_cache(maxsize=1)
@@ -43,32 +43,31 @@ def stop_locations(conn: duckdb.DuckDBPyConnection, operator: str = "both") -> d
     *unmapped* counts searchable stops (for this network filter) that have
     no position, so the page can say when "nearest" may be incomplete.
     """
-    myciti = tuple(
-        row[0]
-        for row in conn.execute(
-            "SELECT DISTINCT stop_name FROM stops WHERE operator = 'myciti' ORDER BY 1"
-        ).fetchall()
-    )
-    if operator == "uct":
-        searchable = {
-            row[0]
-            for row in conn.execute(
-                "SELECT DISTINCT stop_name FROM stops WHERE operator = 'uct'"
-            ).fetchall()
-        }
-    elif operator == "myciti":
-        searchable = set(myciti)
-    else:
-        searchable = {
-            row[0] for row in conn.execute("SELECT DISTINCT stop_name FROM stops").fetchall()
-        }
+    def names(op: str | None) -> set[str]:
+        sql = "SELECT DISTINCT stop_name FROM stops"
+        rows = (conn.execute(sql + " WHERE operator = ?", [op]) if op
+                else conn.execute(sql)).fetchall()
+        return {row[0] for row in rows}
 
-    # Positions are MyCiTi stop positions. A UCT stop can share a name with
-    # a MyCiTi stop somewhere else entirely ("Sandown"), so the UCT-only
-    # filter gets none until UCT stops have coordinates of their own.
-    located = [] if operator == "uct" else [
-        {"name": name, "lat": lat, "lon": lon}
-        for name, lat, lon in _locate(myciti)
-        if name in searchable
-    ]
+    myciti = tuple(sorted(names("myciti")))
+    searchable = names(None if operator == "both" else operator)
+
+    # Positions are MyCiTi stop positions plus Metrorail stations (which
+    # carry their own coordinates and match by exact name only). A UCT stop
+    # can share a name with a MyCiTi stop somewhere else entirely
+    # ("Sandown"), so the UCT-only filter gets none until UCT stops have
+    # coordinates of their own.
+    located: list[dict] = []
+    if operator in ("both", "myciti"):
+        located += [
+            {"name": name, "lat": lat, "lon": lon}
+            for name, lat, lon in _locate(myciti)
+            if name in searchable
+        ]
+    if operator in ("both", "metrorail"):
+        located += [
+            {"name": name, "lat": round(lat, 6), "lon": round(lon, 6)}
+            for name, (lat, lon) in sorted(_station_coords().items())
+            if name in searchable
+        ]
     return {"stops": located, "unmapped": len(searchable) - len(located)}

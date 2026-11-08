@@ -8,7 +8,7 @@
   <!-- ====== HERO ====== -->
   <section class="hero">
     <h1 class="hero-title">Plan your journey</h1>
-    <p class="hero-subtitle">Search timetables and connections across Cape Town's bus networks</p>
+    <p class="hero-subtitle">Search timetables and connections across Cape Town's bus and train networks</p>
   </section>
 
   <!-- ====== RECENT SEARCHES ====== -->
@@ -137,7 +137,7 @@
             <span class="segmented-option">
               <input type="radio" name="operator" value="both" id="op-both"
                      class="segmented-input" {% if operator == 'both' %}checked{% endif %}>
-              <label for="op-both" class="segmented-label">Both</label>
+              <label for="op-both" class="segmented-label">All</label>
             </span>
             <span class="segmented-option">
               <input type="radio" name="operator" value="myciti" id="op-myciti"
@@ -148,6 +148,11 @@
               <input type="radio" name="operator" value="uct" id="op-uct"
                      class="segmented-input" {% if operator == 'uct' %}checked{% endif %}>
               <label for="op-uct" class="segmented-label">UCT</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="operator" value="metrorail" id="op-metrorail"
+                     class="segmented-input" {% if operator == 'metrorail' %}checked{% endif %}>
+              <label for="op-metrorail" class="segmented-label">Metrorail</label>
             </span>
           </div>
         </div>
@@ -225,6 +230,8 @@
     <p>{{ uct_stale_warning }}</p>
   </div>
   {% endif %}
+
+  {% include "components/rail_notice.html" %}
 
   <!-- ====== ERROR ====== -->
   {% if error %}

@@ -6,7 +6,7 @@
 <div class="map-page">
   <section class="hero">
     <h1 class="hero-title">Network Map</h1>
-    <p class="hero-subtitle">Explore the full MyCiTi bus network. Click any stop to view its timetable.</p>
+    <p class="hero-subtitle">Explore the MyCiTi bus network and Metrorail lines. Click any stop or station to view its timetable.</p>
   </section>
 
   {% include 'components/trust_strip.html' %}
@@ -28,6 +28,10 @@
     <div class="form-grid form-grid--2col">
       <div>
         <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--sp-3);">
+          <li style="display: flex; align-items: center; gap: var(--sp-3);">
+            <span class="route-badge rail">Southern Line</span>
+            <span class="text-secondary">Metrorail lines</span>
+          </li>
           <li style="display: flex; align-items: center; gap: var(--sp-3);">
             <span class="route-badge trunk">T01</span>
             <span class="text-secondary">Trunk routes</span>

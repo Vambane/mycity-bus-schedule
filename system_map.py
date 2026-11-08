@@ -19,6 +19,7 @@ a stop returns its name to Python via the component protocol — sandboxed
 iframes cannot navigate the parent page, so URL tricks do not work.
 """
 
+import csv
 import json
 import re
 from collections import defaultdict
@@ -32,6 +33,8 @@ import streamlit.components.v1 as components
 DATA_DIR = Path(__file__).parent / "data"
 CCT_STOPS_GEOJSON = DATA_DIR / "cct_stops.geojson"
 CCT_ROUTES_GEOJSON = DATA_DIR / "cct_routes.geojson"
+# Station coordinates written by etl/scrape_metrorail.py.
+METRORAIL_STATIONS_CSV = DATA_DIR / "metrorail_stations.csv"
 
 # ---------------------------------------------------------------------------
 # Route colors — grouped like the official map legend
@@ -57,9 +60,23 @@ UCT_COLORS = [
 ]
 
 
+# Metrorail lines — one fixed colour each so a line keeps its colour
+# whatever the network filter. All pass WCAG AA under white badge text.
+RAIL_COLORS = {
+    "MR-S": "#5B2C83",   # Southern
+    "MR-CF": "#8A4B08",  # Cape Flats
+    "MR-C": "#A4123F",   # Central
+    "MR-N": "#2D4F8A",   # Northern
+    "MR-M": "#3F5A1E",   # Malmesbury
+}
+RAIL_FALLBACK = "#5B2C83"
+
+
 def _route_color(route_id: str, trunk_i: int, direct_i: int,
                  area_i: int, uct_i: int = 0) -> str:
     """Pick a color from the palette matching the route's category."""
+    if route_id.startswith("MR-"):
+        return RAIL_COLORS.get(route_id, RAIL_FALLBACK)
     if route_id.startswith("UCT"):
         return UCT_COLORS[uct_i % len(UCT_COLORS)]
     if route_id.startswith("T"):
@@ -79,7 +96,7 @@ def get_route_colors(
     always agree.
 
     Args:
-        operator: 'myciti', 'uct', or 'both' (no operator filter).
+        operator: 'myciti', 'uct', 'metrorail', or 'both' (no operator filter).
     """
     op_filter = ""
     params: list = []
@@ -95,7 +112,9 @@ def get_route_colors(
     trunk_i = direct_i = area_i = uct_i = 0
     for (route_id,) in rows:
         colors[route_id] = _route_color(route_id, trunk_i, direct_i, area_i, uct_i)
-        if route_id.startswith("UCT"):
+        if route_id.startswith("MR-"):
+            pass  # fixed per-line colours, no palette slot used
+        elif route_id.startswith("UCT"):
             uct_i += 1
         elif route_id.startswith("T"):
             trunk_i += 1
@@ -108,6 +127,8 @@ def get_route_colors(
 
 def _route_category(route_id: str) -> str:
     """Official map legend category for a route."""
+    if route_id.startswith("MR-"):
+        return "Metrorail"
     if route_id.startswith("UCT"):
         return "UCT Shuttle"
     if route_id.startswith("T"):
@@ -196,18 +217,52 @@ def _load_route_paths() -> dict[str, list[list[list[float]]]]:
     return dict(paths)
 
 
+def _load_station_coords() -> dict[str, tuple[float, float]]:
+    """Metrorail station coordinates keyed by exact stop name ("Mowbray Station").
+
+    Kept apart from the city stops layer: stations are matched by exact
+    name only, so a bus stop can never borrow a station's position through
+    the fuzzy match, and a station never borrows a bus stop's.
+    """
+    if not METRORAIL_STATIONS_CSV.exists():
+        return {}
+    with METRORAIL_STATIONS_CSV.open(newline="", encoding="utf-8") as f:
+        return {
+            row["stop_name"]: (float(row["lat"]), float(row["lon"]))
+            for row in csv.DictReader(f)
+            if row.get("lat") and row.get("lon")
+        }
+
+
+_STATION_COORDS: dict[str, tuple[float, float]] | None = None
+
+
+def _station_coords() -> dict[str, tuple[float, float]]:
+    """Station coordinates, read once per process."""
+    global _STATION_COORDS  # pylint: disable=global-statement
+    if _STATION_COORDS is None:
+        _STATION_COORDS = _load_station_coords()
+    return _STATION_COORDS
+
+
 def _match_coords(
     stop_names: list[str],
     coords: dict[str, tuple[float, float]],
 ) -> dict[str, tuple[float, float]]:
     """
-    Map each scraped stop name to city coordinates: exact normalised match
-    first, then a conservative fuzzy match (longer names only, high cutoff)
-    to absorb spelling variants like "Graafs Pool" / "Graaff's Pool".
+    Map each scraped stop name to coordinates. Metrorail stations match
+    their own coordinates by exact name. Other stops use the city layer:
+    exact normalised match first, then a conservative fuzzy match (longer
+    names only, high cutoff) to absorb spelling variants like
+    "Graafs Pool" / "Graaff's Pool".
     """
     matched: dict[str, tuple[float, float]] = {}
     keys = list(coords)
+    stations = _station_coords()
     for name in stop_names:
+        if name in stations:
+            matched[name] = stations[name]
+            continue
         key = _norm_stop(name)
         if key in coords:
             matched[name] = coords[key]
@@ -222,6 +277,42 @@ def _match_coords(
 # Graph construction
 # ---------------------------------------------------------------------------
 
+def _build_links(
+    ordered, geo: dict[str, tuple[float, float]],
+) -> tuple[list[dict], dict[str, set]]:
+    """Map segments and the routes serving each stop.
+
+    Only geolocated stops can be drawn; a stop without coordinates is
+    skipped and its neighbours joined directly, keeping the line whole.
+    The same physical segment appears in both directions; dedupe on the
+    unordered stop pair per route so each segment is drawn once.
+    """
+    links: list[dict] = []
+    seen_segments: set[tuple] = set()
+    node_routes: dict[str, set] = {}
+    groups = list(ordered.groupby(["route_id", "direction"], sort=False))
+    # Rail lines are split into stop patterns (etl/scrape_metrorail.py).
+    # Draw the fullest patterns first; an express pattern then adds no
+    # shortcut segment between two stations the line already passes.
+    groups.sort(key=lambda g: -len(g[1]) if g[0][0].startswith("MR-") else 0)
+    line_stops: dict[str, set] = {}
+    for (route_id, _direction), grp in groups:
+        stops = [s for s in grp["stop_name"] if s in geo]
+        rail = route_id.startswith("MR-")
+        known = line_stops.setdefault(route_id, set())
+        for stop in stops:
+            node_routes.setdefault(stop, set()).add(route_id)
+        for a, b in zip(stops, stops[1:]):
+            key = (route_id, *sorted((a, b)))
+            if rail and a in known and b in known:
+                continue
+            if a != b and key not in seen_segments:
+                seen_segments.add(key)
+                links.append({"source": a, "target": b, "route": route_id})
+        known.update(stops)
+    return links, node_routes
+
+
 def build_network(
     con: duckdb.DuckDBPyConnection,
     operator: str = "both",
@@ -234,7 +325,7 @@ def build_network(
     sequence, so MIN(departure_time) reproduces the printed stop order.
 
     Args:
-        operator: 'myciti', 'uct', or 'both' (no operator filter).
+        operator: 'myciti', 'uct', 'metrorail', or 'both' (no operator filter).
 
     Returns:
         {"nodes": [...], "links": [...], "routes": [...]} ready to embed
@@ -273,7 +364,9 @@ def build_network(
     trunk_i = direct_i = area_i = uct_i = 0
     for route_id in sorted(ordered["route_id"].unique()):
         colors[route_id] = _route_color(route_id, trunk_i, direct_i, area_i, uct_i)
-        if route_id.startswith("UCT"):
+        if route_id.startswith("MR-"):
+            pass  # fixed per-line colours, no palette slot used
+        elif route_id.startswith("UCT"):
             uct_i += 1
         elif route_id.startswith("T"):
             trunk_i += 1
@@ -287,25 +380,7 @@ def build_network(
     geo = _match_coords(all_stop_names, _load_stop_coords())
 
     # --- links: consecutive stop pairs along each route direction ---
-    # Only geolocated stops can be drawn; a stop without coordinates is
-    # skipped and its neighbours joined directly, keeping the line whole.
-    # The same physical segment appears in both directions; dedupe on the
-    # unordered stop pair per route so each segment is drawn once.
-    links: list[dict] = []
-    seen_segments: set[tuple] = set()
-    node_routes: dict[str, set] = {}
-
-    for (route_id, _direction), grp in ordered.groupby(
-        ["route_id", "direction"], sort=False
-    ):
-        stops = [s for s in grp["stop_name"] if s in geo]
-        for stop in stops:
-            node_routes.setdefault(stop, set()).add(route_id)
-        for a, b in zip(stops, stops[1:]):
-            key = (route_id, *sorted((a, b)))
-            if a != b and key not in seen_segments:
-                seen_segments.add(key)
-                links.append({"source": a, "target": b, "route": route_id})
+    links, node_routes = _build_links(ordered, geo)
 
     # --- nodes: one per geolocated stop, sized by route count ---
     nodes = [

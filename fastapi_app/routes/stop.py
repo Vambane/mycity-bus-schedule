@@ -10,9 +10,10 @@ from fastapi.responses import HTMLResponse
 
 import ls_ui
 from disruption import _fmt_window, _windows_min
-from fastapi_app.config import settings
+from fastapi_app.config import OPERATOR_FILTERS, settings
 from fastapi_app.dependencies import get_connection
 from fastapi_app.services.ls_service import get_effective_stage, stage_display_info
+from fastapi_app.services.metrorail_notes import metrorail_notice, serves_rail
 from fastapi_app.services.service_day import (
     DAY_LABELS,
     day_type_for,
@@ -133,7 +134,7 @@ def stop_view(
     request: Request,
     stop_name: str,
     day_type: Optional[str] = None,
-    operator: Optional[str] = None,  # 'both' | 'myciti' | 'uct'
+    operator: Optional[str] = None,  # 'both' | 'myciti' | 'uct' | 'metrorail'
     conn: duckdb.DuckDBPyConnection = Depends(get_connection)
 ):
     """
@@ -157,7 +158,7 @@ def stop_view(
             day_type = "weekday"
 
         # Validate operator filter (default: show both networks)
-        if operator not in ("both", "myciti", "uct"):
+        if operator not in OPERATOR_FILTERS:
             operator = "both"
 
         # Per-route UCT validity: expired routes are hidden and the banner shown
@@ -165,6 +166,13 @@ def stop_view(
         uct_stale_warning = None
         if operator in ("uct", "both"):
             expired_uct, uct_stale_warning = uct_expiry_state(conn)
+
+        # Metrorail: say why trains are missing (Sunday/holiday) or may be stale
+        rail_notice = None
+        if operator == "metrorail" or (
+            operator == "both" and serves_rail(conn, [stop_name])
+        ):
+            rail_notice = metrorail_notice(conn, day_type)
 
         # Get current time for filtering upcoming departures
         now = get_cape_town_time()
@@ -231,6 +239,7 @@ def stop_view(
                     "error": f"No routes found for stop '{stop_name}' on {day_type}s",
                     "ls_stage": ls_stage,
                     "uct_stale_warning": uct_stale_warning,
+                "rail_notice": rail_notice,
                     **trust_context(conn),
                 }
             )
@@ -272,6 +281,7 @@ def stop_view(
                 "ls_stage": ls_stage,
                 "ls_warning": ls_warning,
                 "uct_stale_warning": uct_stale_warning,
+                "rail_notice": rail_notice,
                 **trust_context(conn, show_shedding_trust=bool(ls_warning)),
             }
         )

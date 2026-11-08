@@ -23,8 +23,8 @@
     </p>
     <div class="route-chain" style="margin-top: var(--sp-3);">
       {% for rid in journey.route_ids %}
-      <span class="route-badge {% if rid.startswith('UCT') %}uct{% elif rid.startswith('T') %}trunk{% elif rid.startswith('D') %}direct{% else %}area{% endif %}">
-        {% if journey.kind == 'direct' and journey.route_name and loop.first %}{{ journey.route_name }}{% else %}{{ rid }}{% endif %}
+      <span class="route-badge {% if rid.startswith('UCT') %}uct{% elif rid.startswith('MR-') %}rail{% elif rid.startswith('T') %}trunk{% elif rid.startswith('D') %}direct{% else %}area{% endif %}">
+        {% if journey.kind == 'direct' and journey.route_name and loop.first %}{{ journey.route_name }}{% else %}{{ rid|badge_label }}{% endif %}
       </span>
       {% if not loop.last %}
       <span class="route-chain-arrow" aria-hidden="true">&#8594;</span>
