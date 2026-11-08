@@ -294,7 +294,13 @@ def _build_links(
     # Rail lines are split into stop patterns (etl/scrape_metrorail.py).
     # Draw the fullest patterns first; an express pattern then adds no
     # shortcut segment between two stations the line already passes.
-    groups.sort(key=lambda g: -len(g[1]) if g[0][0].startswith("MR-") else 0)
+    # Length still wins for rail patterns. Route and direction break ties so
+    # the same snapshot always draws the same segments.
+    groups.sort(key=lambda g: (
+        -len(g[1]) if g[0][0].startswith("MR-") else 0,
+        g[0][0],
+        g[0][1],
+    ))
     line_stops: dict[str, set] = {}
     for (route_id, _direction), grp in groups:
         stops = [s for s in grp["stop_name"] if s in geo]
@@ -350,7 +356,7 @@ def build_network(
         WHERE    day_type = 'weekday'
                  {op_filter}
         GROUP BY route_id, direction, stop_name
-        ORDER    BY route_id, direction, first_dep
+        ORDER    BY route_id, direction, first_dep, stop_name
         """,
         params,
     ).df()

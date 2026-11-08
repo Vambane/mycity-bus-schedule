@@ -227,6 +227,8 @@ uvicorn fastapi_app.main:app --host 0.0.0.0 --port $PORT
 
 On a cold start Halte rebuilds `data/myciti.duckdb` from the snapshot if it's missing. It never scrapes on boot, and a missing snapshot fails loudly rather than serving empty boards. A **Render** Blueprint (`render.yaml`) is included for a free web service; free instances nap when idle, so the first visit after a quiet spell is a bit slow. Full details in [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
+A separate **Cloudflare Pages** build runs the same searches in the browser from those snapshots, so a preview does not wake Render. It does not replace the live service or the domain until you switch them yourself. See [`CLOUDFLARE_PAGES.md`](CLOUDFLARE_PAGES.md).
+
 ## Project map 🗂️
 
 ```

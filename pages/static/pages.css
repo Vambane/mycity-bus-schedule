@@ -1,0 +1,23 @@
+/* Static-site extras. Shared brand tokens stay in fastapi_app/static/css. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -40px;
+  z-index: 10000;
+  background: #FFE17C;
+  color: #0A0A0A;
+  padding: 8px 12px;
+  border: 2px solid #0A0A0A;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+#static-preview-note {
+  margin-top: var(--sp-4);
+  max-width: 40rem;
+}
+
+.trust-strip {
+  margin-top: var(--sp-6);
+}

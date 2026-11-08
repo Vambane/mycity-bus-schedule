@@ -1,0 +1,12 @@
+# Copy to wrangler.toml on your machine. Do not commit a real account id or API key.
+# Free Worker. This is NOT created by the Halte build.
+name = "halte-load-shedding"
+main = "load-shedding.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Pages origin, or * while you are on a pages.dev preview.
+ALLOWED_ORIGIN = "*"
+
+# Secret, set in the dashboard or: wrangler secret put ESP_API_KEY
+# Never put the key in [vars].

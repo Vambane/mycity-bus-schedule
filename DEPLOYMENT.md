@@ -49,7 +49,16 @@ Cold start must **not** run a full PDF ETL. The process rebuilds DuckDB from com
 
 ---
 
-## Option 3: Fly.io (edge)
+## Option 3: Cloudflare Pages preview (static)
+
+This does **not** replace the Render service. Search, stop boards, journeys and the map can be served as a static site built from `data/snapshot/`. Preview it on a `pages.dev` URL first. Leave the custom domain on Render until that preview checks out. Rollback is removing the Pages custom domain; Render keeps serving. Steps, limits and the optional load-shedding Worker are in [`CLOUDFLARE_PAGES.md`](CLOUDFLARE_PAGES.md).
+
+```bash
+python pages/build_site.py --out dist
+python pages/dev_server.py --port 4173
+```
+
+## Option 4: Fly.io (edge)
 
 ```bash
 fly auth login
