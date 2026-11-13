@@ -267,6 +267,21 @@ h4 { font-size: var(--text-md);  margin-bottom: var(--sp-2); letter-spacing: -0.
     ) fill 0 / 0 / 0 100vmax;
 }
 
+/* Trip preview: a short band so the map is on screen without scrolling. */
+.hero--compact {
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-4) 0;
+}
+
+.hero--compact .hero-title {
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  margin-bottom: var(--sp-2);
+}
+
+.hero--compact .hero-subtitle {
+  font-size: var(--text-sm);
+}
+
 .hero-title {
   font-family: var(--font-display);
   font-weight: 800;

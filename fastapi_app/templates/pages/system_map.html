@@ -4,21 +4,32 @@
 
 {% block content %}
 <div class="map-page">
+  {% if preview %}
+  <section class="hero hero--compact">
+    <h1 class="hero-title">Trip preview</h1>
+    <p class="hero-subtitle">{{ preview.route_id }} from {{ preview.board }} at {{ preview.dep }} to {{ preview.alight }}. Where the timetable says your bus should be, not live GPS.</p>
+  </section>
+  {% else %}
   <section class="hero">
     <h1 class="hero-title">Network Map</h1>
     <p class="hero-subtitle">Explore the MyCiTi bus network and Metrorail lines. Click any stop or station to view its timetable.</p>
   </section>
 
   {% include 'components/trust_strip.html' %}
+  {% endif %}
 
   <!-- Map container -->
   <div class="map-frame">
     <iframe
       src="{{ map_iframe_src | default('/static/map/system_map.html') }}"
-      title="Halte network map"
-      loading="lazy">
+      title="{{ 'Trip preview map' if preview else 'Halte network map' }}"
+      loading="{{ 'eager' if preview else 'lazy' }}">
     </iframe>
   </div>
+
+  {% if preview %}
+  {% include 'components/trust_strip.html' %}
+  {% endif %}
 
   <!-- Map legend -->
   <div class="card" style="margin-top: var(--sp-6);">

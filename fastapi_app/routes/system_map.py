@@ -36,6 +36,17 @@ async def map_page(
     iframe_src = f"/static/map/system_map.html?v={request.app.state.asset_v}"
     if qs:
         iframe_src = f"{iframe_src}&{qs}"
+    # A trip preview opens the map for one trip: the map comes first, loads
+    # at once, and the network intro gives way to the trip's own heading.
+    params = request.query_params
+    preview = None
+    if params.get("preview") == "1" and params.get("route_id") and params.get("board"):
+        preview = {
+            "route_id": params.get("route_id", "")[:32],
+            "board": params.get("board", "")[:120],
+            "alight": params.get("alight", "")[:120],
+            "dep": params.get("dep", "")[:5],
+        }
     return templates.TemplateResponse(
         request=request,
         name="pages/system_map.html",
@@ -43,6 +54,7 @@ async def map_page(
             "page": "map",
             "ls_stage": ls_stage,
             "map_iframe_src": iframe_src,
+            "preview": preview,
             **trust_context(conn),
         }
     )
