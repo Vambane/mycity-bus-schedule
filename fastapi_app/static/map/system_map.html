@@ -14,7 +14,7 @@
 <style>
   body     { margin:0; padding:0; background:transparent;
              font-family:"Source Sans Pro",-apple-system,sans-serif; }
-  #wrap    { position:relative; width:100%; height:700px; }
+  #wrap    { position:relative; width:100%; height:100vh; min-height:400px; }
   #map     { width:100%; height:100%; border-radius:10px; }
   #legend  { box-sizing:border-box; position:absolute; top:10px; right:10px; width:215px; max-height:80%;
              overflow-y:auto; background:rgba(17,17,17,.94); color:#F0F0F0;
@@ -46,21 +46,23 @@
                font-weight:700; font-size:10px; color:#F0F0F0;
                text-shadow:0 0 3px #000, 0 0 3px #000, 0 0 3px #000; }
 
-  #preview-bar { display:none; position:absolute; left:54px; top:48px; z-index:1000;
-                 max-width:min(360px, calc(100% - 80px));
-                 background:rgba(17,17,17,.96); color:#F0F0F0;
-                 border-radius:8px; padding:8px 10px; font-size:12px; line-height:1.35;
-                 box-shadow:0 2px 12px rgba(0,0,0,.45);
-                 border:1px solid rgba(255,255,255,.08); }
-  #preview-bar .cap { font-weight:700; margin:0 0 2px; }
-  #preview-bar .cap-opt { color:#A0A0A8; margin:0 0 6px; font-size:11px; }
-  #preview-bar .meta { color:#A0A0A8; font-size:11px; margin:0 0 6px; }
-  #preview-clear { border:none; background:#2A2A32; color:#F0F0F0; border-radius:6px;
-                   padding:4px 10px; cursor:pointer; font-size:12px; }
-  #preview-clear:hover { background:#3A3A44; }
-  .ghost-label { background:rgba(17,17,17,.92); border:1px dashed #A0A0A8;
-                 color:#F0F0F0; font-size:11px; font-weight:700; padding:2px 6px;
-                 border-radius:4px; box-shadow:none; }
+  #preview-bar { display:none; position:absolute; left:10px; right:10px; bottom:10px; z-index:1000;
+                 max-width:420px; margin:0 auto;
+                 background:#FFFFFF; color:#000000;
+                 border:2px solid #000000; border-radius:10px; padding:10px 12px;
+                 font-size:13px; line-height:1.4; box-shadow:4px 4px 0 #000000; }
+  #preview-bar .title { font-weight:800; font-size:14px; margin:0 0 4px; }
+  #preview-bar .status { margin:0 0 6px; font-size:14px; }
+  #preview-bar .cap { color:#555C57; margin:0 0 8px; font-size:11px; }
+  #preview-clear { border:2px solid #000000; background:#FFE17C; color:#000000; border-radius:6px;
+                   padding:4px 10px; cursor:pointer; font-size:12px; font-weight:700; }
+  #preview-clear:focus-visible { outline:2px solid #000000; outline-offset:2px; }
+  .ghost-label { background:#FFFFFF; border:2px solid #000000; color:#000000;
+                 font-size:11px; font-weight:700; padding:2px 6px; border-radius:4px; box-shadow:none; }
+  .ghost-label::before { display:none; }
+  .preview-stop-label { background:#000000; border:none; color:#FFFFFF; font-size:11px;
+                        font-weight:700; padding:2px 6px; border-radius:4px; box-shadow:none; }
+  .preview-stop-label::before { display:none; }
   #loading { position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
              background:rgba(17,17,17,.95); color:#F0F0F0; padding:20px; border-radius:10px;
              box-shadow:0 2px 12px rgba(0,0,0,.45); z-index:2000;
@@ -91,10 +93,10 @@
   <button type="button" id="legend-toggle" aria-controls="legend" aria-expanded="false">Legend</button>
   <div id="legend"></div>
   <div id="preview-bar" role="status" aria-live="polite">
+    <p class="title" id="preview-title"></p>
+    <p class="status" id="preview-status"></p>
     <p class="cap" id="preview-cap"></p>
-    <p class="cap-opt" id="preview-cap-opt"></p>
-    <p class="meta" id="preview-meta"></p>
-    <button type="button" id="preview-clear">Clear preview</button>
+    <button type="button" id="preview-clear">Close preview</button>
   </div>
   <div id="hint">Click a stop to view its timetable · click a route to highlight</div>
 </div>
@@ -182,7 +184,10 @@ function initMap(graph) {
   function tryFit() {
     if (document.getElementById("map").clientWidth > 50) {
       map.invalidateSize();
-      if (!fitted) { fitted = true; map.fitBounds(bounds); }
+      // A trip preview sets its own view; the network fit must not undo it.
+      // Not animated: Leaflet ignores a new zoom while one is still animating,
+      // which would swallow the trip preview's own zoom.
+      if (!fitted) { fitted = true; map.fitBounds(map._fitTarget || bounds, map._fitOptions || { animate: false }); }
     }
   }
   tryFit();
@@ -323,6 +328,7 @@ function initMap(graph) {
     if (mode === "schematic") { map.removeLayer(streetLayer); schematicLayer.addTo(map); }
     else                      { map.removeLayer(schematicLayer); streetLayer.addTo(map); }
   }
+  map._setStyle = setStyle;
   btnS.onclick = () => setStyle("schematic");
   btnT.onclick = () => setStyle("street");
 
@@ -426,54 +432,170 @@ function maybeStartPreview(map, colorByRoute) {
     .catch(err => console.error("Trip preview error:", err));
 }
 
+// Same calculation as ghost_position() in fastapi_app/services/trip_preview.py.
+function ghostPosition(located, nowMin) {
+  const first = located[0], last = located[located.length - 1];
+  if (nowMin < first.t) return { state: "not_started", d: first.d, prev: 0, next: 0 };
+  for (let k = 0; k < located.length - 1; k++) {
+    const a = located[k], b = located[k + 1];
+    if (a.t <= nowMin && nowMin < b.t) {
+      const share = (nowMin - a.t) / (b.t - a.t);
+      return { state: "moving", d: a.d + share * (b.d - a.d), prev: k, next: k + 1 };
+    }
+  }
+  const end = located.length - 1;
+  return { state: "arrived", d: last.d, prev: end, next: end };
+}
+
+function previewSegment(a, b) {
+  const k = Math.cos(a[0] * Math.PI / 180);
+  return Math.hypot(b[0] - a[0], (b[1] - a[1]) * k);
+}
+
+// [lat, lon] at distance d along path, and the path split there.
+function splitPathAt(path, d) {
+  let walked = 0;
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], seg = previewSegment(a, b);
+    if (seg > 0 && walked + seg >= d) {
+      const t = (d - walked) / seg;
+      const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      return { point: p, before: path.slice(0, i).concat([p]), after: [p].concat(path.slice(i)) };
+    }
+    walked += seg;
+  }
+  const p = path[path.length - 1];
+  return { point: p, before: path.slice(), after: [p] };
+}
+
+function clockText(mins) {
+  const m = ((Math.floor(mins) % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+}
+
+function minutesText(n) {
+  const m = Math.max(0, Math.round(n));
+  if (m === 0) return "now";
+  if (m < 60) return "in " + m + " min";
+  return "in " + Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0");
+}
+
+function previewStatus(pos, located, stops, nowMin) {
+  const board = stops.find(s => s.role === "board");
+  const alight = stops[stops.length - 1];
+  if (pos.state === "not_started") {
+    const first = located[0];
+    if (first.name === board.name) {
+      return "Leaves " + board.name + " at " + clockText(board.t) + " (" + minutesText(board.t - nowMin) + ").";
+    }
+    return "Not on the road yet. It leaves " + first.name + " at " + clockText(first.t)
+      + " and reaches " + board.name + " " + minutesText(board.t - nowMin) + ".";
+  }
+  if (pos.state === "arrived") {
+    return "Should have reached " + alight.name + " at " + clockText(alight.t) + ".";
+  }
+  const prev = located[pos.prev], next = located[pos.next];
+  const where = "Should be between " + prev.name + " and " + next.name + ". ";
+  if (nowMin < board.t) {
+    return where + "Reaches " + board.name + " " + minutesText(board.t - nowMin) + ".";
+  }
+  return where + "Reaches " + alight.name + " " + minutesText(alight.t - nowMin) + ".";
+}
+
 function showTripPreview(map, data) {
   if (!map._previewPane) {
     map.createPane("preview");
     map.getPane("preview").style.zIndex = 700;
     map._previewPane = true;
   }
+  if (map._clearTripPreview) map._clearTripPreview();
+
+  const stops = data.stops;
+  const located = stops.filter(s => typeof s.d === "number");
+  const board = stops.find(s => s.role === "board");
+  const alight = stops[stops.length - 1];
+  const boardD = typeof board.d === "number" ? board.d : 0;
   const layers = [];
-  const path = L.polyline(data.path, {
-    pane: "preview",
-    color: data.ghost_color,
-    weight: 4,
-    opacity: 0.55,
-    dashArray: "6 8",
-    interactive: false,
+
+  // The bus's way to the rider (thin, dashed) and the rider's own ride (solid).
+  const toRider = splitPathAt(data.path, boardD);
+  if (boardD > 0) {
+    layers.push(L.polyline(toRider.before, {
+      pane: "preview", color: data.ghost_color, weight: 3, opacity: 0.7,
+      dashArray: "4 8", interactive: false,
+    }).addTo(map));
+  }
+  const ride = L.polyline(toRider.after, {
+    pane: "preview", color: data.route_color, weight: 6, opacity: 0.95, interactive: false,
   }).addTo(map);
-  layers.push(path);
+  layers.push(ride);
+
+  [board, alight].forEach(s => {
+    if (typeof s.lat !== "number") return;
+    const marker = L.circleMarker([s.lat, s.lon], {
+      pane: "preview", radius: 7, color: "#000000", weight: 2,
+      fillColor: "#FFFFFF", fillOpacity: 1,
+    }).addTo(map);
+    marker.bindTooltip(escapeHtml((s === board ? "Board: " : "Get off: ") + s.name + " " + clockText(s.t)), {
+      permanent: true, direction: "auto", offset: [8, 0], className: "preview-stop-label",
+    });
+    layers.push(marker);
+  });
 
   const ghost = L.circleMarker([data.ghost.lat, data.ghost.lon], {
-    pane: "preview",
-    radius: 9,
-    color: data.ghost_color,
-    weight: 2,
-    dashArray: "4 3",
-    fillColor: data.ghost_color,
-    fillOpacity: data.ghost_opacity || 0.45,
+    pane: "preview", radius: 10, color: "#000000", weight: 2, dashArray: "4 3",
+    fillColor: data.ghost_color, fillOpacity: 0.85,
   }).addTo(map);
-  ghost.bindTooltip(escapeHtml(data.caption), {
-    permanent: true, direction: "top", offset: [0, -10], className: "ghost-label",
+  ghost.bindTooltip(escapeHtml("Bus (estimated)"), {
+    permanent: true, direction: "top", offset: [0, -12], className: "ghost-label",
   });
   layers.push(ghost);
 
-  map.fitBounds(path.getBounds(), { padding: [40, 40], maxZoom: 14 });
+  // Show the street map when the trip follows real roads, so the two match,
+  // and fade the rest of the network so this trip stands out.
+  if (data.geometry_source === "street" && map._setStyle) map._setStyle("street");
+  const faded = ["overlayPane", "stops"].map(name => map.getPane(name)).filter(Boolean);
+  faded.forEach(pane => { pane.style.opacity = "0.25"; });
+
+  map._fitTarget = L.polyline(data.path).getBounds();
+  map._fitOptions = {
+    paddingTopLeft: [30, 70], paddingBottomRight: [30, 150], maxZoom: 15, animate: false,
+  };
+  map.fitBounds(map._fitTarget, map._fitOptions);
 
   const bar = document.getElementById("preview-bar");
-  const compliance = "Estimated from timetable — not live GPS.";
-  document.getElementById("preview-cap").textContent = compliance;
-  const opt = document.getElementById("preview-cap-opt");
-  const bits = [];
-  if (data.outside_window) bits.push("Outside trip window — showing scheduled start/end");
-  if (data.caption_optional) bits.push(data.caption_optional);
-  opt.textContent = bits.join(" · ");
-  document.getElementById("preview-meta").textContent =
-    data.route_id + " · " + data.dep + "–" + data.arr + " · " + data.geometry_source + " path · as of " + data.now;
+  document.getElementById("preview-title").textContent =
+    data.route_id + " · " + board.name + " " + clockText(board.t) + " → " + alight.name + " " + clockText(alight.t);
+  document.getElementById("preview-cap").textContent =
+    "Estimated from timetable — not live GPS. Planning aid only.";
+  const statusEl = document.getElementById("preview-status");
+  const hint = document.getElementById("hint");
+  if (hint) hint.style.display = "none";
   bar.style.display = "block";
 
+  // Timetable clock: minutes since Cape Town midnight, whatever the phone's zone.
+  function nowMinutes() {
+    return (Date.now() - data.service_midnight_ms) / 60000;
+  }
+  function tick() {
+    const nowMin = nowMinutes();
+    const pos = ghostPosition(located, nowMin);
+    const at = splitPathAt(data.path, pos.d).point;
+    ghost.setLatLng(at);
+    statusEl.textContent = previewStatus(pos, located, stops, nowMin);
+    if (pos.state === "arrived") clearInterval(timer);
+  }
+  tick();
+  const timer = setInterval(tick, 5000);
+
   function tearDown() {
+    clearInterval(timer);
     layers.forEach(l => { try { map.removeLayer(l); } catch (e) {} });
+    faded.forEach(pane => { pane.style.opacity = ""; });
     bar.style.display = "none";
+    if (hint) hint.style.display = "";
+    map._clearTripPreview = null;
+    map._fitTarget = null;
     clearPreviewQuery();
   }
   document.getElementById("preview-clear").onclick = tearDown;
