@@ -32,6 +32,11 @@ jobs:
         # Project deps are needed so pylint can resolve imports
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+    - name: Set up Node
+      # The static Pages planner is checked against the Python oracle in Node.
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
     - name: Install Chromium for the browser test
       # One Python version is enough to run the tap-target test in a real
       # browser; on the others it skips itself when no browser is found.

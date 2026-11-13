@@ -47,6 +47,16 @@
             <a href="/map" class="landing-btn landing-btn--paper">Open the map</a>
           </div>
           <p class="landing-hero__fine">Free · No sign-up · Planning aid only — not live GPS</p>
+          {% if static_pages %}
+          <p class="landing-pill" id="static-preview-note">
+            Static preview. Timetables run in your browser from the published snapshot.
+            Load shedding stays unavailable until the optional Worker is configured.
+            The existing server is unchanged.
+          </p>
+          <script>
+            if (location.search) location.replace("/search" + location.search);
+          </script>
+          {% endif %}
         </div>
         <div class="landing-mockup" aria-hidden="false">
           <div class="landing-mockup__chrome">
@@ -137,7 +147,11 @@
           <article class="landing-feature">
             <div class="landing-feature__icon" aria-hidden="true">4</div>
             <h3 class="landing-h3">Load-shedding stage</h3>
+            {% if static_pages %}
+            <p>The national stage is optional. This static copy says load shedding is unavailable until a Worker is configured. Timetables still work. Check before you travel.</p>
+            {% else %}
             <p>Shows the load-shedding stage we're assuming: Stage 0 by default, not a live Eskom feed. Check before you travel.</p>
+            {% endif %}
           </article>
           <article class="landing-feature">
             <div class="landing-feature__icon" aria-hidden="true">5</div>

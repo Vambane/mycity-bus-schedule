@@ -22,6 +22,9 @@ data/uct_raw/
 data/*.duckdb
 data/*.duckdb.wal
 
+# Cloudflare Pages build output (regenerate with pages/build_site.py).
+dist/
+
 # Local tool state
 .claude/settings.local.json
 .claude/*

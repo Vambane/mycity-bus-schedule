@@ -1,0 +1,136 @@
+<div class="search-page">
+  <section class="hero">
+    <h1 class="hero-title">Plan your journey</h1>
+    <p class="hero-subtitle">Search timetables and connections across Cape Town's bus and train networks</p>
+  </section>
+
+  <div id="recent-searches" class="recent-searches" style="display: none;"></div>
+
+  <div class="card card--search" style="margin-bottom: var(--sp-8);">
+    <form action="/search" method="get" id="search-form" role="search" aria-label="Journey search">
+      <div class="form-grid form-grid--2col">
+        <div class="form-group">
+          <div class="form-label-row">
+            <label class="form-label" id="label-from">From</label>
+            <button type="button" class="btn-locate" id="locate-btn" hidden aria-describedby="locate-status">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2.5"/>
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+              Use my location
+            </button>
+          </div>
+          <div class="combobox" data-combobox="from_stop">
+            <input type="text" class="combobox-input" placeholder="Type to search stops..." autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-controls="list-from" aria-labelledby="label-from" aria-autocomplete="list">
+            <span class="combobox-chevron" aria-hidden="true">&#9662;</span>
+            <ul class="combobox-list" id="list-from" role="listbox" aria-labelledby="label-from"></ul>
+            <select name="from_stop" class="combobox-native" required aria-hidden="true" tabindex="-1">
+              <option value="">Select origin...</option>
+            </select>
+          </div>
+          <div class="locate-status" id="locate-status" role="status" aria-live="polite"></div>
+          <div class="locate-privacy" id="locate-privacy" hidden>
+            <p class="trust-strip__line trust-strip__line--location" role="note" data-location-privacy>
+              Location stays on your device and is only used to suggest nearby stops.
+            </p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" id="label-to">To</label>
+          <div class="combobox" data-combobox="to_stop">
+            <input type="text" class="combobox-input" placeholder="Leave empty for this stop's board" autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-controls="list-to" aria-labelledby="label-to" aria-autocomplete="list">
+            <span class="combobox-chevron" aria-hidden="true">&#9662;</span>
+            <ul class="combobox-list" id="list-to" role="listbox" aria-labelledby="label-to"></ul>
+            <select name="to_stop" class="combobox-native" aria-hidden="true" tabindex="-1">
+              <option value="">Departure board</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-grid form-grid--2col" style="margin-top: var(--sp-4);">
+        <div class="form-group">
+          <span class="form-label" id="label-day">Service</span>
+          <div class="segmented" role="radiogroup" aria-labelledby="label-day">
+            <span class="segmented-option">
+              <input type="radio" name="day_type" value="weekday" id="day-weekday" class="segmented-input">
+              <label for="day-weekday" class="segmented-label">Weekday</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="day_type" value="saturday" id="day-saturday" class="segmented-input">
+              <label for="day-saturday" class="segmented-label">Saturday</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="day_type" value="sunday" id="day-sunday" class="segmented-input">
+              <label for="day-sunday" class="segmented-label">Sunday</label>
+            </span>
+          </div>
+        </div>
+        <div class="form-group">
+          <span class="form-label" id="label-operator">Network</span>
+          <div class="segmented" role="radiogroup" aria-labelledby="label-operator">
+            <span class="segmented-option">
+              <input type="radio" name="operator" value="both" id="op-both" class="segmented-input" checked>
+              <label for="op-both" class="segmented-label">All</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="operator" value="myciti" id="op-myciti" class="segmented-input">
+              <label for="op-myciti" class="segmented-label">MyCiTi</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="operator" value="uct" id="op-uct" class="segmented-input">
+              <label for="op-uct" class="segmented-label">UCT</label>
+            </span>
+            <span class="segmented-option">
+              <input type="radio" name="operator" value="metrorail" id="op-metrorail" class="segmented-input">
+              <label for="op-metrorail" class="segmented-label">Metrorail</label>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-grid form-grid--2col" style="margin-top: var(--sp-4);">
+        <div class="form-group">
+          <span class="form-label" id="label-when">When</span>
+          <div class="when-row">
+            <div class="segmented" role="radiogroup" aria-labelledby="label-when">
+              <span class="segmented-option">
+                <input type="radio" name="when" value="now" id="when-now" class="segmented-input" checked>
+                <label for="when-now" class="segmented-label">Leave now</label>
+              </span>
+              <span class="segmented-option">
+                <input type="radio" name="when" value="depart" id="when-depart" class="segmented-input">
+                <label for="when-depart" class="segmented-label">Depart at</label>
+              </span>
+              <span class="segmented-option">
+                <input type="radio" name="when" value="arrive" id="when-arrive" class="segmented-input">
+                <label for="when-arrive" class="segmented-label">Arrive by</label>
+              </span>
+            </div>
+            <label for="at" class="sr-only">Time</label>
+            <input type="time" name="at" id="at" class="form-input when-time" step="60" aria-describedby="when-hint">
+          </div>
+          <span class="form-hint" id="when-hint">Times use Africa/Johannesburg, not your phone's timezone. Pick a time for Depart at or Arrive by.</span>
+        </div>
+        <div class="form-group">
+          <label for="search_date" class="form-label">Date (optional)</label>
+          <input type="date" name="search_date" id="search_date" class="form-input" aria-describedby="date-hint">
+          <span class="form-hint" id="date-hint">Leave blank for today in Johannesburg. The service buttons choose the timetable.</span>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top: var(--sp-6);">
+        <button type="submit" class="btn btn-primary" id="search-btn">Search Journeys</button>
+        <button type="button" class="btn btn-ghost btn-icon btn-swap" id="swap-btn" hidden
+                title="Swap origin and destination" aria-label="Swap origin and destination">&#8693;</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="ls-note"></div>
+  <div id="notices"></div>
+  <div id="results" aria-live="polite"></div>
+</div>
